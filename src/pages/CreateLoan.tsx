@@ -22,6 +22,28 @@ export default function CreateLoan() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Text input handlers for values outside slider range
+  const handleAmountInput = (value: string) => {
+    const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(num) && num >= 0) {
+      setFormData({ ...formData, amount: num });
+    }
+  };
+
+  const handleInterestInput = (value: string) => {
+    const num = parseFloat(value.replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num >= 0) {
+      setFormData({ ...formData, interestRate: num });
+    }
+  };
+
+  const handleTermInput = (value: string) => {
+    const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(num) && num >= 1) {
+      setFormData({ ...formData, termDays: num });
+    }
+  };
+
   const expectedReturn = formData.amount * (1 + formData.interestRate / 100);
   const monthlyEquivalent = (formData.interestRate / formData.termDays) * 30;
 
@@ -47,7 +69,7 @@ export default function CreateLoan() {
       description: 'Your loan request is now live on the marketplace',
     });
 
-    navigate('/');
+    navigate('/marketplace');
   };
 
   return (
@@ -114,21 +136,23 @@ export default function CreateLoan() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label>Loan Amount</Label>
-                    <span className="text-xl font-bold text-foreground">
-                      M${formData.amount.toLocaleString()}
-                    </span>
+                    <Input
+                      value={`M$${formData.amount.toLocaleString()}`}
+                      onChange={(e) => handleAmountInput(e.target.value)}
+                      className="w-32 text-right font-bold bg-secondary/50 h-8"
+                    />
                   </div>
                   <Slider
-                    value={[formData.amount]}
+                    value={[Math.min(formData.amount, 100000)]}
                     onValueChange={(value) => setFormData({ ...formData, amount: value[0] })}
                     min={100}
-                    max={25000}
+                    max={100000}
                     step={100}
                     className="py-4"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>M$100</span>
-                    <span>M$25,000</span>
+                    <span>M$100,000</span>
                   </div>
                 </div>
 
@@ -138,19 +162,23 @@ export default function CreateLoan() {
                       <Percent className="w-4 h-4" />
                       Interest Rate
                     </Label>
-                    <span className="text-xl font-bold text-success">{formData.interestRate}%</span>
+                    <Input
+                      value={`${formData.interestRate}%`}
+                      onChange={(e) => handleInterestInput(e.target.value)}
+                      className="w-24 text-right font-bold text-success bg-secondary/50 h-8"
+                    />
                   </div>
                   <Slider
-                    value={[formData.interestRate]}
+                    value={[Math.min(Math.max(formData.interestRate, 1), 25)]}
                     onValueChange={(value) => setFormData({ ...formData, interestRate: value[0] })}
-                    min={5}
-                    max={50}
+                    min={1}
+                    max={25}
                     step={1}
                     className="py-4"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>5%</span>
-                    <span>50%</span>
+                    <span>1%</span>
+                    <span>25%</span>
                   </div>
                 </div>
 
@@ -160,10 +188,14 @@ export default function CreateLoan() {
                       <Calendar className="w-4 h-4" />
                       Loan Term
                     </Label>
-                    <span className="text-xl font-bold text-foreground">{formData.termDays} days</span>
+                    <Input
+                      value={`${formData.termDays} days`}
+                      onChange={(e) => handleTermInput(e.target.value)}
+                      className="w-28 text-right font-bold bg-secondary/50 h-8"
+                    />
                   </div>
                   <Slider
-                    value={[formData.termDays]}
+                    value={[Math.min(Math.max(formData.termDays, 7), 180)]}
                     onValueChange={(value) => setFormData({ ...formData, termDays: value[0] })}
                     min={7}
                     max={180}
@@ -211,9 +243,9 @@ export default function CreateLoan() {
             </Button>
           </form>
 
-          {/* Preview Sidebar */}
+          {/* Preview Sidebar - Summary + Tips in normal flow */}
           <div className="space-y-6">
-            <Card className="glass sticky top-24 animate-slide-up" style={{ animationDelay: '400ms' }}>
+            <Card className="glass animate-slide-up" style={{ animationDelay: '400ms' }}>
               <CardHeader>
                 <CardTitle className="text-lg">Loan Summary</CardTitle>
               </CardHeader>
