@@ -15,10 +15,10 @@ function getStatusBadge(status: string) {
       return <Badge variant="active" className="gap-1"><TrendingUp className="w-3 h-3" /> Good</Badge>;
     case 'fair':
       return <Badge variant="warning" className="gap-1"><Clock className="w-3 h-3" /> Fair</Badge>;
-    case 'new':
-      return <Badge variant="pending" className="gap-1"><User className="w-3 h-3" /> New</Badge>;
     case 'poor':
-      return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Poor</Badge>;
+      return <Badge variant="pending" className="gap-1"><TrendingDown className="w-3 h-3" /> Poor</Badge>;
+    case 'very_poor':
+      return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Very Poor</Badge>;
     default:
       return <Badge variant="outline">Unknown</Badge>;
   }
@@ -233,20 +233,24 @@ export default function CreditSearch() {
               </ul>
               <div className="pt-4 border-t border-border/50">
                 <p className="flex gap-3 items-center">
-                  <span className="text-primary font-bold">90-100:</span>
+                  <span className="text-primary font-bold">80-100:</span>
                   Excellent credit. Low risk borrower.
                 </p>
                 <p className="flex gap-3 items-center mt-2">
-                  <span className="text-primary font-bold">70-89:</span>
+                  <span className="text-primary font-bold">60-79:</span>
                   Good credit. Reliable borrower.
                 </p>
                 <p className="flex gap-3 items-center mt-2">
-                  <span className="text-primary font-bold">50-69:</span>
+                  <span className="text-primary font-bold">40-59:</span>
                   Fair credit. Moderate risk.
                 </p>
                 <p className="flex gap-3 items-center mt-2">
-                  <span className="text-primary font-bold">Below 50:</span>
-                  New or risky. Limited history.
+                  <span className="text-primary font-bold">20-39:</span>
+                  Poor credit. Higher risk.
+                </p>
+                <p className="flex gap-3 items-center mt-2">
+                  <span className="text-primary font-bold">0-19:</span>
+                  Very poor. Significant risk.
                 </p>
               </div>
             </CardContent>

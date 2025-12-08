@@ -1,11 +1,15 @@
 import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { mockLoans } from '@/data/mockLoans';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Clock,
@@ -18,10 +22,9 @@ import {
   Calendar,
   DollarSign,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { toast } from '@/hooks/use-toast';
 
 const statusConfig = {
   seeking_funding: { label: 'Seeking Funding', variant: 'pending' as const, icon: Clock },
@@ -39,8 +42,34 @@ const riskConfig = {
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const [investAmount, setInvestAmount] = useState('');
+  const [investMessage, setInvestMessage] = useState('');
+  const [isInvesting, setIsInvesting] = useState(false);
+  const [userApiKey, setUserApiKey] = useState<string | null>(null);
 
   const loan = mockLoans.find((l) => l.id === id);
+
+  useEffect(() => {
+    fetchUserSettings();
+  }, []);
+
+  const fetchUserSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_api_key')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.manifold_api_key) {
+        setUserApiKey(data.manifold_api_key);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
 
   if (!loan) {
     return (
@@ -49,7 +78,7 @@ export default function LoanDetail() {
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold text-foreground mb-4">Loan Not Found</h1>
-            <Link to="/">
+            <Link to="/marketplace">
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Marketplace
@@ -67,7 +96,7 @@ export default function LoanDetail() {
   const StatusIcon = status.icon;
   const remainingAmount = loan.amount - loan.fundedAmount;
 
-  const handleInvest = () => {
+  const handleInvest = async () => {
     const amount = parseFloat(investAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -85,11 +114,47 @@ export default function LoanDetail() {
       });
       return;
     }
-    toast({
-      title: 'Investment submitted!',
-      description: `You invested M$${amount.toLocaleString()} in this loan`,
-    });
-    setInvestAmount('');
+    if (!userApiKey) {
+      toast({
+        title: 'API Key Required',
+        description: 'Please connect your Manifold account in Settings first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsInvesting(true);
+    try {
+      // Call the managram function to invest
+      const { data, error } = await supabase.functions.invoke('managram', {
+        body: {
+          action: 'invest',
+          amount: amount,
+          userApiKey: userApiKey,
+          recipientUsername: loan.borrower.username,
+          message: investMessage || `Loan investment for: ${loan.title}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast({
+        title: 'Investment submitted!',
+        description: `You invested M$${amount.toLocaleString()} in this loan`,
+      });
+      setInvestAmount('');
+      setInvestMessage('');
+    } catch (error) {
+      console.error('Investment error:', error);
+      toast({
+        title: 'Investment Failed',
+        description: error instanceof Error ? error.message : 'Failed to process investment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsInvesting(false);
+    }
   };
 
   return (
@@ -97,7 +162,7 @@ export default function LoanDetail() {
       <Header />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+        <Link to="/marketplace" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Marketplace
         </Link>
@@ -118,7 +183,7 @@ export default function LoanDetail() {
                     </CardTitle>
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <span>by @{loan.borrower.username}</span>
-                      <Badge variant="outline">Rep: {loan.borrower.reputation}</Badge>
+                      <Badge variant="outline">Credit: {loan.borrower.reputation}</Badge>
                     </div>
                   </div>
                   <div className={cn('px-3 py-2 rounded-lg border flex items-center gap-2', risk.className)}>
@@ -230,6 +295,14 @@ export default function LoanDetail() {
                   <CardTitle className="text-lg">Invest in this Loan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {!userApiKey && (
+                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 text-sm">
+                      <p className="text-warning font-medium">Connect Manifold Account</p>
+                      <p className="text-muted-foreground">
+                        Go to <Link to="/settings" className="text-primary hover:underline">Settings</Link> to connect.
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
                     <Input
@@ -242,6 +315,17 @@ export default function LoanDetail() {
                     <p className="text-xs text-muted-foreground mt-2">
                       Max: M${remainingAmount.toLocaleString()}
                     </p>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Payment Message (Optional)</p>
+                    <Textarea
+                      placeholder="Add a message for the borrower..."
+                      value={investMessage}
+                      onChange={(e) => setInvestMessage(e.target.value)}
+                      className="bg-secondary/50"
+                      rows={2}
+                    />
                   </div>
 
                   {investAmount && parseFloat(investAmount) > 0 && (
@@ -260,7 +344,14 @@ export default function LoanDetail() {
                     </div>
                   )}
 
-                  <Button variant="glow" className="w-full" size="lg" onClick={handleInvest}>
+                  <Button 
+                    variant="glow" 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleInvest}
+                    disabled={isInvesting || !userApiKey}
+                  >
+                    {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Fund This Loan
                   </Button>
 
@@ -297,13 +388,13 @@ export default function LoanDetail() {
                   <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                     <span className="text-xs font-bold text-primary">1</span>
                   </div>
-                  <p>Fund the loan with your M$ balance</p>
+                  <p>Fund the loan from your ManiFed balance</p>
                 </div>
                 <div className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                     <span className="text-xs font-bold text-primary">2</span>
                   </div>
-                  <p>Borrower uses funds in prediction markets</p>
+                  <p>Borrower receives M$ via managram</p>
                 </div>
                 <div className="flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
