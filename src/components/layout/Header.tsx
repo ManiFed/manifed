@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, TrendingUp, PlusCircle, LayoutDashboard, Landmark, Search, LogOut } from 'lucide-react';
+import { Wallet, TrendingUp, PlusCircle, LayoutDashboard, Landmark, Search, LogOut, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { mockUserPortfolio } from '@/data/mockLoans';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,7 @@ const navItems = [
   { path: '/portfolio', label: 'Portfolio', icon: LayoutDashboard },
   { path: '/create', label: 'Create Loan', icon: PlusCircle },
   { path: '/credit-search', label: 'Credit Scores', icon: Search },
+  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Header() {

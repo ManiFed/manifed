@@ -13,6 +13,7 @@ import LoanDetail from "./pages/LoanDetail";
 import CreateLoan from "./pages/CreateLoan";
 import Portfolio from "./pages/Portfolio";
 import CreditSearch from "./pages/CreditSearch";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/create" element={<ProtectedRoute><CreateLoan /></ProtectedRoute>} />
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
           <Route path="/credit-search" element={<ProtectedRoute><CreditSearch /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
