@@ -1,1 +1,4 @@
 project_id = "tqdcpatixtuwgaqakrbx"
+
+[functions.manifold-user]
+verify_jwt = false
