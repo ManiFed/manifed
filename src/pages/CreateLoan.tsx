@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { format, addDays } from 'date-fns';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -7,8 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
-import { DollarSign, Percent, Calendar, FileText, Shield, Sparkles } from 'lucide-react';
+import { DollarSign, Percent, Calendar as CalendarIcon, FileText, Shield, Sparkles, Plus, X, ExternalLink } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface EmbeddedMarket {
+  url: string;
+  slug: string;
+}
 
 export default function CreateLoan() {
   const navigate = useNavigate();
@@ -20,6 +29,9 @@ export default function CreateLoan() {
     termDays: 30,
     collateralDescription: '',
   });
+  const [maturityDate, setMaturityDate] = useState<Date | undefined>(addDays(new Date(), 30));
+  const [embeddedMarkets, setEmbeddedMarkets] = useState<EmbeddedMarket[]>([]);
+  const [newMarketUrl, setNewMarketUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Text input handlers for values outside slider range
@@ -41,7 +53,55 @@ export default function CreateLoan() {
     const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
     if (!isNaN(num) && num >= 1) {
       setFormData({ ...formData, termDays: num });
+      setMaturityDate(addDays(new Date(), num));
     }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setMaturityDate(date);
+      const days = Math.ceil((date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      setFormData({ ...formData, termDays: Math.max(1, days) });
+    }
+  };
+
+  const parseManifoldUrl = (url: string): string | null => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'manifold.markets') {
+        const pathParts = parsed.pathname.split('/').filter(Boolean);
+        if (pathParts.length >= 2) {
+          return `${pathParts[0]}/${pathParts[1]}`;
+        }
+      }
+    } catch {}
+    return null;
+  };
+
+  const handleAddMarket = () => {
+    const slug = parseManifoldUrl(newMarketUrl);
+    if (!slug) {
+      toast({
+        title: 'Invalid URL',
+        description: 'Please enter a valid Manifold Markets URL',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (embeddedMarkets.some(m => m.slug === slug)) {
+      toast({
+        title: 'Already added',
+        description: 'This market is already in your list',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setEmbeddedMarkets([...embeddedMarkets, { url: newMarketUrl, slug }]);
+    setNewMarketUrl('');
+  };
+
+  const handleRemoveMarket = (slug: string) => {
+    setEmbeddedMarkets(embeddedMarkets.filter(m => m.slug !== slug));
   };
 
   const expectedReturn = formData.amount * (1 + formData.interestRate / 100);
@@ -121,6 +181,55 @@ export default function CreateLoan() {
                     className="bg-secondary/50 min-h-[120px]"
                   />
                 </div>
+
+                {/* Embedded Markets */}
+                <div className="space-y-3">
+                  <Label>Target Markets (Optional)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Add Manifold Markets you plan to invest in with this loan
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://manifold.markets/user/market-slug"
+                      value={newMarketUrl}
+                      onChange={(e) => setNewMarketUrl(e.target.value)}
+                      className="bg-secondary/50"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddMarket())}
+                    />
+                    <Button type="button" variant="outline" onClick={handleAddMarket}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {embeddedMarkets.length > 0 && (
+                    <div className="space-y-2">
+                      {embeddedMarkets.map((market) => (
+                        <div
+                          key={market.slug}
+                          className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
+                        >
+                          <a
+                            href={market.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors truncate flex-1"
+                          >
+                            <ExternalLink className="w-4 h-4 shrink-0" />
+                            <span className="truncate">{market.slug}</span>
+                          </a>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveMarket(market.slug)}
+                            className="shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -185,18 +294,40 @@ export default function CreateLoan() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
+                      <CalendarIcon className="w-4 h-4" />
                       Loan Term
                     </Label>
-                    <Input
-                      value={`${formData.termDays} days`}
-                      onChange={(e) => handleTermInput(e.target.value)}
-                      className="w-28 text-right font-bold bg-secondary/50 h-8"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={`${formData.termDays} days`}
+                        onChange={(e) => handleTermInput(e.target.value)}
+                        className="w-28 text-right font-bold bg-secondary/50 h-8"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8">
+                            <CalendarIcon className="w-4 h-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            mode="single"
+                            selected={maturityDate}
+                            onSelect={handleDateSelect}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                   <Slider
                     value={[Math.min(Math.max(formData.termDays, 7), 180)]}
-                    onValueChange={(value) => setFormData({ ...formData, termDays: value[0] })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, termDays: value[0] });
+                      setMaturityDate(addDays(new Date(), value[0]));
+                    }}
                     min={7}
                     max={180}
                     step={1}
@@ -206,6 +337,11 @@ export default function CreateLoan() {
                     <span>7 days</span>
                     <span>180 days</span>
                   </div>
+                  {maturityDate && (
+                    <p className="text-sm text-muted-foreground">
+                      Maturity date: <span className="text-foreground font-medium">{format(maturityDate, 'PPP')}</span>
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -282,6 +418,13 @@ export default function CreateLoan() {
                     Principal + {formData.interestRate}% interest
                   </p>
                 </div>
+
+                {embeddedMarkets.length > 0 && (
+                  <div className="border-t border-border/50 pt-4">
+                    <p className="text-sm text-muted-foreground mb-2">Target Markets</p>
+                    <p className="font-semibold text-foreground">{embeddedMarkets.length} market(s)</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -304,6 +447,10 @@ export default function CreateLoan() {
                   <li className="flex gap-2">
                     <span className="text-primary">•</span>
                     Set realistic interest rates
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-primary">•</span>
+                    Link target markets to show your plan
                   </li>
                 </ul>
               </CardContent>

@@ -159,6 +159,33 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Disclaimer */}
+        <section className="container mx-auto px-4 py-8">
+          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '300ms' }}>
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-warning/10 shrink-0">
+                  <Shield className="w-6 h-6 text-warning" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-foreground">Important Disclaimer</h3>
+                  <p className="text-sm text-muted-foreground">
+                    ManiFed is an experimental platform for peer-to-peer M$ lending. All transactions are conducted 
+                    in Manifold Markets' virtual currency (M$) and have no real-world monetary value. Loans are 
+                    <strong className="text-foreground"> not legally enforceable</strong> and depend entirely on the 
+                    borrower's reputation and goodwill to repay. You may lose your entire investment.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    By using ManiFed, you acknowledge that: (1) M$ is play money with no cash value, (2) there is no 
+                    guarantee of repayment, (3) ManiFed acts only as a facilitator and cannot enforce loan terms, and 
+                    (4) you are responsible for your own due diligence on borrowers.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Footer */}
         <footer className="border-t border-border/50 mt-16">
           <div className="container mx-auto px-4 py-8">
