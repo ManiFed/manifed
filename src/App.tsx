@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import Hub from "./pages/Hub";
 import Index from "./pages/Index";
 import LoanDetail from "./pages/LoanDetail";
 import CreateLoan from "./pages/CreateLoan";
@@ -16,6 +17,8 @@ import CreditSearch from "./pages/CreditSearch";
 import Settings from "./pages/Settings";
 import Bonds from "./pages/Bonds";
 import TreasuryNews from "./pages/TreasuryNews";
+import Memecoins from "./pages/Memecoins";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +65,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/hub" element={<ProtectedRoute><Hub /></ProtectedRoute>} />
           <Route path="/marketplace" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/loan/:id" element={<ProtectedRoute><LoanDetail /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreateLoan /></ProtectedRoute>} />
@@ -70,6 +74,8 @@ const App = () => (
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/bonds" element={<Bonds />} />
           <Route path="/bonds/treasury" element={<TreasuryNews />} />
+          <Route path="/memecoins" element={<Memecoins />} />
+          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
