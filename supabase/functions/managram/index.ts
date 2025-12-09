@@ -10,8 +10,31 @@ const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
 const MANIFED_USERNAME = "ManiFed";
 const ENCRYPTION_KEY = Deno.env.get("API_ENCRYPTION_KEY") || "";
 
-// Decrypt API key using AES-GCM
-async function decryptApiKey(encryptedBase64: string): Promise<string> {
+// Check if a string looks like an encrypted API key (base64 with sufficient length for IV + data)
+function isEncryptedKey(key: string): boolean {
+  // Encrypted keys are base64 encoded and have at least 12 bytes IV + some encrypted data
+  // A UUID-style API key like "fd09f0a3-493d-4e2a-8af4-015c5b192678" is 36 chars
+  // An encrypted key will be longer and use base64 charset (A-Za-z0-9+/=)
+  try {
+    // Try to decode as base64
+    const decoded = atob(key);
+    // Encrypted keys should be at least 12 (IV) + 16 (min encrypted) = 28 bytes
+    // which would be ~38+ chars in base64
+    return decoded.length >= 28 && /^[A-Za-z0-9+/=]+$/.test(key);
+  } catch {
+    return false;
+  }
+}
+
+// Decrypt API key using AES-GCM, or return plaintext for legacy keys
+async function decryptApiKey(storedKey: string): Promise<string> {
+  // Check if this is a legacy plaintext key (UUID format or similar)
+  if (!isEncryptedKey(storedKey)) {
+    console.log("Using legacy plaintext API key");
+    return storedKey;
+  }
+
+  console.log("Decrypting encrypted API key");
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   
@@ -25,7 +48,7 @@ async function decryptApiKey(encryptedBase64: string): Promise<string> {
   );
   
   // Decode base64 and extract IV + encrypted data
-  const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  const combined = Uint8Array.from(atob(storedKey), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const encrypted = combined.slice(12);
   
