@@ -1,33 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { toast } from '@/hooks/use-toast';
+import { WalletPopover } from '@/components/WalletPopover';
 import {
   Landmark,
   Coins,
-  TrendingUp,
-  TrendingDown,
   Plus,
-  ArrowUpDown,
   Droplets,
   BarChart3,
   Loader2,
   LogOut,
-  Wallet,
   Search,
   Sparkles,
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
-import { WalletPopover } from '@/components/WalletPopover';
 import {
   LineChart,
   Line,
@@ -49,98 +45,91 @@ interface Memecoin {
   total_supply: number;
 }
 
-interface PriceHistory {
-  timestamp: string;
-  price: number;
+interface Trade {
+  id: string;
+  price_per_token: number;
+  created_at: string;
 }
 
-// Mock data for demo
-const MOCK_COINS: Memecoin[] = [
-  {
-    id: '1',
-    name: 'ManaCat',
-    symbol: 'MCAT',
-    image_url: '🐱',
-    creator_id: 'user1',
-    created_at: new Date().toISOString(),
-    pool_mana: 50000,
-    pool_tokens: 100000,
-    total_supply: 1000000,
-  },
-  {
-    id: '2',
-    name: 'Prediction Pepe',
-    symbol: 'PEPE',
-    image_url: '🐸',
-    creator_id: 'user2',
-    created_at: new Date().toISOString(),
-    pool_mana: 25000,
-    pool_tokens: 250000,
-    total_supply: 1000000,
-  },
-  {
-    id: '3',
-    name: 'Diamond Hands',
-    symbol: 'DHAND',
-    image_url: '💎',
-    creator_id: 'user3',
-    created_at: new Date().toISOString(),
-    pool_mana: 100000,
-    pool_tokens: 50000,
-    total_supply: 1000000,
-  },
-];
-
-const generateMockPriceHistory = (): PriceHistory[] => {
-  const data: PriceHistory[] = [];
-  let price = 0.5;
-  for (let i = 24; i >= 0; i--) {
-    const date = new Date();
-    date.setHours(date.getHours() - i);
-    price = price * (1 + (Math.random() - 0.48) * 0.1);
-    data.push({
-      timestamp: date.toISOString(),
-      price: Math.max(0.01, price),
-    });
-  }
-  return data;
-};
+const TRANSACTION_FEE = 0.005; // 0.5%
+const AMM_FEE = 0.003; // 0.3% AMM fee
 
 export default function Memecoins() {
-  const [coins, setCoins] = useState<Memecoin[]>(MOCK_COINS);
+  const [coins, setCoins] = useState<Memecoin[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<Memecoin | null>(null);
-  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
+  const [priceHistory, setPriceHistory] = useState<{ timestamp: string; price: number }[]>([]);
   const [tradeAmount, setTradeAmount] = useState('');
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTrading, setIsTrading] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [newCoin, setNewCoin] = useState({ name: '', symbol: '', emoji: '🪙', initialLiquidity: '' });
   const { balance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
-    checkAuth();
+    fetchData();
   }, []);
 
   useEffect(() => {
     if (selectedCoin) {
-      setPriceHistory(generateMockPriceHistory());
+      fetchPriceHistory(selectedCoin.id);
     }
   }, [selectedCoin]);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsAuthenticated(!!user);
-    if (user) {
-      await fetchBalance();
-      const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_api_key')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setHasApiKey(!!settings?.manifold_api_key);
+  const fetchData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+
+      // Fetch memecoins
+      const { data: coinsData } = await supabase
+        .from('memecoins')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (coinsData) {
+        setCoins(coinsData as Memecoin[]);
+      }
+
+      if (user) {
+        await fetchBalance();
+        const { data: settings } = await supabase
+          .from('user_manifold_settings')
+          .select('manifold_api_key')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setHasApiKey(!!settings?.manifold_api_key);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPriceHistory = async (coinId: string) => {
+    const { data: trades } = await supabase
+      .from('memecoin_trades')
+      .select('price_per_token, created_at')
+      .eq('memecoin_id', coinId)
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (trades && trades.length > 0) {
+      setPriceHistory(trades.map(t => ({
+        timestamp: new Date(t.created_at).toLocaleTimeString(),
+        price: t.price_per_token,
+      })));
+    } else {
+      // Show initial price if no trades
+      const coin = coins.find(c => c.id === coinId);
+      if (coin && coin.pool_tokens > 0) {
+        setPriceHistory([{ timestamp: 'Now', price: coin.pool_mana / coin.pool_tokens }]);
+      }
     }
   };
 
@@ -150,14 +139,13 @@ export default function Memecoins() {
   };
 
   const getPrice = (coin: Memecoin) => {
-    // AMM constant product formula: x * y = k
+    if (coin.pool_tokens === 0) return 0;
     return coin.pool_mana / coin.pool_tokens;
   };
 
   const calculateBuyOutput = (coin: Memecoin, manaIn: number) => {
-    // Constant product formula with 0.3% fee
-    const fee = manaIn * 0.003;
-    const manaInAfterFee = manaIn - fee;
+    const ammFee = manaIn * AMM_FEE;
+    const manaInAfterFee = manaIn - ammFee;
     const k = coin.pool_mana * coin.pool_tokens;
     const newPoolMana = coin.pool_mana + manaInAfterFee;
     const newPoolTokens = k / newPoolMana;
@@ -169,102 +157,162 @@ export default function Memecoins() {
     const newPoolTokens = coin.pool_tokens + tokensIn;
     const newPoolMana = k / newPoolTokens;
     const manaOut = coin.pool_mana - newPoolMana;
-    const fee = manaOut * 0.003;
-    return manaOut - fee;
+    const ammFee = manaOut * AMM_FEE;
+    return manaOut - ammFee;
   };
 
   const handleTrade = async () => {
-    if (!selectedCoin || !tradeAmount) return;
+    if (!selectedCoin || !tradeAmount || !isAuthenticated) return;
     
     const amount = parseFloat(tradeAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid amount',
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid Amount', variant: 'destructive' });
       return;
     }
 
-    if (tradeType === 'buy' && amount > balance) {
-      toast({
-        title: 'Insufficient Balance',
-        description: 'You need more M$ to make this trade',
-        variant: 'destructive',
-      });
+    const txFee = amount * TRANSACTION_FEE;
+    if (tradeType === 'buy' && (amount + txFee) > balance) {
+      toast({ title: 'Insufficient Balance', description: `Need M$${(amount + txFee).toFixed(2)} including fee`, variant: 'destructive' });
       return;
     }
 
-    setIsLoading(true);
-    
-    // Simulate trade (in production this would call an edge function)
-    setTimeout(() => {
-      const output = tradeType === 'buy' 
-        ? calculateBuyOutput(selectedCoin, amount)
-        : calculateSellOutput(selectedCoin, amount);
-      
-      toast({
-        title: 'Trade Executed!',
-        description: tradeType === 'buy'
-          ? `Bought ${output.toFixed(2)} ${selectedCoin.symbol} for M$${amount}`
-          : `Sold ${amount} ${selectedCoin.symbol} for M$${output.toFixed(2)}`,
-      });
-      
+    setIsTrading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (tradeType === 'buy') {
+        const tokensOut = calculateBuyOutput(selectedCoin, amount);
+        const newPoolMana = selectedCoin.pool_mana + amount - (amount * AMM_FEE);
+        const newPoolTokens = selectedCoin.pool_tokens - tokensOut;
+        const pricePerToken = amount / tokensOut;
+
+        // Deduct balance
+        await supabase.functions.invoke('managram', { body: { action: 'withdraw', amount: amount + txFee } });
+
+        // Update pool
+        await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
+
+        // Record trade
+        await supabase.from('memecoin_trades').insert({
+          memecoin_id: selectedCoin.id,
+          user_id: user.id,
+          trade_type: 'buy',
+          mana_amount: amount,
+          token_amount: tokensOut,
+          price_per_token: pricePerToken,
+          fee_amount: txFee,
+        });
+
+        // Update holdings
+        const { data: holding } = await supabase.from('memecoin_holdings').select('*').eq('user_id', user.id).eq('memecoin_id', selectedCoin.id).maybeSingle();
+        if (holding) {
+          await supabase.from('memecoin_holdings').update({ amount: holding.amount + tokensOut }).eq('id', holding.id);
+        } else {
+          await supabase.from('memecoin_holdings').insert({ user_id: user.id, memecoin_id: selectedCoin.id, amount: tokensOut });
+        }
+
+        toast({ title: 'Trade Executed!', description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol} for M$${amount} (+M$${txFee.toFixed(2)} fee)` });
+      } else {
+        // Sell logic - check holdings first
+        const { data: holding } = await supabase.from('memecoin_holdings').select('*').eq('user_id', user.id).eq('memecoin_id', selectedCoin.id).maybeSingle();
+        if (!holding || holding.amount < amount) {
+          toast({ title: 'Insufficient Tokens', variant: 'destructive' });
+          setIsTrading(false);
+          return;
+        }
+
+        const manaOut = calculateSellOutput(selectedCoin, amount);
+        const newPoolTokens = selectedCoin.pool_tokens + amount;
+        const newPoolMana = selectedCoin.pool_mana - manaOut - (manaOut * AMM_FEE);
+        const netMana = manaOut - txFee;
+
+        // Update pool
+        await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
+
+        // Credit balance
+        await supabase.functions.invoke('managram', { body: { action: 'deposit', amount: netMana } });
+
+        // Record trade
+        await supabase.from('memecoin_trades').insert({
+          memecoin_id: selectedCoin.id,
+          user_id: user.id,
+          trade_type: 'sell',
+          mana_amount: manaOut,
+          token_amount: amount,
+          price_per_token: manaOut / amount,
+          fee_amount: txFee,
+        });
+
+        // Update holdings
+        await supabase.from('memecoin_holdings').update({ amount: holding.amount - amount }).eq('id', holding.id);
+
+        toast({ title: 'Trade Executed!', description: `Sold ${amount} ${selectedCoin.symbol} for M$${netMana.toFixed(2)} (after fees)` });
+      }
+
       setTradeAmount('');
-      setIsLoading(false);
-    }, 1000);
+      await fetchData();
+      if (selectedCoin) {
+        const updated = coins.find(c => c.id === selectedCoin.id);
+        if (updated) setSelectedCoin(updated);
+        fetchPriceHistory(selectedCoin.id);
+      }
+    } catch (error) {
+      console.error('Trade error:', error);
+      toast({ title: 'Trade Failed', variant: 'destructive' });
+    } finally {
+      setIsTrading(false);
+    }
   };
 
   const handleCreateCoin = async () => {
     if (!newCoin.name || !newCoin.symbol || !newCoin.initialLiquidity) {
-      toast({
-        title: 'Missing Fields',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Missing Fields', variant: 'destructive' });
       return;
     }
 
     const liquidity = parseFloat(newCoin.initialLiquidity);
+    const fee = liquidity * TRANSACTION_FEE;
     if (isNaN(liquidity) || liquidity < 100) {
-      toast({
-        title: 'Invalid Liquidity',
-        description: 'Minimum initial liquidity is M$100',
-        variant: 'destructive',
-      });
+      toast({ title: 'Minimum liquidity is M$100', variant: 'destructive' });
+      return;
+    }
+    if ((liquidity + fee) > balance) {
+      toast({ title: 'Insufficient Balance', variant: 'destructive' });
       return;
     }
 
-    if (liquidity > balance) {
-      toast({
-        title: 'Insufficient Balance',
-        description: 'You need more M$ to create this pool',
-        variant: 'destructive',
+    setIsCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Deduct balance
+      await supabase.functions.invoke('managram', { body: { action: 'withdraw', amount: liquidity + fee } });
+
+      // Create coin with initial pool (50/50 split)
+      const { error } = await supabase.from('memecoins').insert({
+        name: newCoin.name,
+        symbol: newCoin.symbol.toUpperCase(),
+        image_url: newCoin.emoji,
+        creator_id: user.id,
+        pool_mana: liquidity,
+        pool_tokens: liquidity * 2, // Start at 0.5 M$ per token
+        total_supply: 1000000,
       });
-      return;
+
+      if (error) throw error;
+
+      toast({ title: 'Memecoin Created!', description: `${newCoin.name} is now live! (M$${fee.toFixed(2)} fee applied)` });
+      setCreateOpen(false);
+      setNewCoin({ name: '', symbol: '', emoji: '🪙', initialLiquidity: '' });
+      await fetchData();
+    } catch (error) {
+      console.error('Create error:', error);
+      toast({ title: 'Creation Failed', variant: 'destructive' });
+    } finally {
+      setIsCreating(false);
     }
-
-    // Simulate creation
-    const newMemecoin: Memecoin = {
-      id: Date.now().toString(),
-      name: newCoin.name,
-      symbol: newCoin.symbol.toUpperCase(),
-      image_url: newCoin.emoji,
-      creator_id: 'current_user',
-      created_at: new Date().toISOString(),
-      pool_mana: liquidity,
-      pool_tokens: liquidity * 2, // Start at 0.5 M$ per token
-      total_supply: 1000000,
-    };
-
-    setCoins([newMemecoin, ...coins]);
-    setCreateOpen(false);
-    setNewCoin({ name: '', symbol: '', emoji: '🪙', initialLiquidity: '' });
-    
-    toast({
-      title: 'Memecoin Created!',
-      description: `${newCoin.name} (${newCoin.symbol}) is now live!`,
-    });
   };
 
   const filteredCoins = coins.filter(coin =>
@@ -272,16 +320,12 @@ export default function Memecoins() {
     coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const price24hChange = () => {
-    if (priceHistory.length < 2) return 0;
-    const first = priceHistory[0].price;
-    const last = priceHistory[priceHistory.length - 1].price;
-    return ((last - first) / first) * 100;
-  };
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -291,31 +335,18 @@ export default function Memecoins() {
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed Memecoins</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">AMM Trading</p>
+                <p className="text-xs text-muted-foreground -mt-0.5">AMM Trading • 0.5% fee</p>
               </div>
             </Link>
-
             <div className="flex items-center gap-3">
               {isAuthenticated ? (
                 <>
                   <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
-                  <Link to="/hub">
-                    <Button variant="ghost" size="sm">Dashboard</Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </Button>
+                  <Link to="/hub"><Button variant="ghost" size="sm">Hub</Button></Link>
+                  <Button variant="ghost" size="sm" onClick={handleSignOut}><LogOut className="w-4 h-4" /></Button>
                 </>
               ) : (
-                <>
-                  <Link to="/auth">
-                    <Button variant="ghost" size="sm">Sign In</Button>
-                  </Link>
-                  <Link to="/auth?mode=signup">
-                    <Button variant="glow" size="sm">Get Started</Button>
-                  </Link>
-                </>
+                <Link to="/auth"><Button variant="glow" size="sm">Sign In</Button></Link>
               )}
             </div>
           </div>
@@ -323,91 +354,31 @@ export default function Memecoins() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Hero */}
         <div className="text-center mb-8 animate-slide-up">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
             <Sparkles className="w-4 h-4" />
-            AMM-Style Trading
+            Real AMM Trading
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            Trade <span className="text-gradient">Memecoins</span> with Mana
-          </h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Create or trade memecoins in automated liquidity pools. Constant product AMM with 0.3% trading fees.
-          </p>
+          <h1 className="text-3xl font-bold text-foreground mb-3">Trade <span className="text-gradient">Memecoins</span></h1>
+          <p className="text-muted-foreground max-w-xl mx-auto">Constant product AMM with 0.3% pool fee + 0.5% transaction fee.</p>
         </div>
 
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between mb-8 animate-slide-up" style={{ animationDelay: '50ms' }}>
+        <div className="flex flex-col sm:flex-row gap-4 justify-between mb-8">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search coins..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/50"
-            />
+            <Input placeholder="Search coins..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-secondary/50" />
           </div>
-          
           {isAuthenticated && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild>
-                <Button variant="glow" className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Create Memecoin
-                </Button>
-              </DialogTrigger>
+              <DialogTrigger asChild><Button variant="glow" className="gap-2"><Plus className="w-4 h-4" />Create Memecoin</Button></DialogTrigger>
               <DialogContent className="glass">
-                <DialogHeader>
-                  <DialogTitle>Create New Memecoin</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Create New Memecoin</DialogTitle></DialogHeader>
                 <div className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Coin Name</Label>
-                    <Input
-                      placeholder="e.g., ManaCat"
-                      value={newCoin.name}
-                      onChange={(e) => setNewCoin({ ...newCoin, name: e.target.value })}
-                      className="bg-secondary/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Symbol</Label>
-                    <Input
-                      placeholder="e.g., MCAT"
-                      value={newCoin.symbol}
-                      onChange={(e) => setNewCoin({ ...newCoin, symbol: e.target.value.toUpperCase().slice(0, 6) })}
-                      className="bg-secondary/50"
-                      maxLength={6}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Emoji Icon</Label>
-                    <Input
-                      placeholder="🪙"
-                      value={newCoin.emoji}
-                      onChange={(e) => setNewCoin({ ...newCoin, emoji: e.target.value.slice(0, 2) })}
-                      className="bg-secondary/50 text-2xl text-center"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Initial Liquidity (M$)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Minimum M$100"
-                      value={newCoin.initialLiquidity}
-                      onChange={(e) => setNewCoin({ ...newCoin, initialLiquidity: e.target.value })}
-                      className="bg-secondary/50"
-                      min={100}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      You'll receive LP tokens representing your share of the pool
-                    </p>
-                  </div>
-                  <Button variant="glow" className="w-full" onClick={handleCreateCoin}>
-                    Create & Fund Pool
-                  </Button>
+                  <div><Label>Name</Label><Input placeholder="ManaCat" value={newCoin.name} onChange={(e) => setNewCoin({ ...newCoin, name: e.target.value })} className="bg-secondary/50" /></div>
+                  <div><Label>Symbol</Label><Input placeholder="MCAT" value={newCoin.symbol} onChange={(e) => setNewCoin({ ...newCoin, symbol: e.target.value.toUpperCase().slice(0, 6) })} className="bg-secondary/50" maxLength={6} /></div>
+                  <div><Label>Emoji</Label><Input value={newCoin.emoji} onChange={(e) => setNewCoin({ ...newCoin, emoji: e.target.value.slice(0, 2) })} className="bg-secondary/50 text-2xl text-center" maxLength={2} /></div>
+                  <div><Label>Initial Liquidity (M$, min 100)</Label><Input type="number" placeholder="100" value={newCoin.initialLiquidity} onChange={(e) => setNewCoin({ ...newCoin, initialLiquidity: e.target.value })} className="bg-secondary/50" min={100} /></div>
+                  <Button variant="glow" className="w-full" onClick={handleCreateCoin} disabled={isCreating}>{isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create & Fund Pool'}</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -415,236 +386,72 @@ export default function Memecoins() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Coin List */}
-          <div className="lg:col-span-2 space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Coins className="w-5 h-5 text-primary" />
-              Available Coins
-            </h2>
-            
-            <div className="space-y-3">
-              {filteredCoins.map((coin) => {
+          <div className="lg:col-span-2 space-y-3">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2"><Coins className="w-5 h-5 text-primary" />Available Coins ({filteredCoins.length})</h2>
+            {filteredCoins.length === 0 ? (
+              <Card className="glass p-8 text-center text-muted-foreground">No coins yet. Be the first to create one!</Card>
+            ) : (
+              filteredCoins.map((coin) => {
                 const price = getPrice(coin);
                 const isSelected = selectedCoin?.id === coin.id;
-                const change = Math.random() > 0.5 ? Math.random() * 20 : -Math.random() * 15;
-                
                 return (
-                  <Card
-                    key={coin.id}
-                    className={`glass cursor-pointer transition-all hover:-translate-y-0.5 ${
-                      isSelected ? 'ring-2 ring-primary' : ''
-                    }`}
-                    onClick={() => setSelectedCoin(coin)}
-                  >
+                  <Card key={coin.id} className={`glass cursor-pointer transition-all hover:-translate-y-0.5 ${isSelected ? 'ring-2 ring-primary' : ''}`} onClick={() => setSelectedCoin(coin)}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center text-2xl">
-                            {coin.image_url}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-foreground">{coin.name}</h3>
-                            <p className="text-sm text-muted-foreground">{coin.symbol}</p>
-                          </div>
+                          <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center text-2xl">{coin.image_url}</div>
+                          <div><h3 className="font-semibold text-foreground">{coin.name}</h3><p className="text-sm text-muted-foreground">{coin.symbol}</p></div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-foreground">M${price.toFixed(4)}</p>
-                          <div className={`flex items-center justify-end gap-1 text-sm ${
-                            change >= 0 ? 'text-success' : 'text-destructive'
-                          }`}>
-                            {change >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                            {Math.abs(change).toFixed(2)}%
-                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Droplets className="w-3 h-3" />
-                          Pool: M${coin.pool_mana.toLocaleString()}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <BarChart3 className="w-3 h-3" />
-                          Supply: {(coin.total_supply / 1000).toFixed(0)}K
-                        </div>
+                        <div className="flex items-center gap-1"><Droplets className="w-3 h-3" />Pool: M${coin.pool_mana.toLocaleString()}</div>
+                        <div className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />Tokens: {coin.pool_tokens.toLocaleString()}</div>
                       </div>
                     </CardContent>
                   </Card>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
 
-          {/* Trading Panel */}
-          <div className="space-y-6 animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <div className="space-y-6">
             {selectedCoin ? (
               <>
-                {/* Price Chart */}
                 <Card className="glass">
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{selectedCoin.image_url}</span>
-                        <div>
-                          <CardTitle className="text-lg">{selectedCoin.symbol}</CardTitle>
-                          <CardDescription>{selectedCoin.name}</CardDescription>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold">M${getPrice(selectedCoin).toFixed(4)}</p>
-                        <p className={`text-sm ${price24hChange() >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {price24hChange() >= 0 ? '+' : ''}{price24hChange().toFixed(2)}% (24h)
-                        </p>
-                      </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{selectedCoin.image_url}</span>
+                      <div><CardTitle>{selectedCoin.name}</CardTitle><p className="text-sm text-muted-foreground">{selectedCoin.symbol}</p></div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-40">
+                    <div className="h-32">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={priceHistory}>
-                          <XAxis dataKey="timestamp" hide />
-                          <YAxis hide domain={['auto', 'auto']} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                            }}
-                            labelFormatter={(value) => new Date(value).toLocaleTimeString()}
-                            formatter={(value: number) => [`M$${value.toFixed(4)}`, 'Price']}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="price"
-                            stroke="hsl(var(--primary))"
-                            strokeWidth={2}
-                            dot={false}
-                          />
-                        </LineChart>
+                        <LineChart data={priceHistory}><XAxis dataKey="timestamp" hide /><YAxis hide domain={['auto', 'auto']} /><Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} /><Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} /></LineChart>
                       </ResponsiveContainer>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Trade Form */}
-                {isAuthenticated ? (
+                {isAuthenticated && (
                   <Card className="glass">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ArrowUpDown className="w-5 h-5 text-primary" />
-                        Trade
-                      </CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="text-lg">Trade {selectedCoin.symbol}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                       <Tabs value={tradeType} onValueChange={(v) => setTradeType(v as 'buy' | 'sell')}>
-                        <TabsList className="w-full">
-                          <TabsTrigger value="buy" className="flex-1">Buy</TabsTrigger>
-                          <TabsTrigger value="sell" className="flex-1">Sell</TabsTrigger>
-                        </TabsList>
+                        <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="buy" className="gap-1"><ArrowUp className="w-3 h-3" />Buy</TabsTrigger><TabsTrigger value="sell" className="gap-1"><ArrowDown className="w-3 h-3" />Sell</TabsTrigger></TabsList>
                       </Tabs>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <Label>{tradeType === 'buy' ? 'M$ Amount' : `${selectedCoin.symbol} Amount`}</Label>
-                          {tradeType === 'buy' && (
-                            <span className="text-muted-foreground">Balance: M${balance.toLocaleString()}</span>
-                          )}
-                        </div>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={tradeAmount}
-                          onChange={(e) => setTradeAmount(e.target.value)}
-                          className="bg-secondary/50"
-                        />
-                      </div>
-
-                      {tradeAmount && parseFloat(tradeAmount) > 0 && (
-                        <div className="p-3 rounded-lg bg-secondary/30">
-                          <p className="text-sm text-muted-foreground">You'll receive</p>
-                          <p className="text-lg font-semibold text-foreground">
-                            {tradeType === 'buy' 
-                              ? `${calculateBuyOutput(selectedCoin, parseFloat(tradeAmount)).toFixed(2)} ${selectedCoin.symbol}`
-                              : `M$${calculateSellOutput(selectedCoin, parseFloat(tradeAmount)).toFixed(2)}`
-                            }
-                          </p>
-                        </div>
-                      )}
-
-                      <Button
-                        variant="glow"
-                        className="w-full"
-                        onClick={handleTrade}
-                        disabled={isLoading || !tradeAmount}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : tradeType === 'buy' ? (
-                          <>
-                            <TrendingUp className="w-4 h-4 mr-2" />
-                            Buy {selectedCoin.symbol}
-                          </>
-                        ) : (
-                          <>
-                            <TrendingDown className="w-4 h-4 mr-2" />
-                            Sell {selectedCoin.symbol}
-                          </>
-                        )}
-                      </Button>
-
-                      <p className="text-xs text-center text-muted-foreground">
-                        0.3% trading fee
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card className="glass">
-                    <CardContent className="p-6 text-center">
-                      <Wallet className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-foreground font-medium mb-2">Connect to Trade</p>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Sign in to buy and sell memecoins
-                      </p>
-                      <Link to="/auth">
-                        <Button variant="glow" className="w-full">Sign In</Button>
-                      </Link>
+                      <Input type="number" placeholder={tradeType === 'buy' ? 'M$ to spend' : 'Tokens to sell'} value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="bg-secondary/50" />
+                      <p className="text-xs text-muted-foreground">0.3% AMM fee + 0.5% transaction fee</p>
+                      <Button variant="glow" className="w-full" onClick={handleTrade} disabled={isTrading || !hasApiKey}>{isTrading ? <Loader2 className="w-4 h-4 animate-spin" /> : tradeType === 'buy' ? 'Buy Tokens' : 'Sell Tokens'}</Button>
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Pool Info */}
-                <Card className="glass">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Droplets className="w-4 h-4 text-primary" />
-                      Liquidity Pool
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Pool M$</span>
-                      <span className="text-foreground">M${selectedCoin.pool_mana.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Pool {selectedCoin.symbol}</span>
-                      <span className="text-foreground">{selectedCoin.pool_tokens.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Supply</span>
-                      <span className="text-foreground">{selectedCoin.total_supply.toLocaleString()}</span>
-                    </div>
-                  </CardContent>
-                </Card>
               </>
             ) : (
-              <Card className="glass">
-                <CardContent className="p-8 text-center">
-                  <Coins className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-foreground font-medium">Select a coin to trade</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Click on any coin to view details and start trading
-                  </p>
-                </CardContent>
-              </Card>
+              <Card className="glass p-8 text-center text-muted-foreground"><Coins className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>Select a coin to trade</p></Card>
             )}
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LoanFiltersProps {
@@ -35,10 +35,6 @@ export function LoanFilters({
             className="pl-10 bg-secondary/50 border-border/50 focus:bg-secondary"
           />
         </div>
-        <Button variant="outline" size="default" className="sm:w-auto w-full">
-          <Filter className="w-4 h-4 mr-2" />
-          More Filters
-        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2">

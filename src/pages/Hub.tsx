@@ -18,10 +18,12 @@ import {
   LogOut,
   Trophy,
   Activity,
-  Clock,
   Settings,
   BarChart3,
   Loader2,
+  Search,
+  Sparkles,
+  Store,
 } from 'lucide-react';
 
 interface Transaction {
@@ -37,13 +39,6 @@ interface Bond {
   amount: number;
   maturity_date: string;
   total_return: number;
-}
-
-interface Loan {
-  id: string;
-  title: string;
-  amount: number;
-  status: string;
 }
 
 export default function Hub() {
@@ -129,7 +124,6 @@ export default function Hub() {
 
   const totalValue = balance + totalInvested;
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
-  const expectedBondReturn = bonds.reduce((sum, b) => sum + b.total_return, 0);
 
   if (isLoading || balanceLoading) {
     return (
@@ -330,6 +324,81 @@ export default function Hub() {
                 </CardContent>
               </Card>
             </Link>
+
+            {/* Credit Search */}
+            <Link to="/credit-search" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <Search className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="secondary">Tool</Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">Credit Search</CardTitle>
+                  <CardDescription>
+                    Check creditworthiness of any Manifold user before investing in their loans.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    Search Credits
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Market */}
+            <Link to="/market" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
+                      <Store className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="outline">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      New!
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">ManiFed Market</CardTitle>
+                  <CardDescription>
+                    Buy profile flairs, badges, backgrounds and effects to customize your ManiFed profile.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    Browse Market
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Leaderboard */}
+            <Link to="/leaderboard" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                      <Trophy className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="secondary">Rankings</Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">Leaderboard</CardTitle>
+                  <CardDescription>
+                    See who the top lenders, traders, and earners are on ManiFed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    View Rankings
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         </section>
 
@@ -407,6 +476,21 @@ export default function Hub() {
               </Card>
             )}
 
+            {/* Fee Notice */}
+            <Card className="glass">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Coins className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-foreground mb-1">0.5% Transaction Fee</p>
+                    <p className="text-muted-foreground">
+                      All transactions incur a 0.5% fee. Fees are bundled and paid out in groups of M$25.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Leaderboard Preview */}
             <Card className="glass">
               <CardHeader className="pb-3">
@@ -428,42 +512,16 @@ export default function Hub() {
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                           rank === 1 ? 'bg-yellow-500/20 text-yellow-500' :
                           rank === 2 ? 'bg-gray-400/20 text-gray-400' :
-                          'bg-amber-700/20 text-amber-700'
+                          'bg-amber-600/20 text-amber-600'
                         }`}>
                           {rank}
                         </span>
-                        <span className="text-sm text-muted-foreground">Coming soon...</span>
+                        <span className="text-sm text-foreground">@trader{rank}</span>
                       </div>
+                      <span className="text-sm text-muted-foreground">M${(1000 - rank * 200).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Links */}
-            <Card className="glass">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Link to="/create" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Request a Loan
-                  </Button>
-                </Link>
-                <Link to="/bonds" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Buy Treasury Bills
-                  </Button>
-                </Link>
-                <Link to="/credit-search" className="block">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Clock className="w-4 h-4 mr-2" />
-                    Check Credit Score
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>

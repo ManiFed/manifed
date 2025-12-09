@@ -19,6 +19,7 @@ import Bonds from "./pages/Bonds";
 import TreasuryNews from "./pages/TreasuryNews";
 import Memecoins from "./pages/Memecoins";
 import Leaderboard from "./pages/Leaderboard";
+import Market from "./pages/Market";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,9 +74,10 @@ const App = () => (
           <Route path="/credit-search" element={<CreditSearch />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/bonds" element={<Bonds />} />
-          <Route path="/bonds/treasury" element={<TreasuryNews />} />
+          <Route path="/treasury" element={<TreasuryNews />} />
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+          <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

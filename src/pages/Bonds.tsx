@@ -9,13 +9,11 @@ import {
   FileText, 
   Clock, 
   TrendingUp, 
-  Calendar,
   Wallet,
   ArrowRight,
   Loader2,
   AlertCircle,
   CheckCircle,
-  Newspaper,
   LogOut,
   Lock
 } from 'lucide-react';
@@ -47,6 +45,8 @@ const BOND_TERMS = [
   { weeks: 26, label: '26 Weeks', description: '6 Month T-Bill' },
   { weeks: 52, label: '52 Weeks', description: '1 Year T-Bill' },
 ];
+
+const TRANSACTION_FEE = 0.005; // 0.5%
 
 export default function Bonds() {
   const [selectedTerm, setSelectedTerm] = useState<number | null>(null);
@@ -126,10 +126,13 @@ export default function Bonds() {
       return;
     }
 
-    if (purchaseAmount > balance) {
+    const fee = purchaseAmount * TRANSACTION_FEE;
+    const totalCost = purchaseAmount + fee;
+
+    if (totalCost > balance) {
       toast({
         title: 'Insufficient Balance',
-        description: 'You need to deposit more M$ to your ManiFed account',
+        description: `You need M$${totalCost.toFixed(2)} (including 0.5% fee) to make this purchase`,
         variant: 'destructive',
       });
       return;
@@ -151,7 +154,7 @@ export default function Bonds() {
       const { data: withdrawData, error: withdrawError } = await supabase.functions.invoke('managram', {
         body: {
           action: 'withdraw',
-          amount: purchaseAmount,
+          amount: totalCost, // Include fee
         },
       });
 
@@ -176,7 +179,7 @@ export default function Bonds() {
 
       toast({
         title: 'Bond Purchased!',
-        description: `M$${purchaseAmount.toLocaleString()} ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description} purchased. You'll receive M$${totalReturn.toFixed(2)} at maturity.`,
+        description: `M$${purchaseAmount.toLocaleString()} ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description} purchased (+ M$${fee.toFixed(2)} fee). You'll receive M$${totalReturn.toFixed(2)} at maturity.`,
       });
 
       // Refresh data
@@ -203,6 +206,7 @@ export default function Bonds() {
 
   const selectedRate = rates.find(r => r.term_weeks === selectedTerm);
   const purchaseAmount = parseFloat(amount) || 0;
+  const fee = purchaseAmount * TRANSACTION_FEE;
   const termYears = selectedTerm ? selectedTerm / 52 : 0;
   const estimatedReturn = selectedRate ? purchaseAmount * (1 + (selectedRate.annual_yield / 100) * termYears) : 0;
 
@@ -212,7 +216,7 @@ export default function Bonds() {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to={isAuthenticated ? "/bonds" : "/"} className="flex items-center gap-3">
+            <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
                 <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
@@ -223,16 +227,10 @@ export default function Bonds() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <Link to="/bonds/treasury">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Newspaper className="w-4 h-4" />
-                  <span className="hidden sm:inline">Treasury News</span>
-                </Button>
-              </Link>
               {isAuthenticated ? (
                 <>
-                  <Link to="/marketplace">
-                    <Button variant="ghost" size="sm">Go to Loans</Button>
+                  <Link to="/hub">
+                    <Button variant="ghost" size="sm">Back to Hub</Button>
                   </Link>
                   <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                     <LogOut className="w-4 h-4" />
@@ -266,7 +264,7 @@ export default function Bonds() {
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Earn stable yields on your M$ with our Treasury Bills. Fixed terms, guaranteed returns at maturity.
-            Currently offering {rates[0]?.annual_yield || 6}% APY.
+            Currently offering {rates[0]?.annual_yield || 6}% APY. <strong>0.5% transaction fee applies.</strong>
           </p>
         </div>
 
@@ -366,7 +364,7 @@ export default function Bonds() {
                           />
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Minimum purchase: M$10
+                          Minimum purchase: M$10 • 0.5% transaction fee: M${fee.toFixed(2)}
                         </p>
 
                         {purchaseAmount >= 10 && (
@@ -381,6 +379,9 @@ export default function Bonds() {
                                 <p className="text-lg font-semibold text-success">+M${(estimatedReturn - purchaseAmount).toFixed(2)}</p>
                               </div>
                             </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Total cost: M${(purchaseAmount + fee).toFixed(2)} (including fee)
+                            </p>
                           </div>
                         )}
 
@@ -388,7 +389,7 @@ export default function Bonds() {
                           variant="glow" 
                           className="w-full gap-2"
                           onClick={handlePurchaseBond}
-                          disabled={isPurchasing || purchaseAmount < 10 || purchaseAmount > balance}
+                          disabled={isPurchasing || purchaseAmount < 10 || (purchaseAmount + fee) > balance}
                         >
                           {isPurchasing ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -438,36 +439,27 @@ export default function Bonds() {
                       <div className="text-center py-6 text-muted-foreground">
                         <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                         <p>No bonds yet</p>
-                        <p className="text-sm">Purchase your first T-Bill above</p>
+                        <p className="text-sm">Purchase your first Treasury Bill above</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {userBonds.map((bond) => (
-                          <div key={bond.id} className="p-3 rounded-lg bg-secondary/50 border border-border/50">
+                          <div
+                            key={bond.id}
+                            className="p-3 rounded-lg bg-secondary/30 border border-border/50"
+                          >
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-foreground">
-                                {BOND_TERMS.find(t => t.weeks === bond.term_weeks)?.description}
-                              </span>
-                              <Badge variant={bond.status === 'active' ? 'active' : 'success'}>
+                              <Badge variant={bond.status === 'active' ? 'active' : 'secondary'}>
                                 {bond.status === 'active' ? 'Active' : 'Matured'}
                               </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {BOND_TERMS.find(t => t.weeks === bond.term_weeks)?.description}
+                              </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Principal</p>
-                                <p className="font-medium text-foreground">M${bond.amount.toLocaleString()}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Return</p>
-                                <p className="font-medium text-success">M${bond.total_return.toFixed(2)}</p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-muted-foreground">Maturity</p>
-                                <p className="font-medium text-foreground flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
-                                </p>
-                              </div>
+                            <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
+                            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                              <span>Return: M${bond.total_return.toFixed(2)}</span>
+                              <span>Matures: {format(new Date(bond.maturity_date), 'MMM d')}</span>
                             </div>
                           </div>
                         ))}
@@ -478,10 +470,10 @@ export default function Bonds() {
               ) : (
                 <Card className="glass animate-slide-up" style={{ animationDelay: '150ms' }}>
                   <CardContent className="p-6 text-center">
-                    <AlertCircle className="w-10 h-10 mx-auto mb-4 text-muted-foreground" />
-                    <p className="font-medium text-foreground mb-2">Sign In to Purchase</p>
+                    <FileText className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
+                    <h3 className="font-semibold text-foreground mb-2">Sign In to Purchase</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Create an account to start earning stable yields on your M$
+                      Create an account to start investing in Treasury Bills
                     </p>
                     <Link to="/auth?mode=signup">
                       <Button variant="glow" className="w-full">Get Started</Button>
@@ -489,31 +481,6 @@ export default function Bonds() {
                   </CardContent>
                 </Card>
               )}
-
-              {/* Current Rates */}
-              <Card className="glass animate-slide-up" style={{ animationDelay: '250ms' }}>
-                <CardHeader>
-                  <CardTitle className="text-lg">Current Rates</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {rates.map((rate) => (
-                      <div key={rate.term_weeks} className="flex items-center justify-between p-2 rounded bg-secondary/30">
-                        <span className="text-sm text-muted-foreground">
-                          {rate.term_weeks} weeks
-                        </span>
-                        <span className="font-medium text-primary">{rate.annual_yield}% APY</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Link to="/bonds/treasury" className="block mt-4">
-                    <Button variant="outline" size="sm" className="w-full gap-2">
-                      <Newspaper className="w-4 h-4" />
-                      View Rate History
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}
