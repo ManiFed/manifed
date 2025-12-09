@@ -4,10 +4,10 @@ project_id = "tqdcpatixtuwgaqakrbx"
 verify_jwt = false
 
 [functions.managram]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-repayments]
 verify_jwt = false
 
 [functions.cancel-loan]
-verify_jwt = false
+verify_jwt = true

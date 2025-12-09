@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MANIFED_API_KEY = "5030c542-8fce-4792-a189-3ea91feaf8d8";
+const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
 const MANIFED_USERNAME = "ManiFed";
 
 serve(async (req) => {

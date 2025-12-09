@@ -10,11 +10,10 @@ import { Link } from 'react-router-dom';
 interface WalletPopoverProps {
   balance: number;
   userApiKey: string | null;
-  onBalanceChange: (newBalance: number) => void;
-  onRecordTransaction: (type: 'deposit' | 'withdraw', amount: number, description: string) => void;
+  onBalanceChange: () => void; // Now just triggers a refresh
 }
 
-export function WalletPopover({ balance, userApiKey, onBalanceChange, onRecordTransaction }: WalletPopoverProps) {
+export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -54,9 +53,8 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange, onRecordTr
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      const newBalance = balance + depositAmount;
-      onBalanceChange(newBalance);
-      onRecordTransaction('deposit', depositAmount, `Deposited M$${depositAmount} to ManiFed`);
+      // Refresh balance from server
+      onBalanceChange();
       
       setAmount('');
       setMode('select');
@@ -121,9 +119,8 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange, onRecordTr
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      const newBalance = balance - withdrawAmount;
-      onBalanceChange(newBalance);
-      onRecordTransaction('withdraw', -withdrawAmount, `Withdrew M$${withdrawAmount} from ManiFed`);
+      // Refresh balance from server
+      onBalanceChange();
       
       setAmount('');
       setMode('select');
@@ -143,12 +140,6 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange, onRecordTr
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const resetAndClose = () => {
-    setMode('select');
-    setAmount('');
-    setIsOpen(false);
   };
 
   return (

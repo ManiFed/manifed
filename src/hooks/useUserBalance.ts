@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 
 interface UserBalance {
   balance: number;
@@ -36,14 +35,8 @@ export function useUserBalance() {
           totalInvested: Number(data.total_invested) || 0,
         });
       } else {
-        // Create initial balance record
-        const { error: insertError } = await supabase
-          .from('user_balances')
-          .insert({ user_id: user.id, balance: 0, total_invested: 0 });
-        
-        if (insertError && insertError.code !== '23505') { // Ignore duplicate key error
-          throw insertError;
-        }
+        // No balance record exists yet - it will be created on first deposit
+        setBalance({ balance: 0, totalInvested: 0 });
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
@@ -56,31 +49,13 @@ export function useUserBalance() {
     fetchBalance();
   }, [fetchBalance]);
 
-  const updateBalance = useCallback(async (newBalance: number, newTotalInvested?: number) => {
-    if (!userId) return;
-
-    try {
-      const updateData: { balance: number; total_invested?: number } = { balance: newBalance };
-      if (newTotalInvested !== undefined) {
-        updateData.total_invested = newTotalInvested;
-      }
-
-      const { error } = await supabase
-        .from('user_balances')
-        .update(updateData)
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      setBalance(prev => ({
-        balance: newBalance,
-        totalInvested: newTotalInvested !== undefined ? newTotalInvested : prev.totalInvested,
-      }));
-    } catch (error) {
-      console.error('Error updating balance:', error);
-      throw error;
-    }
-  }, [userId]);
+  // Update local state only - actual balance changes happen server-side via edge functions
+  const setLocalBalance = useCallback((newBalance: number, newTotalInvested?: number) => {
+    setBalance(prev => ({
+      balance: newBalance,
+      totalInvested: newTotalInvested !== undefined ? newTotalInvested : prev.totalInvested,
+    }));
+  }, []);
 
   const recordTransaction = useCallback(async (
     type: 'deposit' | 'withdraw' | 'invest' | 'loan_received' | 'repayment',
@@ -113,7 +88,7 @@ export function useUserBalance() {
     isLoading,
     userId,
     fetchBalance,
-    updateBalance,
+    setLocalBalance,
     recordTransaction,
   };
 }
