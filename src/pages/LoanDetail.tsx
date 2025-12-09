@@ -175,14 +175,6 @@ export default function LoanDetail() {
       });
       return;
     }
-    if (amount > remainingAmount) {
-      toast({
-        title: 'Amount too high',
-        description: `Maximum investment is M$${remainingAmount.toLocaleString()}`,
-        variant: 'destructive',
-      });
-      return;
-    }
     if (!userApiKey) {
       toast({
         title: 'API Key Required',
@@ -447,7 +439,7 @@ export default function LoanDetail() {
                       className="bg-secondary/50"
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Min: M$10 • Max: M${remainingAmount.toLocaleString()}
+                      Min: M$10
                     </p>
                   </div>
 

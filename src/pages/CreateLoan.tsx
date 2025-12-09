@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -121,15 +122,58 @@ export default function CreateLoan() {
 
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Get the current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Not authenticated', description: 'Please sign in to create a loan', variant: 'destructive' });
+        return;
+      }
 
-    toast({
-      title: 'Loan created successfully!',
-      description: 'Your loan request is now live on the marketplace',
-    });
+      // Get user's Manifold settings for username
+      const { data: settings } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_username')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    navigate('/marketplace');
+      const username = settings?.manifold_username || user.email?.split('@')[0] || 'Anonymous';
+
+      // Insert the loan into the database
+      const { error } = await supabase
+        .from('loans')
+        .insert({
+          borrower_user_id: user.id,
+          borrower_username: username,
+          title: formData.title,
+          description: formData.description,
+          amount: formData.amount,
+          interest_rate: formData.interestRate,
+          term_days: formData.termDays,
+          collateral_description: formData.collateralDescription || null,
+          maturity_date: maturityDate?.toISOString() || null,
+          status: 'seeking_funding',
+          risk_score: 'medium', // Default, could be calculated
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Loan created successfully!',
+        description: 'Your loan request is now live on the marketplace',
+      });
+
+      navigate('/marketplace');
+    } catch (error) {
+      console.error('Error creating loan:', error);
+      toast({
+        title: 'Error creating loan',
+        description: error instanceof Error ? error.message : 'Failed to create loan',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
