@@ -77,10 +77,10 @@ export default function Portfolio() {
     }
 
     const depositAmount = parseFloat(amount);
-    if (isNaN(depositAmount) || depositAmount <= 0) {
+    if (isNaN(depositAmount) || depositAmount < 10) {
       toast({
         title: 'Invalid Amount',
-        description: 'Please enter a valid amount',
+        description: 'Minimum deposit is M$10',
         variant: 'destructive',
       });
       return;
@@ -131,10 +131,10 @@ export default function Portfolio() {
     }
 
     const withdrawAmount = parseFloat(amount);
-    if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
+    if (isNaN(withdrawAmount) || withdrawAmount < 10) {
       toast({
         title: 'Invalid Amount',
-        description: 'Please enter a valid amount',
+        description: 'Minimum withdrawal is M$10',
         variant: 'destructive',
       });
       return;

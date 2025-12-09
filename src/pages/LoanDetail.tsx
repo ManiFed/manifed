@@ -98,10 +98,10 @@ export default function LoanDetail() {
 
   const handleInvest = async () => {
     const amount = parseFloat(investAmount);
-    if (isNaN(amount) || amount <= 0) {
+    if (isNaN(amount) || amount < 10) {
       toast({
         title: 'Invalid amount',
-        description: 'Please enter a valid investment amount',
+        description: 'Minimum investment is M$10',
         variant: 'destructive',
       });
       return;
