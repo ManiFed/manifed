@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      bond_rates: {
+        Row: {
+          annual_yield: number
+          created_at: string
+          effective_date: string
+          id: string
+          monthly_yield: number
+          term_weeks: number
+        }
+        Insert: {
+          annual_yield: number
+          created_at?: string
+          effective_date?: string
+          id?: string
+          monthly_yield: number
+          term_weeks: number
+        }
+        Update: {
+          annual_yield?: number
+          created_at?: string
+          effective_date?: string
+          id?: string
+          monthly_yield?: number
+          term_weeks?: number
+        }
+        Relationships: []
+      }
+      bonds: {
+        Row: {
+          amount: number
+          annual_yield: number
+          created_at: string
+          id: string
+          maturity_date: string
+          monthly_yield: number
+          purchase_date: string
+          status: string
+          term_weeks: number
+          total_return: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          annual_yield?: number
+          created_at?: string
+          id?: string
+          maturity_date: string
+          monthly_yield?: number
+          purchase_date?: string
+          status?: string
+          term_weeks: number
+          total_return: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          annual_yield?: number
+          created_at?: string
+          id?: string
+          maturity_date?: string
+          monthly_yield?: number
+          purchase_date?: string
+          status?: string
+          term_weeks?: number
+          total_return?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       investments: {
         Row: {
           amount: number
@@ -152,6 +224,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      treasury_news: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          published_at: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          published_at?: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          published_at?: string
+          title?: string
+        }
+        Relationships: []
       }
       user_balances: {
         Row: {

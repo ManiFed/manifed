@@ -78,6 +78,79 @@ serve(async (req) => {
       );
     }
 
+    // If loan has funded_amount > 0, borrower must managram funds back to @ManiFed first
+    if (Number(loan.funded_amount) > 0) {
+      // Get borrower's Manifold settings to send funds back
+      const { data: borrowerSettings } = await supabase
+        .from("user_manifold_settings")
+        .select("manifold_api_key")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!borrowerSettings?.manifold_api_key) {
+        return new Response(
+          JSON.stringify({ error: "You must have your Manifold account connected to cancel a funded loan" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Decrypt the API key
+      const ENCRYPTION_KEY = Deno.env.get("API_ENCRYPTION_KEY")!;
+      let decryptedApiKey = borrowerSettings.manifold_api_key;
+      
+      // Check if it's encrypted (base64 encoded)
+      if (borrowerSettings.manifold_api_key.length > 50) {
+        try {
+          const combined = Uint8Array.from(atob(borrowerSettings.manifold_api_key), c => c.charCodeAt(0));
+          const iv = combined.slice(0, 12);
+          const ciphertext = combined.slice(12);
+          
+          const keyData = new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32));
+          const cryptoKey = await crypto.subtle.importKey(
+            "raw", keyData, { name: "AES-GCM" }, false, ["decrypt"]
+          );
+          
+          const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv }, cryptoKey, ciphertext
+          );
+          decryptedApiKey = new TextDecoder().decode(decrypted);
+        } catch {
+          // Might be plaintext, use as-is
+        }
+      }
+
+      // Send the funded amount back to @ManiFed
+      const MANIFED_USERNAME = "ManiFed";
+      const fundedAmount = Number(loan.funded_amount);
+      
+      console.log(`Borrower sending M$${fundedAmount} back to @ManiFed`);
+      
+      const managramResponse = await fetch("https://api.manifold.markets/v0/managram", {
+        method: "POST",
+        headers: {
+          "Authorization": `Key ${decryptedApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          toIds: [],
+          toUsernames: [MANIFED_USERNAME],
+          amount: fundedAmount,
+          message: `Loan cancelled - returning funds: ${loan.title}`,
+        }),
+      });
+
+      if (!managramResponse.ok) {
+        const errorText = await managramResponse.text();
+        console.error("Failed to return funds to ManiFed:", errorText);
+        return new Response(
+          JSON.stringify({ error: `Failed to return funds to @ManiFed. Please ensure you have M$${fundedAmount} in your Manifold balance.` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      console.log(`Successfully returned M$${fundedAmount} to @ManiFed`);
+    }
+
     console.log(`Cancelling loan: ${loan.title}`);
 
     // Get all investments for this loan

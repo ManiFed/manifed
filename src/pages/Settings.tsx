@@ -161,19 +161,20 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleRemoveApiKey}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Disconnect Account
-                </Button>
+                {/* Explanation why disconnection is not allowed */}
+                <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground mb-1">Why can't I disconnect?</p>
+                      <p>
+                        To prevent exploits where users could receive loan funds and then disconnect their account 
+                        to avoid repayment, ManiFed accounts cannot be disconnected once linked. This protects 
+                        investors and maintains the integrity of the lending platform.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
