@@ -8,6 +8,36 @@ const corsHeaders = {
 
 const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
 const MANIFED_USERNAME = "ManiFed";
+const ENCRYPTION_KEY = Deno.env.get("API_ENCRYPTION_KEY") || "";
+
+// Decrypt API key using AES-GCM
+async function decryptApiKey(encryptedBase64: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  
+  // Derive key from encryption secret
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32)),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+  
+  // Decode base64 and extract IV + encrypted data
+  const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const encrypted = combined.slice(12);
+  
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    keyMaterial,
+    encrypted
+  );
+  
+  return decoder.decode(decrypted);
+}
 
 interface ManagramRequest {
   action: "deposit" | "withdraw" | "invest";
@@ -82,7 +112,17 @@ serve(async (req) => {
       );
     }
 
-    const userApiKey = userSettings.manifold_api_key;
+    // Decrypt the API key
+    let userApiKey: string;
+    try {
+      userApiKey = await decryptApiKey(userSettings.manifold_api_key);
+    } catch (decryptError) {
+      console.error("Failed to decrypt API key:", decryptError);
+      return new Response(
+        JSON.stringify({ error: "API key decryption failed. Please reconnect your Manifold account in Settings." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const manifoldUsername = userSettings.manifold_username;
 
     // Verify user's API key

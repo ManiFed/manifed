@@ -55,41 +55,21 @@ export default function Settings() {
 
     setIsLoading(true);
     try {
-      // Verify the API key by fetching user info
-      const response = await fetch('https://api.manifold.markets/v0/me', {
-        headers: { Authorization: `Key ${apiKey}` },
+      // Use edge function to validate and encrypt the API key
+      const { data, error } = await supabase.functions.invoke('save-api-key', {
+        body: { apiKey: apiKey.trim() },
       });
 
-      if (!response.ok) {
-        throw new Error('Invalid API key');
-      }
-
-      const manifoldUser = await response.json();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Upsert the settings
-      const { error } = await supabase
-        .from('user_manifold_settings')
-        .upsert({
-          user_id: user.id,
-          manifold_api_key: apiKey,
-          manifold_user_id: manifoldUser.id,
-          manifold_username: manifoldUser.username,
-        }, {
-          onConflict: 'user_id',
-        });
-
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      setSavedApiKey(apiKey);
-      setManifoldUsername(manifoldUser.username);
+      setSavedApiKey('encrypted'); // Don't store actual key client-side
+      setManifoldUsername(data.username);
       setApiKey('');
 
       toast({
         title: 'API Key Saved',
-        description: `Connected to Manifold as @${manifoldUser.username}`,
+        description: `Connected to Manifold as @${data.username}`,
       });
     } catch (error) {
       console.error('Error saving API key:', error);
