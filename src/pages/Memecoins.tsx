@@ -170,6 +170,21 @@ export default function Memecoins() {
       return;
     }
 
+    // Enforce M$10 minimum for buys (due to Manifold API constraint)
+    if (tradeType === 'buy' && amount < 10) {
+      toast({ title: 'Minimum Trade', description: 'Minimum buy amount is M$10', variant: 'destructive' });
+      return;
+    }
+
+    // For sells, check if the output would be at least M$10
+    if (tradeType === 'sell') {
+      const estimatedManaOut = calculateSellOutput(selectedCoin, amount);
+      if (estimatedManaOut < 10) {
+        toast({ title: 'Trade Too Small', description: 'Sell must result in at least M$10 output', variant: 'destructive' });
+        return;
+      }
+    }
+
     const txFee = amount * TRANSACTION_FEE;
     if (tradeType === 'buy' && (amount + txFee) > balance) {
       toast({ title: 'Insufficient Balance', description: `Need M$${(amount + txFee).toFixed(2)} including fee`, variant: 'destructive' });
