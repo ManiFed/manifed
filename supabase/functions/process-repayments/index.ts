@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
 const MANIFED_USERNAME = "ManiFed";
+const REPAYMENT_WEBHOOK_SECRET = Deno.env.get("REPAYMENT_WEBHOOK_SECRET") || "";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,6 +16,18 @@ serve(async (req) => {
   }
 
   try {
+    // Validate webhook secret
+    const authHeader = req.headers.get("authorization");
+    const providedSecret = authHeader?.replace("Bearer ", "");
+    
+    if (!REPAYMENT_WEBHOOK_SECRET || providedSecret !== REPAYMENT_WEBHOOK_SECRET) {
+      console.error("Unauthorized: Invalid or missing webhook secret");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
