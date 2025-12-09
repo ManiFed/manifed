@@ -462,7 +462,7 @@ export default function LoanDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {loan.status === 'seeking_funding' && (
+            {loan.status === 'seeking_funding' && currentUserId !== loan.borrower_user_id && (
               <Card className="glass animate-slide-up sticky top-24" style={{ animationDelay: '150ms' }}>
                 <CardHeader>
                   <CardTitle className="text-lg">Invest in this Loan</CardTitle>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { z } from 'zod';
@@ -61,7 +61,37 @@ export default function CreateLoan() {
   const [newMarketUrl, setNewMarketUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
 
+  // Check if user has API key connected
+  useEffect(() => {
+    const checkApiKey = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setHasApiKey(false);
+          setIsCheckingApiKey(false);
+          return;
+        }
+
+        const { data } = await supabase
+          .from('user_manifold_settings')
+          .select('manifold_api_key')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setHasApiKey(!!data?.manifold_api_key);
+      } catch (error) {
+        console.error('Error checking API key:', error);
+        setHasApiKey(false);
+      } finally {
+        setIsCheckingApiKey(false);
+      }
+    };
+
+    checkApiKey();
+  }, []);
   // Text input handlers for values outside slider range
   const handleAmountInput = (value: string) => {
     const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
@@ -181,14 +211,23 @@ export default function CreateLoan() {
         return;
       }
 
-      // Get user's Manifold settings for username
+      // Get user's Manifold settings for username - require API key
       const { data: settings } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_username')
+        .select('manifold_username, manifold_api_key')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      const username = settings?.manifold_username || user.email?.split('@')[0] || 'Anonymous';
+      if (!settings?.manifold_api_key) {
+        toast({ 
+          title: 'Manifold Account Required', 
+          description: 'Please connect your Manifold account in Settings before creating a loan', 
+          variant: 'destructive' 
+        });
+        return;
+      }
+
+      const username = settings.manifold_username || user.email?.split('@')[0] || 'Anonymous';
 
       // Insert the loan into the database with validated data
       const validatedData = validationResult.data;
@@ -227,6 +266,46 @@ export default function CreateLoan() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading state while checking API key
+  if (isCheckingApiKey) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show API key requirement if not connected
+  if (!hasApiKey) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8 max-w-xl">
+          <Card className="glass animate-slide-up">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mb-4">
+                <Shield className="w-8 h-8 text-warning" />
+              </div>
+              <CardTitle>Connect Your Manifold Account</CardTitle>
+              <CardDescription>
+                You need to connect your Manifold Markets account before creating a loan request.
+                This ensures your username is linked to the loan and borrowers can receive funds.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Button variant="glow" onClick={() => navigate('/settings')}>
+                Go to Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
