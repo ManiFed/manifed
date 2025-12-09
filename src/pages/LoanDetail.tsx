@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -68,10 +68,13 @@ interface Investment {
 
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [investAmount, setInvestAmount] = useState('');
   const [investMessage, setInvestMessage] = useState('');
   const [isInvesting, setIsInvesting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [userApiKey, setUserApiKey] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,6 +118,8 @@ export default function LoanDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      setCurrentUserId(user.id);
+
       const { data } = await supabase
         .from('user_manifold_settings')
         .select('manifold_api_key, manifold_username')
@@ -126,6 +131,42 @@ export default function LoanDetail() {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
+    }
+  };
+
+  const handleCancelLoan = async () => {
+    if (!loan) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel this loan? All investors will be refunded M$${loan.funded_amount.toLocaleString()} immediately.`
+    );
+
+    if (!confirmed) return;
+
+    setIsCancelling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-loan', {
+        body: { loanId: loan.id }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast({
+        title: 'Loan Cancelled',
+        description: data.message,
+      });
+
+      navigate('/marketplace');
+    } catch (error) {
+      console.error('Cancel error:', error);
+      toast({
+        title: 'Failed to cancel loan',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -398,6 +439,30 @@ export default function LoanDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Cancel Loan Button - Only show to loan owner */}
+            {currentUserId === loan.borrower_user_id && (loan.status === 'seeking_funding' || loan.status === 'active') && (
+              <Card className="glass border-destructive/30 animate-slide-up" style={{ animationDelay: '150ms' }}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-foreground">Cancel This Loan</p>
+                      <p className="text-sm text-muted-foreground">
+                        All investors will be refunded their principal immediately.
+                      </p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleCancelLoan}
+                      disabled={isCancelling}
+                    >
+                      {isCancelling ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Cancel Loan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
