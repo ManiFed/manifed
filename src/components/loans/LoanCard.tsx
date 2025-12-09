@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Loan } from '@/types/loan';
-import { Clock, TrendingUp, Users, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, TrendingUp, Users, AlertTriangle, CheckCircle, XCircle, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LoanCardProps {
@@ -16,6 +16,7 @@ const statusConfig = {
   active: { label: 'Active', variant: 'active' as const, icon: TrendingUp },
   repaid: { label: 'Repaid', variant: 'success' as const, icon: CheckCircle },
   defaulted: { label: 'Defaulted', variant: 'destructive' as const, icon: XCircle },
+  cancelled: { label: 'Cancelled', variant: 'outline' as const, icon: Ban },
 };
 
 const riskConfig = {
@@ -26,8 +27,8 @@ const riskConfig = {
 
 export function LoanCard({ loan }: LoanCardProps) {
   const fundingProgress = (loan.fundedAmount / loan.amount) * 100;
-  const status = statusConfig[loan.status];
-  const risk = riskConfig[loan.riskScore];
+  const status = statusConfig[loan.status] || statusConfig.seeking_funding;
+  const risk = riskConfig[loan.riskScore] || riskConfig.medium;
   const StatusIcon = status.icon;
 
   const daysRemaining = Math.max(

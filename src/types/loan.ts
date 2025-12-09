@@ -1,4 +1,4 @@
-export type LoanStatus = 'seeking_funding' | 'active' | 'repaid' | 'defaulted';
+export type LoanStatus = 'seeking_funding' | 'active' | 'repaid' | 'defaulted' | 'cancelled';
 
 export interface Loan {
   id: string;
