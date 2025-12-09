@@ -25,13 +25,13 @@ export default function Auth() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate('/marketplace');
+        navigate('/hub');
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate('/marketplace');
+        navigate('/hub');
       }
     });
 
@@ -59,7 +59,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/marketplace`,
+            emailRedirectTo: `${window.location.origin}/hub`,
           },
         });
         if (error) throw error;
