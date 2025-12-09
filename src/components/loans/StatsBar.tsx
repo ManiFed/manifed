@@ -1,15 +1,28 @@
 import { Card } from '@/components/ui/card';
 import { TrendingUp, DollarSign, Users, Activity } from 'lucide-react';
-import { mockLoans } from '@/data/mockLoans';
 
-export function StatsBar() {
-  const totalVolume = mockLoans.reduce((sum, loan) => sum + loan.amount, 0);
-  const activeLending = mockLoans
+interface LoanData {
+  amount: number;
+  funded_amount?: number;
+  fundedAmount?: number;
+  interest_rate?: number;
+  interestRate?: number;
+  status: string;
+}
+
+interface StatsBarProps {
+  loans?: LoanData[];
+}
+
+export function StatsBar({ loans = [] }: StatsBarProps) {
+  const totalVolume = loans.reduce((sum, loan) => sum + Number(loan.amount), 0);
+  const activeLending = loans
     .filter((l) => l.status === 'active' || l.status === 'seeking_funding')
-    .reduce((sum, loan) => sum + loan.fundedAmount, 0);
-  const avgInterest =
-    mockLoans.reduce((sum, loan) => sum + loan.interestRate, 0) / mockLoans.length;
-  const activeLoans = mockLoans.filter(
+    .reduce((sum, loan) => sum + Number(loan.funded_amount ?? loan.fundedAmount ?? 0), 0);
+  const avgInterest = loans.length > 0
+    ? loans.reduce((sum, loan) => sum + Number(loan.interest_rate ?? loan.interestRate ?? 0), 0) / loans.length
+    : 0;
+  const activeLoans = loans.filter(
     (l) => l.status === 'active' || l.status === 'seeking_funding'
   ).length;
 
@@ -18,25 +31,25 @@ export function StatsBar() {
       label: 'Total Volume',
       value: `M$${totalVolume.toLocaleString()}`,
       icon: DollarSign,
-      change: '+12.5%',
+      change: loans.length > 0 ? `${loans.length} loans` : 'No loans yet',
     },
     {
       label: 'Active Lending',
       value: `M$${activeLending.toLocaleString()}`,
       icon: TrendingUp,
-      change: '+8.2%',
+      change: 'currently funded',
     },
     {
       label: 'Avg. Interest',
       value: `${avgInterest.toFixed(1)}%`,
       icon: Activity,
-      change: '-0.5%',
+      change: 'across all loans',
     },
     {
       label: 'Active Loans',
       value: activeLoans.toString(),
       icon: Users,
-      change: '+3',
+      change: 'seeking funding or active',
     },
   ];
 
@@ -59,7 +72,7 @@ export function StatsBar() {
                 <Icon className="w-5 h-5 text-primary" />
               </div>
             </div>
-            <p className="text-xs text-success mt-2">{stat.change} this week</p>
+            <p className="text-xs text-success mt-2">{stat.change}</p>
           </Card>
         );
       })}

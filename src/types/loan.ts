@@ -16,7 +16,7 @@ export interface Loan {
   termDays: number;
   status: LoanStatus;
   createdAt: string;
-  fundingDeadline: string;
+  fundingDeadline?: string;
   maturityDate?: string;
   manifoldMarketId?: string;
   riskScore: 'low' | 'medium' | 'high';
