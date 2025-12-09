@@ -14,6 +14,172 @@ export type Database = {
   }
   public: {
     Tables: {
+      investments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investor_user_id: string
+          investor_username: string
+          loan_id: string
+          message: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          investor_user_id: string
+          investor_username: string
+          loan_id: string
+          message?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investor_user_id?: string
+          investor_username?: string
+          loan_id?: string
+          message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          amount: number
+          borrower_reputation: number
+          borrower_user_id: string
+          borrower_username: string
+          collateral_description: string | null
+          created_at: string
+          description: string
+          funded_amount: number
+          funding_deadline: string | null
+          id: string
+          interest_rate: number
+          manifold_market_id: string | null
+          maturity_date: string | null
+          risk_score: string
+          status: string
+          term_days: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          borrower_reputation?: number
+          borrower_user_id: string
+          borrower_username: string
+          collateral_description?: string | null
+          created_at?: string
+          description: string
+          funded_amount?: number
+          funding_deadline?: string | null
+          id?: string
+          interest_rate: number
+          manifold_market_id?: string | null
+          maturity_date?: string | null
+          risk_score?: string
+          status?: string
+          term_days: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          borrower_reputation?: number
+          borrower_user_id?: string
+          borrower_username?: string
+          collateral_description?: string | null
+          created_at?: string
+          description?: string
+          funded_amount?: number
+          funding_deadline?: string | null
+          id?: string
+          interest_rate?: number
+          manifold_market_id?: string | null
+          maturity_date?: string | null
+          risk_score?: string
+          status?: string
+          term_days?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          loan_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          loan_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          loan_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          total_invested: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_invested?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_invested?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_manifold_settings: {
         Row: {
           created_at: string
