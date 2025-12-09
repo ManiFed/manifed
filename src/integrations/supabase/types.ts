@@ -86,6 +86,36 @@ export type Database = {
         }
         Relationships: []
       }
+      fee_pool: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          paid_out: boolean
+          paid_out_at: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          paid_out?: boolean
+          paid_out_at?: string | null
+          source: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          paid_out?: boolean
+          paid_out_at?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       investments: {
         Row: {
           amount: number
@@ -187,6 +217,154 @@ export type Database = {
         }
         Relationships: []
       }
+      market_items: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          rarity: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          rarity?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          rarity?: string
+        }
+        Relationships: []
+      }
+      memecoin_holdings: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          memecoin_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          memecoin_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          memecoin_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memecoin_holdings_memecoin_id_fkey"
+            columns: ["memecoin_id"]
+            isOneToOne: false
+            referencedRelation: "memecoins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memecoin_trades: {
+        Row: {
+          created_at: string
+          fee_amount: number
+          id: string
+          mana_amount: number
+          memecoin_id: string
+          price_per_token: number
+          token_amount: number
+          trade_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fee_amount?: number
+          id?: string
+          mana_amount: number
+          memecoin_id: string
+          price_per_token: number
+          token_amount: number
+          trade_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fee_amount?: number
+          id?: string
+          mana_amount?: number
+          memecoin_id?: string
+          price_per_token?: number
+          token_amount?: number
+          trade_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memecoin_trades_memecoin_id_fkey"
+            columns: ["memecoin_id"]
+            isOneToOne: false
+            referencedRelation: "memecoins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memecoins: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          image_url: string
+          name: string
+          pool_mana: number
+          pool_tokens: number
+          symbol: string
+          total_supply: number
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          image_url: string
+          name: string
+          pool_mana?: number
+          pool_tokens?: number
+          symbol: string
+          total_supply?: number
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          image_url?: string
+          name?: string
+          pool_mana?: number
+          pool_tokens?: number
+          symbol?: string
+          total_supply?: number
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -275,6 +453,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_items: {
+        Row: {
+          id: string
+          is_equipped: boolean
+          item_id: string
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_equipped?: boolean
+          item_id: string
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_equipped?: boolean
+          item_id?: string
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "market_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_manifold_settings: {
         Row: {

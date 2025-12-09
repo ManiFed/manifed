@@ -8,7 +8,6 @@ import {
   Newspaper, 
   ArrowLeft,
   TrendingUp,
-  TrendingDown,
   Calendar,
   Loader2,
   FileText
@@ -42,6 +41,7 @@ export default function TreasuryNews() {
   const [news, setNews] = useState<TreasuryNewsItem[]>([]);
   const [rateHistory, setRateHistory] = useState<RateHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -49,6 +49,9 @@ export default function TreasuryNews() {
 
   const fetchData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+
       // Fetch news
       const { data: newsData } = await supabase
         .from('treasury_news')
@@ -87,11 +90,11 @@ export default function TreasuryNews() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
+      {/* Header - Links to hub if authenticated, landing otherwise */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <Link to="/bonds" className="flex items-center gap-3">
+            <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
                 <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
@@ -101,12 +104,24 @@ export default function TreasuryNews() {
               </div>
             </Link>
 
-            <Link to="/bonds">
-              <Button variant="outline" size="sm" className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Bonds
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to={isAuthenticated ? "/hub" : "/"}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  {isAuthenticated ? 'Back to Hub' : 'Back to Home'}
+                </Button>
+              </Link>
+              {!isAuthenticated && (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm">Sign In</Button>
+                  </Link>
+                  <Link to="/auth?mode=signup">
+                    <Button variant="glow" size="sm">Get Started</Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

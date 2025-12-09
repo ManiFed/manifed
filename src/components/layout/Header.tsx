@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, PlusCircle, LayoutDashboard, Landmark, LogOut, Settings } from 'lucide-react';
+import { TrendingUp, PlusCircle, LayoutDashboard, Landmark, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -12,7 +12,6 @@ const navItems = [
   { path: '/marketplace', label: 'Marketplace', icon: TrendingUp },
   { path: '/portfolio', label: 'Portfolio', icon: LayoutDashboard },
   { path: '/create', label: 'Create Loan', icon: PlusCircle },
-  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Header() {
@@ -59,7 +58,7 @@ export function Header() {
     <header className="sticky top-0 z-50 glass border-b border-border/50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link to="/marketplace" className="flex items-center gap-3">
+          <Link to="/hub" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
               <Landmark className="w-5 h-5 text-primary-foreground" />
             </div>

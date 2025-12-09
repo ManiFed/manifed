@@ -11,7 +11,8 @@ import {
   Coins,
   FileText,
   Clock,
-  Search
+  Search,
+  Newspaper
 } from 'lucide-react';
 
 export default function Landing() {
@@ -21,7 +22,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
                 <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
@@ -29,7 +30,7 @@ export default function Landing() {
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground -mt-0.5">Manifold's Central Bank</p>
               </div>
-            </div>
+            </Link>
             <div className="flex items-center gap-3">
               <Link to="/credit-search">
                 <Button variant="outline" size="sm" className="gap-2">
@@ -38,10 +39,10 @@ export default function Landing() {
                   <span className="sm:hidden">Credit</span>
                 </Button>
               </Link>
-              <Link to="/bonds">
+              <Link to="/treasury">
                 <Button variant="ghost" size="sm" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="hidden sm:inline">Bonds</span>
+                  <Newspaper className="w-4 h-4" />
+                  <span className="hidden sm:inline">Treasury News</span>
                 </Button>
               </Link>
               <Link to="/auth">
@@ -96,78 +97,94 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Loans - Active */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {/* Loans */}
             <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '100ms' }}>
-              <CardContent className="p-8">
+              <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">ManiFed Loans</h3>
-                    <Badge variant="active">Live Now</Badge>
+                    <h3 className="text-lg font-bold text-foreground">P2P Loans</h3>
+                    <Badge variant="active">Live</Badge>
                   </div>
                 </div>
-                <p className="text-muted-foreground mb-6">
-                  A peer-to-peer marketplace for prediction market loans. Borrow M$ for trading 
-                  opportunities or earn yield by lending to traders.
+                <p className="text-sm text-muted-foreground mb-4">
+                  Peer-to-peer marketplace for prediction market loans. Borrow or lend M$.
                 </p>
-                <ul className="space-y-2 text-sm text-muted-foreground mb-6">
-                  <li className="flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-primary" />
-                    Borrow M$ for market opportunities
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    Reputation-based credit scoring
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-primary" />
-                    Transparent loan marketplace
-                  </li>
-                </ul>
                 <Link to="/auth?mode=signup">
-                  <Button variant="glow" className="w-full gap-2">
+                  <Button variant="outline" className="w-full gap-2" size="sm">
                     Access Loans <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
               </CardContent>
             </Card>
 
-            {/* Bonds - Live */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '200ms' }}>
-              <CardContent className="p-8">
+            {/* Bonds */}
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '150ms' }}>
+              <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">ManiFed Bonds</h3>
-                    <Badge variant="active">Live Now</Badge>
+                    <h3 className="text-lg font-bold text-foreground">T-Bills</h3>
+                    <Badge variant="active">Live</Badge>
                   </div>
                 </div>
-                <p className="text-muted-foreground mb-6">
-                  Treasury Bills for stable returns. Fixed terms from 4 to 52 weeks with 
-                  guaranteed yields at maturity. Currently offering 6% APY.
+                <p className="text-sm text-muted-foreground mb-4">
+                  Fixed-income Treasury Bills with 6% APY. Guaranteed yields at maturity.
                 </p>
-                <ul className="space-y-2 text-sm text-muted-foreground mb-6">
-                  <li className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" />
-                    4, 13, 26, or 52 week terms
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    6% APY guaranteed at maturity
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    Principal + yield returned automatically
-                  </li>
-                </ul>
                 <Link to="/bonds">
-                  <Button variant="glow" className="w-full gap-2">
+                  <Button variant="outline" className="w-full gap-2" size="sm">
                     Explore Bonds <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Memecoins */}
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '200ms' }}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
+                    <Coins className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Memecoins</h3>
+                    <Badge variant="outline">New!</Badge>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Trade memecoins in AMM liquidity pools. Create your own tokens.
+                </p>
+                <Link to="/memecoins">
+                  <Button variant="outline" className="w-full gap-2" size="sm">
+                    Trade Memecoins <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Credit Score */}
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '250ms' }}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <Search className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Credit Search</h3>
+                    <Badge variant="active">Live</Badge>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Check creditworthiness of any Manifold user before investing.
+                </p>
+                <Link to="/credit-search">
+                  <Button variant="outline" className="w-full gap-2" size="sm">
+                    Search Credits <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
               </CardContent>
@@ -175,9 +192,24 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Fee Notice */}
+        <section className="container mx-auto px-4 py-4">
+          <Card className="glass animate-slide-up" style={{ animationDelay: '300ms' }}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4 justify-center text-center">
+                <Clock className="w-5 h-5 text-primary shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  <strong className="text-foreground">0.5% transaction fee</strong> on all transactions. 
+                  Fees are bundled and paid out in groups of M$25 minimum to comply with Manifold's M$10 minimum transfer.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Disclaimer */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '350ms' }}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-2 rounded-lg bg-warning/10 shrink-0">
@@ -246,7 +278,7 @@ export default function Landing() {
                 <span className="text-muted-foreground">- Manifold's Central Bank</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Powered by Manifold Markets • All loans settled in M$
+                Powered by Manifold Markets • All loans settled in M$ • 0.5% transaction fee
               </p>
             </div>
           </div>
