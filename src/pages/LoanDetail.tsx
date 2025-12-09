@@ -78,7 +78,7 @@ export default function LoanDetail() {
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { balance, updateBalance, recordTransaction, totalInvested } = useUserBalance();
+  const { balance, fetchBalance, totalInvested } = useUserBalance();
 
   useEffect(() => {
     fetchLoanData();
@@ -255,6 +255,7 @@ export default function LoanDetail() {
           userApiKey: userApiKey,
           recipientUsername: loan.borrower_username,
           message: investMessage || `Loan investment for: ${loan.title}`,
+          loanId: loan.id,
         },
       });
 
@@ -285,11 +286,8 @@ export default function LoanDetail() {
 
       if (loanError) throw loanError;
 
-      // Deduct from ManiFed balance
-      const newBalance = balance - amount;
-      const newTotalInvested = totalInvested + amount;
-      await updateBalance(newBalance, newTotalInvested);
-      await recordTransaction('invest', -amount, `Invested M$${amount} in: ${loan.title}`, loan.id);
+      // Refresh balance from server (edge function already updated it)
+      await fetchBalance();
 
       toast({
         title: 'Investment Successful!',

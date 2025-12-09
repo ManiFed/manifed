@@ -18,7 +18,7 @@ const navItems = [
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { balance, updateBalance, recordTransaction } = useUserBalance();
+  const { balance, fetchBalance } = useUserBalance();
   const [userApiKey, setUserApiKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,14 +55,6 @@ export function Header() {
     } else {
       navigate('/');
     }
-  };
-
-  const handleBalanceChange = async (newBalance: number) => {
-    await updateBalance(newBalance);
-  };
-
-  const handleRecordTransaction = async (type: 'deposit' | 'withdraw', amount: number, description: string) => {
-    await recordTransaction(type, amount, description);
   };
 
   return (
@@ -106,8 +98,7 @@ export function Header() {
               <WalletPopover 
                 balance={balance} 
                 userApiKey={userApiKey}
-                onBalanceChange={handleBalanceChange}
-                onRecordTransaction={handleRecordTransaction}
+                onBalanceChange={fetchBalance}
               />
             </div>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
