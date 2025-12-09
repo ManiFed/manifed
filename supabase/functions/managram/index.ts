@@ -31,9 +31,9 @@ serve(async (req) => {
       );
     }
 
-    if (amount <= 0) {
+    if (amount < 10) {
       return new Response(
-        JSON.stringify({ error: "Amount must be positive" }),
+        JSON.stringify({ error: "Minimum amount is M$10" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
