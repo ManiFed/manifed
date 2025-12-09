@@ -64,7 +64,7 @@ const App = () => (
           <Route path="/loan/:id" element={<ProtectedRoute><LoanDetail /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreateLoan /></ProtectedRoute>} />
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-          <Route path="/credit-search" element={<ProtectedRoute><CreditSearch /></ProtectedRoute>} />
+          <Route path="/credit-search" element={<CreditSearch />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

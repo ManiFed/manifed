@@ -10,7 +10,8 @@ import {
   ArrowRight, 
   Coins,
   FileText,
-  Clock
+  Clock,
+  Search
 } from 'lucide-react';
 
 export default function Landing() {
@@ -30,6 +31,12 @@ export default function Landing() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Link to="/credit-search">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Search className="w-4 h-4" />
+                  Credit Scores
+                </Button>
+              </Link>
               <Link to="/auth">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>

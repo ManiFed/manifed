@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.managram]
 verify_jwt = false
+
+[functions.process-repayments]
+verify_jwt = false
+
+[functions.cancel-loan]
+verify_jwt = false
