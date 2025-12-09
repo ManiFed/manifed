@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,31 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { toast } from '@/hooks/use-toast';
 import { DollarSign, Percent, Calendar as CalendarIcon, FileText, Shield, Sparkles, Plus, X, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Validation schema for loan creation
+const loanSchema = z.object({
+  title: z.string()
+    .trim()
+    .min(5, 'Title must be at least 5 characters')
+    .max(100, 'Title must be less than 100 characters'),
+  description: z.string()
+    .trim()
+    .min(20, 'Description must be at least 20 characters')
+    .max(2000, 'Description must be less than 2000 characters'),
+  amount: z.number()
+    .min(100, 'Minimum loan amount is M$100')
+    .max(1000000, 'Maximum loan amount is M$1,000,000'),
+  interestRate: z.number()
+    .min(0, 'Interest rate cannot be negative')
+    .max(100, 'Interest rate cannot exceed 100%'),
+  termDays: z.number()
+    .int('Term must be a whole number')
+    .min(1, 'Minimum term is 1 day')
+    .max(365, 'Maximum term is 365 days'),
+  collateralDescription: z.string()
+    .max(1000, 'Collateral description must be less than 1000 characters')
+    .optional(),
+});
 
 interface EmbeddedMarket {
   url: string;
@@ -34,12 +60,15 @@ export default function CreateLoan() {
   const [embeddedMarkets, setEmbeddedMarkets] = useState<EmbeddedMarket[]>([]);
   const [newMarketUrl, setNewMarketUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Text input handlers for values outside slider range
   const handleAmountInput = (value: string) => {
     const num = parseInt(value.replace(/[^0-9]/g, ''), 10);
     if (!isNaN(num) && num >= 0) {
       setFormData({ ...formData, amount: num });
+      // Clear validation error when user types
+      setValidationErrors(prev => ({ ...prev, amount: '' }));
     }
   };
 
@@ -47,6 +76,7 @@ export default function CreateLoan() {
     const num = parseFloat(value.replace(/[^0-9.]/g, ''));
     if (!isNaN(num) && num >= 0) {
       setFormData({ ...formData, interestRate: num });
+      setValidationErrors(prev => ({ ...prev, interestRate: '' }));
     }
   };
 
@@ -55,6 +85,7 @@ export default function CreateLoan() {
     if (!isNaN(num) && num >= 1) {
       setFormData({ ...formData, termDays: num });
       setMaturityDate(addDays(new Date(), num));
+      setValidationErrors(prev => ({ ...prev, termDays: '' }));
     }
   };
 
@@ -110,13 +141,33 @@ export default function CreateLoan() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationErrors({});
 
-    if (!formData.title.trim()) {
-      toast({ title: 'Title required', description: 'Please enter a loan title', variant: 'destructive' });
-      return;
-    }
-    if (!formData.description.trim()) {
-      toast({ title: 'Description required', description: 'Please describe your loan purpose', variant: 'destructive' });
+    // Validate form data with Zod
+    const validationResult = loanSchema.safeParse({
+      title: formData.title,
+      description: formData.description,
+      amount: formData.amount,
+      interestRate: formData.interestRate,
+      termDays: formData.termDays,
+      collateralDescription: formData.collateralDescription || undefined,
+    });
+
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      validationResult.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field] = err.message;
+      });
+      setValidationErrors(errors);
+      
+      // Show first error in toast
+      const firstError = validationResult.error.errors[0];
+      toast({
+        title: 'Validation Error',
+        description: firstError.message,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -139,18 +190,19 @@ export default function CreateLoan() {
 
       const username = settings?.manifold_username || user.email?.split('@')[0] || 'Anonymous';
 
-      // Insert the loan into the database
+      // Insert the loan into the database with validated data
+      const validatedData = validationResult.data;
       const { error } = await supabase
         .from('loans')
         .insert({
           borrower_user_id: user.id,
           borrower_username: username,
-          title: formData.title,
-          description: formData.description,
-          amount: formData.amount,
-          interest_rate: formData.interestRate,
-          term_days: formData.termDays,
-          collateral_description: formData.collateralDescription || null,
+          title: validatedData.title,
+          description: validatedData.description,
+          amount: validatedData.amount,
+          interest_rate: validatedData.interestRate,
+          term_days: validatedData.termDays,
+          collateral_description: validatedData.collateralDescription || null,
           maturity_date: maturityDate?.toISOString() || null,
           status: 'seeking_funding',
           risk_score: 'medium', // Default, could be calculated
@@ -211,9 +263,17 @@ export default function CreateLoan() {
                     id="title"
                     placeholder="e.g., Election Market Arbitrage Opportunity"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="bg-secondary/50"
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      setValidationErrors(prev => ({ ...prev, title: '' }));
+                    }}
+                    className={cn("bg-secondary/50", validationErrors.title && "border-destructive")}
+                    maxLength={100}
                   />
+                  {validationErrors.title && (
+                    <p className="text-xs text-destructive">{validationErrors.title}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{formData.title.length}/100 characters (min 5)</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
@@ -221,9 +281,17 @@ export default function CreateLoan() {
                     id="description"
                     placeholder="Explain your trading strategy and why investors should fund your loan..."
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="bg-secondary/50 min-h-[120px]"
+                    onChange={(e) => {
+                      setFormData({ ...formData, description: e.target.value });
+                      setValidationErrors(prev => ({ ...prev, description: '' }));
+                    }}
+                    className={cn("bg-secondary/50 min-h-[120px]", validationErrors.description && "border-destructive")}
+                    maxLength={2000}
                   />
+                  {validationErrors.description && (
+                    <p className="text-xs text-destructive">{validationErrors.description}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{formData.description.length}/2000 characters (min 20)</p>
                 </div>
 
                 {/* Embedded Markets */}
@@ -292,12 +360,18 @@ export default function CreateLoan() {
                     <Input
                       value={`M$${formData.amount.toLocaleString()}`}
                       onChange={(e) => handleAmountInput(e.target.value)}
-                      className="w-32 text-right font-bold bg-secondary/50 h-8"
+                      className={cn("w-32 text-right font-bold bg-secondary/50 h-8", validationErrors.amount && "border-destructive")}
                     />
                   </div>
+                  {validationErrors.amount && (
+                    <p className="text-xs text-destructive">{validationErrors.amount}</p>
+                  )}
                   <Slider
                     value={[Math.min(formData.amount, 100000)]}
-                    onValueChange={(value) => setFormData({ ...formData, amount: value[0] })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, amount: value[0] });
+                      setValidationErrors(prev => ({ ...prev, amount: '' }));
+                    }}
                     min={100}
                     max={100000}
                     step={100}
@@ -318,12 +392,18 @@ export default function CreateLoan() {
                     <Input
                       value={`${formData.interestRate}%`}
                       onChange={(e) => handleInterestInput(e.target.value)}
-                      className="w-24 text-right font-bold text-success bg-secondary/50 h-8"
+                      className={cn("w-24 text-right font-bold text-success bg-secondary/50 h-8", validationErrors.interestRate && "border-destructive")}
                     />
                   </div>
+                  {validationErrors.interestRate && (
+                    <p className="text-xs text-destructive">{validationErrors.interestRate}</p>
+                  )}
                   <Slider
                     value={[Math.min(Math.max(formData.interestRate, 1), 25)]}
-                    onValueChange={(value) => setFormData({ ...formData, interestRate: value[0] })}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, interestRate: value[0] });
+                      setValidationErrors(prev => ({ ...prev, interestRate: '' }));
+                    }}
                     min={1}
                     max={25}
                     step={1}
@@ -331,7 +411,7 @@ export default function CreateLoan() {
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>1%</span>
-                    <span>25%</span>
+                    <span>25% (max 100%)</span>
                   </div>
                 </div>
 
@@ -345,7 +425,7 @@ export default function CreateLoan() {
                       <Input
                         value={`${formData.termDays} days`}
                         onChange={(e) => handleTermInput(e.target.value)}
-                        className="w-28 text-right font-bold bg-secondary/50 h-8"
+                        className={cn("w-28 text-right font-bold bg-secondary/50 h-8", validationErrors.termDays && "border-destructive")}
                       />
                       <Popover>
                         <PopoverTrigger asChild>
@@ -366,11 +446,15 @@ export default function CreateLoan() {
                       </Popover>
                     </div>
                   </div>
+                  {validationErrors.termDays && (
+                    <p className="text-xs text-destructive">{validationErrors.termDays}</p>
+                  )}
                   <Slider
                     value={[Math.min(Math.max(formData.termDays, 7), 180)]}
                     onValueChange={(value) => {
                       setFormData({ ...formData, termDays: value[0] });
                       setMaturityDate(addDays(new Date(), value[0]));
+                      setValidationErrors(prev => ({ ...prev, termDays: '' }));
                     }}
                     min={7}
                     max={180}
@@ -379,7 +463,7 @@ export default function CreateLoan() {
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>7 days</span>
-                    <span>180 days</span>
+                    <span>180 days (max 365)</span>
                   </div>
                   {maturityDate && (
                     <p className="text-sm text-muted-foreground">
@@ -408,7 +492,9 @@ export default function CreateLoan() {
                     setFormData({ ...formData, collateralDescription: e.target.value })
                   }
                   className="bg-secondary/50"
+                  maxLength={1000}
                 />
+                <p className="text-xs text-muted-foreground mt-2">{formData.collateralDescription.length}/1000 characters</p>
               </CardContent>
             </Card>
 
@@ -444,59 +530,31 @@ export default function CreateLoan() {
                   <span className="text-muted-foreground">Term</span>
                   <span className="font-semibold text-foreground">{formData.termDays} days</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monthly Rate</span>
-                  <span className="font-semibold text-foreground">
-                    ~{monthlyEquivalent.toFixed(1)}%
-                  </span>
-                </div>
-
-                <div className="border-t border-border/50 pt-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">You'll Repay</span>
-                    <span className="text-xl font-bold text-foreground">
-                      M${expectedReturn.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                <div className="border-t border-border/50 pt-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Expected Return</span>
+                    <span className="font-bold text-success">
+                      M${expectedReturn.toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Principal + {formData.interestRate}% interest
-                  </p>
-                </div>
-
-                {embeddedMarkets.length > 0 && (
-                  <div className="border-t border-border/50 pt-4">
-                    <p className="text-sm text-muted-foreground mb-2">Target Markets</p>
-                    <p className="font-semibold text-foreground">{embeddedMarkets.length} market(s)</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Monthly Equiv.</span>
+                    <span className="text-foreground">{monthlyEquivalent.toFixed(2)}%/mo</span>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
             <Card className="glass animate-slide-up" style={{ animationDelay: '500ms' }}>
-              <CardContent className="p-4">
-                <h4 className="font-medium text-foreground mb-3">Tips for Success</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    Be specific about your trading strategy
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    Mention your track record if applicable
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    Offer collateral for lower rates
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    Set realistic interest rates
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    Link target markets to show your plan
-                  </li>
-                </ul>
+              <CardHeader>
+                <CardTitle className="text-lg">Tips for Success</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>✓ Clearly explain your investment strategy</p>
+                <p>✓ Link to specific markets you'll trade</p>
+                <p>✓ Offer competitive interest rates (8-15%)</p>
+                <p>✓ Consider shorter terms for first loans</p>
+                <p>✓ Build reputation with smaller loans first</p>
               </CardContent>
             </Card>
           </div>

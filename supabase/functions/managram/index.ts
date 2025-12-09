@@ -12,7 +12,6 @@ const MANIFED_USERNAME = "ManiFed";
 interface ManagramRequest {
   action: "deposit" | "withdraw" | "invest";
   amount: number;
-  userApiKey: string;
   message?: string;
   recipientUsername?: string; // For invest action
   loanId?: string; // For invest action
@@ -50,11 +49,11 @@ serve(async (req) => {
       );
     }
 
-    const { action, amount, userApiKey, message, recipientUsername, loanId }: ManagramRequest = await req.json();
+    const { action, amount, message, recipientUsername, loanId }: ManagramRequest = await req.json();
 
-    if (!action || !amount || !userApiKey) {
+    if (!action || !amount) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: action, amount, userApiKey" }),
+        JSON.stringify({ error: "Missing required fields: action, amount" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -68,14 +67,32 @@ serve(async (req) => {
 
     console.log(`Processing ${action} for amount M$${amount} by user ${user.id}`);
 
-    // Verify user's API key first
+    // Fetch user's API key server-side using service role
+    const { data: userSettings, error: settingsError } = await supabase
+      .from("user_manifold_settings")
+      .select("manifold_api_key, manifold_username")
+      .eq("user_id", user.id)
+      .single();
+
+    if (settingsError || !userSettings?.manifold_api_key) {
+      console.error("Failed to fetch user API key:", settingsError);
+      return new Response(
+        JSON.stringify({ error: "Manifold account not connected. Please connect in Settings." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userApiKey = userSettings.manifold_api_key;
+    const manifoldUsername = userSettings.manifold_username;
+
+    // Verify user's API key
     const meResponse = await fetch("https://api.manifold.markets/v0/me", {
       headers: { Authorization: `Key ${userApiKey}` }
     });
 
     if (!meResponse.ok) {
       return new Response(
-        JSON.stringify({ error: "Invalid API key" }),
+        JSON.stringify({ error: "Invalid Manifold API key. Please update in Settings." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
