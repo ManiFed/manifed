@@ -1,11 +1,12 @@
 import { Loan, UserPortfolio } from '@/types/loan';
 
+// Using real Manifold usernames for testing
 export const mockLoans: Loan[] = [
   {
     id: '1',
     borrower: {
       id: 'user1',
-      username: 'manifold_trader',
+      username: 'Tumbles',
       reputation: 92,
     },
     title: 'Election Market Arbitrage Play',
@@ -20,15 +21,15 @@ export const mockLoans: Loan[] = [
     riskScore: 'medium',
     collateralDescription: 'M$2,500 in diversified YES positions on established markets',
     investors: [
-      { id: 'inv1', username: 'whale_investor', amount: 2000, investedAt: '2024-01-15T12:00:00Z' },
-      { id: 'inv2', username: 'risk_taker', amount: 1750, investedAt: '2024-01-16T09:00:00Z' },
+      { id: 'inv1', username: 'Sinclair', amount: 2000, investedAt: '2024-01-15T12:00:00Z' },
+      { id: 'inv2', username: 'jack', amount: 1750, investedAt: '2024-01-16T09:00:00Z' },
     ],
   },
   {
     id: '2',
     borrower: {
       id: 'user2',
-      username: 'prediction_pro',
+      username: 'Bayesian',
       reputation: 88,
     },
     title: 'Tech Sector Coverage Expansion',
@@ -44,14 +45,14 @@ export const mockLoans: Loan[] = [
     manifoldMarketId: 'tech-sector-loan-1',
     riskScore: 'low',
     investors: [
-      { id: 'inv3', username: 'long_term_holder', amount: 3000, investedAt: '2024-01-12T14:00:00Z' },
+      { id: 'inv3', username: 'MartinRandall', amount: 3000, investedAt: '2024-01-12T14:00:00Z' },
     ],
   },
   {
     id: '3',
     borrower: {
       id: 'user3',
-      username: 'sports_guru',
+      username: 'SG',
       reputation: 75,
     },
     title: 'Super Bowl Market Positions',
@@ -66,15 +67,15 @@ export const mockLoans: Loan[] = [
     riskScore: 'high',
     collateralDescription: 'M$5,000 locked in resolved winning positions',
     investors: [
-      { id: 'inv4', username: 'sports_fan', amount: 4000, investedAt: '2024-01-18T16:00:00Z' },
-      { id: 'inv5', username: 'diversifier', amount: 2500, investedAt: '2024-01-19T10:00:00Z' },
+      { id: 'inv4', username: 'IsaacKing', amount: 4000, investedAt: '2024-01-18T16:00:00Z' },
+      { id: 'inv5', username: 'ManifoldMarkets', amount: 2500, investedAt: '2024-01-19T10:00:00Z' },
     ],
   },
   {
     id: '4',
     borrower: {
       id: 'user4',
-      username: 'crypto_oracle',
+      username: 'itsTomekK',
       reputation: 95,
     },
     title: 'BTC Halving Event Coverage',
@@ -89,15 +90,15 @@ export const mockLoans: Loan[] = [
     maturityDate: '2024-03-01T09:00:00Z',
     riskScore: 'low',
     investors: [
-      { id: 'inv6', username: 'crypto_believer', amount: 5000, investedAt: '2023-12-02T11:00:00Z' },
-      { id: 'inv7', username: 'hodler', amount: 3000, investedAt: '2023-12-03T15:00:00Z' },
+      { id: 'inv6', username: 'NathanpmYoung', amount: 5000, investedAt: '2023-12-02T11:00:00Z' },
+      { id: 'inv7', username: 'Joshua', amount: 3000, investedAt: '2023-12-03T15:00:00Z' },
     ],
   },
   {
     id: '5',
     borrower: {
       id: 'user5',
-      username: 'newbie_trader',
+      username: 'strutheo',
       reputation: 45,
     },
     title: 'Learning to Trade - Small Start',
@@ -111,7 +112,7 @@ export const mockLoans: Loan[] = [
     fundingDeadline: '2024-01-27T11:00:00Z',
     riskScore: 'high',
     investors: [
-      { id: 'inv8', username: 'helper', amount: 150, investedAt: '2024-01-20T13:00:00Z' },
+      { id: 'inv8', username: 'Austin', amount: 150, investedAt: '2024-01-20T13:00:00Z' },
     ],
   },
 ];
