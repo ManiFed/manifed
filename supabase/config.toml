@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.cancel-loan]
 verify_jwt = true
+
+[functions.save-api-key]
+verify_jwt = true
