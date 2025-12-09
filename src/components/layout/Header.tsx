@@ -19,7 +19,7 @@ export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { balance, fetchBalance } = useUserBalance();
-  const [userApiKey, setUserApiKey] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
     fetchUserSettings();
@@ -36,9 +36,7 @@ export function Header() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (data?.manifold_api_key) {
-        setUserApiKey(data.manifold_api_key);
-      }
+      setHasApiKey(!!data?.manifold_api_key);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -97,7 +95,7 @@ export function Header() {
             <div className="hidden sm:block">
               <WalletPopover 
                 balance={balance} 
-                userApiKey={userApiKey}
+                hasApiKey={hasApiKey}
                 onBalanceChange={fetchBalance}
               />
             </div>

@@ -73,7 +73,7 @@ export default function LoanDetail() {
   const [investMessage, setInvestMessage] = useState('');
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [userApiKey, setUserApiKey] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -126,9 +126,7 @@ export default function LoanDetail() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (data?.manifold_api_key) {
-        setUserApiKey(data.manifold_api_key);
-      }
+      setHasApiKey(!!data?.manifold_api_key);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -216,7 +214,7 @@ export default function LoanDetail() {
       });
       return;
     }
-    if (!userApiKey) {
+    if (!hasApiKey) {
       toast({
         title: 'API Key Required',
         description: 'Please connect your Manifold account in Settings first',
@@ -247,12 +245,11 @@ export default function LoanDetail() {
         .eq('user_id', user.id)
         .single();
 
-      // Call the managram function to send funds to borrower
+      // Call the managram function to send funds to borrower (API key fetched server-side)
       const { data, error } = await supabase.functions.invoke('managram', {
         body: {
           action: 'invest',
           amount: amount,
-          userApiKey: userApiKey,
           recipientUsername: loan.borrower_username,
           message: investMessage || `Loan investment for: ${loan.title}`,
           loanId: loan.id,
@@ -471,7 +468,7 @@ export default function LoanDetail() {
                   <CardTitle className="text-lg">Invest in this Loan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {!userApiKey && (
+                  {!hasApiKey && (
                     <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 text-sm">
                       <p className="text-warning font-medium">Connect Manifold Account</p>
                       <p className="text-muted-foreground">
@@ -480,7 +477,7 @@ export default function LoanDetail() {
                     </div>
                   )}
 
-                  {userApiKey && (
+                  {hasApiKey && (
                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
                       <p className="text-muted-foreground">Your ManiFed Balance</p>
                       <p className="text-xl font-bold text-foreground">M${balance.toLocaleString()}</p>
@@ -538,7 +535,7 @@ export default function LoanDetail() {
                     className="w-full" 
                     size="lg" 
                     onClick={handleInvest}
-                    disabled={isInvesting || !userApiKey || balance < 10}
+                    disabled={isInvesting || !hasApiKey || balance < 10}
                   >
                     {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Fund This Loan

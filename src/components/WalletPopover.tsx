@@ -9,18 +9,18 @@ import { Link } from 'react-router-dom';
 
 interface WalletPopoverProps {
   balance: number;
-  userApiKey: string | null;
-  onBalanceChange: () => void; // Now just triggers a refresh
+  hasApiKey: boolean;
+  onBalanceChange: () => void;
 }
 
-export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPopoverProps) {
+export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<'select' | 'deposit' | 'withdraw'>('select');
 
   const handleDeposit = async () => {
-    if (!userApiKey) {
+    if (!hasApiKey) {
       toast({
         title: 'API Key Required',
         description: 'Please connect your Manifold account in Settings first',
@@ -45,7 +45,6 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPo
         body: {
           action: 'deposit',
           amount: depositAmount,
-          userApiKey: userApiKey,
           message: `ManiFed deposit - M$${depositAmount}`,
         },
       });
@@ -77,7 +76,7 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPo
   };
 
   const handleWithdraw = async () => {
-    if (!userApiKey) {
+    if (!hasApiKey) {
       toast({
         title: 'API Key Required',
         description: 'Please connect your Manifold account in Settings first',
@@ -111,7 +110,6 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPo
         body: {
           action: 'withdraw',
           amount: withdrawAmount,
-          userApiKey: userApiKey,
           message: `ManiFed withdrawal - M$${withdrawAmount}`,
         },
       });
@@ -159,7 +157,7 @@ export function WalletPopover({ balance, userApiKey, onBalanceChange }: WalletPo
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4" align="end">
-        {!userApiKey ? (
+        {!hasApiKey ? (
           <div className="text-center space-y-3">
             <p className="text-sm text-muted-foreground">
               Connect your Manifold account to deposit and withdraw M$.
