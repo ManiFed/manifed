@@ -34,7 +34,14 @@ export default function Landing() {
               <Link to="/credit-search">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Search className="w-4 h-4" />
-                  Credit Scores
+                  <span className="hidden sm:inline">Check Credit Score</span>
+                  <span className="sm:hidden">Credit</span>
+                </Button>
+              </Link>
+              <Link to="/bonds">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Bonds</span>
                 </Button>
               </Link>
               <Link to="/auth">
@@ -128,39 +135,41 @@ export default function Landing() {
               </CardContent>
             </Card>
 
-            {/* Bonds - Coming Soon */}
-            <Card className="glass opacity-75 animate-slide-up" style={{ animationDelay: '200ms' }}>
+            {/* Bonds - Live */}
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '200ms' }}>
               <CardContent className="p-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-foreground">ManiFed Bonds</h3>
-                    <Badge variant="pending">Coming Soon</Badge>
+                    <Badge variant="active">Live Now</Badge>
                   </div>
                 </div>
                 <p className="text-muted-foreground mb-6">
-                  Fixed-income instruments for stable returns. Invest in diversified prediction 
-                  market portfolios with predictable yields.
+                  Treasury Bills for stable returns. Fixed terms from 4 to 52 weeks with 
+                  guaranteed yields at maturity. Currently offering 6% APY.
                 </p>
                 <ul className="space-y-2 text-sm text-muted-foreground mb-6">
                   <li className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    Fixed-term investments
+                    <Clock className="w-4 h-4 text-primary" />
+                    4, 13, 26, or 52 week terms
                   </li>
                   <li className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    Lower risk, stable returns
+                    <Shield className="w-4 h-4 text-primary" />
+                    6% APY guaranteed at maturity
                   </li>
                   <li className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                    Diversified market exposure
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    Principal + yield returned automatically
                   </li>
                 </ul>
-                <Button variant="outline" className="w-full" disabled>
-                  Coming Soon
-                </Button>
+                <Link to="/bonds">
+                  <Button variant="glow" className="w-full gap-2">
+                    Explore Bonds <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
@@ -187,6 +196,40 @@ export default function Landing() {
                     guarantee of repayment, (3) ManiFed acts only as a facilitator and cannot enforce loan terms, and 
                     (4) you are responsible for your own due diligence on borrowers.
                   </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Contact Section */}
+        <section className="container mx-auto px-4 py-8">
+          <Card className="glass animate-slide-up" style={{ animationDelay: '400ms' }}>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <h3 className="font-semibold text-foreground mb-2">Questions or Need Help?</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  ManiFed offers P2P loans backed by Manifold Markets. Reach out to us anytime:
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <a 
+                    href="https://manifold.markets/ManiFed" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    <Landmark className="w-4 h-4" />
+                    DM @ManiFed on Manifold
+                  </a>
+                  <span className="hidden sm:inline text-muted-foreground">•</span>
+                  <a 
+                    href="https://discord.gg/manifed" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    Discord: @manifed
+                  </a>
                 </div>
               </div>
             </CardContent>

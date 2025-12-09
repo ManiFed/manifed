@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.save-api-key]
 verify_jwt = true
+
+[functions.process-bond-maturity]
+verify_jwt = false
