@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Header } from '@/components/layout/Header';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, User, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Clock, Loader2, ExternalLink } from 'lucide-react';
+import { Search, User, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Clock, Loader2, ExternalLink, Landmark, LogOut } from 'lucide-react';
 import { useManifoldUser, ManifoldUserResult } from '@/hooks/useManifoldUser';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -34,7 +36,18 @@ export default function CreditSearch() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<ManifoldUserResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const { fetchUser, isLoading, error } = useManifoldUser();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsAuthenticated(!!user);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -50,9 +63,62 @@ export default function CreditSearch() {
     }
   };
 
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: 'Error signing out',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setIsAuthenticated(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
-      <Header />
+      {/* Header */}
+      <header className="sticky top-0 z-50 glass border-b border-border/50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link to={isAuthenticated ? "/marketplace" : "/"} className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
+                <Landmark className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-gradient">ManiFed Credit</h1>
+                <p className="text-xs text-muted-foreground -mt-0.5">Credit Score Lookup</p>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-3">
+              {isAuthenticated ? (
+                <>
+                  <Link to="/marketplace">
+                    <Button variant="outline" size="sm">
+                      Go to Loans
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sign Out</span>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm">Sign In</Button>
+                  </Link>
+                  <Link to="/auth?mode=signup">
+                    <Button variant="glow" size="sm">Get Started</Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8 animate-slide-up">

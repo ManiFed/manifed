@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { mockLoans } from '@/data/mockLoans';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useUserBalance } from '@/hooks/useUserBalance';
 import {
   ArrowLeft,
   Clock,
@@ -39,18 +39,76 @@ const riskConfig = {
   high: { label: 'High Risk', className: 'text-destructive bg-destructive/10 border-destructive/20' },
 };
 
+interface Loan {
+  id: string;
+  borrower_user_id: string;
+  borrower_username: string;
+  borrower_reputation: number;
+  title: string;
+  description: string;
+  amount: number;
+  funded_amount: number;
+  interest_rate: number;
+  term_days: number;
+  status: string;
+  funding_deadline: string | null;
+  maturity_date: string | null;
+  risk_score: string;
+  collateral_description: string | null;
+  manifold_market_id: string | null;
+  created_at: string;
+}
+
+interface Investment {
+  id: string;
+  investor_username: string;
+  amount: number;
+  created_at: string;
+}
+
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const [investAmount, setInvestAmount] = useState('');
   const [investMessage, setInvestMessage] = useState('');
   const [isInvesting, setIsInvesting] = useState(false);
   const [userApiKey, setUserApiKey] = useState<string | null>(null);
-
-  const loan = mockLoans.find((l) => l.id === id);
+  const [loan, setLoan] = useState<Loan | null>(null);
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { balance, updateBalance, recordTransaction, totalInvested } = useUserBalance();
 
   useEffect(() => {
+    fetchLoanData();
     fetchUserSettings();
-  }, []);
+  }, [id]);
+
+  const fetchLoanData = async () => {
+    if (!id) return;
+    
+    try {
+      const { data: loanData, error: loanError } = await supabase
+        .from('loans')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (loanError) throw loanError;
+      setLoan(loanData);
+
+      const { data: investmentData, error: investmentError } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('loan_id', id)
+        .order('created_at', { ascending: false });
+
+      if (investmentError) throw investmentError;
+      setInvestments(investmentData || []);
+    } catch (error) {
+      console.error('Error fetching loan:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchUserSettings = async () => {
     try {
@@ -59,7 +117,7 @@ export default function LoanDetail() {
 
       const { data } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_api_key')
+        .select('manifold_api_key, manifold_username')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -70,6 +128,17 @@ export default function LoanDetail() {
       console.error('Error fetching settings:', error);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+      </div>
+    );
+  }
 
   if (!loan) {
     return (
@@ -90,11 +159,11 @@ export default function LoanDetail() {
     );
   }
 
-  const fundingProgress = (loan.fundedAmount / loan.amount) * 100;
-  const status = statusConfig[loan.status];
-  const risk = riskConfig[loan.riskScore];
+  const fundingProgress = (loan.funded_amount / loan.amount) * 100;
+  const status = statusConfig[loan.status as keyof typeof statusConfig] || statusConfig.seeking_funding;
+  const risk = riskConfig[loan.risk_score as keyof typeof riskConfig] || riskConfig.medium;
   const StatusIcon = status.icon;
-  const remainingAmount = loan.amount - loan.fundedAmount;
+  const remainingAmount = loan.amount - loan.funded_amount;
 
   const handleInvest = async () => {
     const amount = parseFloat(investAmount);
@@ -123,15 +192,35 @@ export default function LoanDetail() {
       return;
     }
 
+    // CHECK MANIFED BALANCE BEFORE INVESTING
+    if (amount > balance) {
+      toast({
+        title: 'Insufficient ManiFed Balance',
+        description: `You need to deposit M$${(amount - balance).toLocaleString()} more to make this investment. Click on your wallet to deposit.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsInvesting(true);
     try {
-      // Call the managram function to invest
+      // Get user info for recording investment
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: settings } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_username')
+        .eq('user_id', user.id)
+        .single();
+
+      // Call the managram function to send funds to borrower
       const { data, error } = await supabase.functions.invoke('managram', {
         body: {
           action: 'invest',
           amount: amount,
           userApiKey: userApiKey,
-          recipientUsername: loan.borrower.username,
+          recipientUsername: loan.borrower_username,
           message: investMessage || `Loan investment for: ${loan.title}`,
         },
       });
@@ -139,12 +228,44 @@ export default function LoanDetail() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
+      // Record the investment in the database
+      const { error: investError } = await supabase
+        .from('investments')
+        .insert({
+          loan_id: loan.id,
+          investor_user_id: user.id,
+          investor_username: settings?.manifold_username || 'Anonymous',
+          amount: amount,
+          message: investMessage,
+        });
+
+      if (investError) throw investError;
+
+      // Update loan funded amount
+      const { error: loanError } = await supabase
+        .from('loans')
+        .update({ 
+          funded_amount: loan.funded_amount + amount,
+          status: loan.funded_amount + amount >= loan.amount ? 'active' : 'seeking_funding'
+        })
+        .eq('id', loan.id);
+
+      if (loanError) throw loanError;
+
+      // Deduct from ManiFed balance
+      const newBalance = balance - amount;
+      const newTotalInvested = totalInvested + amount;
+      await updateBalance(newBalance, newTotalInvested);
+      await recordTransaction('invest', -amount, `Invested M$${amount} in: ${loan.title}`, loan.id);
+
       toast({
-        title: 'Investment submitted!',
+        title: 'Investment Successful!',
         description: `You invested M$${amount.toLocaleString()} in this loan`,
       });
+      
       setInvestAmount('');
       setInvestMessage('');
+      fetchLoanData(); // Refresh loan data
     } catch (error) {
       console.error('Investment error:', error);
       toast({
@@ -182,8 +303,8 @@ export default function LoanDetail() {
                       {loan.title}
                     </CardTitle>
                     <div className="flex items-center gap-3 text-muted-foreground">
-                      <span>by @{loan.borrower.username}</span>
-                      <Badge variant="outline">Credit: {loan.borrower.reputation}</Badge>
+                      <span>by @{loan.borrower_username}</span>
+                      <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
                     </div>
                   </div>
                   <div className={cn('px-3 py-2 rounded-lg border flex items-center gap-2', risk.className)}>
@@ -195,13 +316,13 @@ export default function LoanDetail() {
               <CardContent className="space-y-6">
                 <p className="text-muted-foreground leading-relaxed">{loan.description}</p>
 
-                {loan.collateralDescription && (
+                {loan.collateral_description && (
                   <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
                     <div className="flex items-center gap-2 text-foreground font-medium mb-2">
                       <Shield className="w-4 h-4 text-primary" />
                       Collateral
                     </div>
-                    <p className="text-sm text-muted-foreground">{loan.collateralDescription}</p>
+                    <p className="text-sm text-muted-foreground">{loan.collateral_description}</p>
                   </div>
                 )}
 
@@ -215,17 +336,17 @@ export default function LoanDetail() {
                   <div className="p-4 rounded-lg bg-secondary/30 text-center">
                     <TrendingUp className="w-5 h-5 text-success mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Interest Rate</p>
-                    <p className="text-xl font-bold text-success">{loan.interestRate}%</p>
+                    <p className="text-xl font-bold text-success">{loan.interest_rate}%</p>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/30 text-center">
                     <Calendar className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Term Length</p>
-                    <p className="text-xl font-bold text-foreground">{loan.termDays} days</p>
+                    <p className="text-xl font-bold text-foreground">{loan.term_days} days</p>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/30 text-center">
                     <Users className="w-5 h-5 text-primary mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Investors</p>
-                    <p className="text-xl font-bold text-foreground">{loan.investors.length}</p>
+                    <p className="text-xl font-bold text-foreground">{investments.length}</p>
                   </div>
                 </div>
 
@@ -239,7 +360,7 @@ export default function LoanDetail() {
                     <Progress value={fundingProgress} className="h-3" />
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        M${loan.fundedAmount.toLocaleString()} funded
+                        M${loan.funded_amount.toLocaleString()} funded
                       </span>
                       <span className="text-muted-foreground">
                         M${remainingAmount.toLocaleString()} remaining
@@ -255,25 +376,25 @@ export default function LoanDetail() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="w-5 h-5 text-primary" />
-                  Investors ({loan.investors.length})
+                  Investors ({investments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {loan.investors.length > 0 ? (
+                {investments.length > 0 ? (
                   <div className="space-y-3">
-                    {loan.investors.map((investor) => (
+                    {investments.map((investor) => (
                       <div
                         key={investor.id}
                         className="flex items-center justify-between p-3 rounded-lg bg-secondary/30"
                       >
                         <div>
-                          <p className="font-medium text-foreground">@{investor.username}</p>
+                          <p className="font-medium text-foreground">@{investor.investor_username}</p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(investor.investedAt).toLocaleDateString()}
+                            {new Date(investor.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         <p className="font-semibold text-foreground">
-                          M${investor.amount.toLocaleString()}
+                          M${Number(investor.amount).toLocaleString()}
                         </p>
                       </div>
                     ))}
@@ -303,6 +424,19 @@ export default function LoanDetail() {
                       </p>
                     </div>
                   )}
+
+                  {userApiKey && (
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                      <p className="text-muted-foreground">Your ManiFed Balance</p>
+                      <p className="text-xl font-bold text-foreground">M${balance.toLocaleString()}</p>
+                      {balance < 10 && (
+                        <p className="text-warning text-xs mt-1">
+                          Deposit funds via the wallet icon in the header
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
                     <Input
@@ -313,7 +447,7 @@ export default function LoanDetail() {
                       className="bg-secondary/50"
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Max: M${remainingAmount.toLocaleString()}
+                      Min: M$10 • Max: M${remainingAmount.toLocaleString()}
                     </p>
                   </div>
 
@@ -335,11 +469,11 @@ export default function LoanDetail() {
                         M$
                         {(
                           parseFloat(investAmount) *
-                          (1 + loan.interestRate / 100)
+                          (1 + loan.interest_rate / 100)
                         ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        +{loan.interestRate}% in {loan.termDays} days
+                        +{loan.interest_rate}% in {loan.term_days} days
                       </p>
                     </div>
                   )}
@@ -349,7 +483,7 @@ export default function LoanDetail() {
                     className="w-full" 
                     size="lg" 
                     onClick={handleInvest}
-                    disabled={isInvesting || !userApiKey}
+                    disabled={isInvesting || !userApiKey || balance < 10}
                   >
                     {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Fund This Loan
@@ -362,12 +496,12 @@ export default function LoanDetail() {
               </Card>
             )}
 
-            {loan.manifoldMarketId && (
+            {loan.manifold_market_id && (
               <Card className="glass animate-slide-up" style={{ animationDelay: '200ms' }}>
                 <CardContent className="p-4">
                   <Button variant="outline" className="w-full" asChild>
                     <a
-                      href={`https://manifold.markets/${loan.manifoldMarketId}`}
+                      href={`https://manifold.markets/${loan.manifold_market_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -378,32 +512,6 @@ export default function LoanDetail() {
                 </CardContent>
               </Card>
             )}
-
-            <Card className="glass animate-slide-up" style={{ animationDelay: '250ms' }}>
-              <CardHeader>
-                <CardTitle className="text-lg">How it Works</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground">
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">1</span>
-                  </div>
-                  <p>Fund the loan from your ManiFed balance</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">2</span>
-                  </div>
-                  <p>Borrower receives M$ via managram</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">3</span>
-                  </div>
-                  <p>Receive principal + interest at maturity</p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>

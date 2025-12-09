@@ -1,23 +1,48 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Wallet, TrendingUp, PlusCircle, LayoutDashboard, Landmark, Search, LogOut, Settings } from 'lucide-react';
+import { TrendingUp, PlusCircle, LayoutDashboard, Landmark, LogOut, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockUserPortfolio } from '@/data/mockLoans';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { WalletPopover } from '@/components/WalletPopover';
+import { useUserBalance } from '@/hooks/useUserBalance';
 
 const navItems = [
   { path: '/marketplace', label: 'Marketplace', icon: TrendingUp },
   { path: '/portfolio', label: 'Portfolio', icon: LayoutDashboard },
   { path: '/create', label: 'Create Loan', icon: PlusCircle },
-  { path: '/credit-search', label: 'Credit Scores', icon: Search },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { balance, updateBalance, recordTransaction } = useUserBalance();
+  const [userApiKey, setUserApiKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUserSettings();
+  }, []);
+
+  const fetchUserSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_api_key')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.manifold_api_key) {
+        setUserApiKey(data.manifold_api_key);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -30,6 +55,14 @@ export function Header() {
     } else {
       navigate('/');
     }
+  };
+
+  const handleBalanceChange = async (newBalance: number) => {
+    await updateBalance(newBalance);
+  };
+
+  const handleRecordTransaction = async (type: 'deposit' | 'withdraw', amount: number, description: string) => {
+    await recordTransaction(type, amount, description);
   };
 
   return (
@@ -69,15 +102,14 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/50">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold">
-                M${mockUserPortfolio.balance.toLocaleString()}
-              </span>
+            <div className="hidden sm:block">
+              <WalletPopover 
+                balance={balance} 
+                userApiKey={userApiKey}
+                onBalanceChange={handleBalanceChange}
+                onRecordTransaction={handleRecordTransaction}
+              />
             </div>
-            <Badge variant="active" className="hidden sm:inline-flex">
-              Rep: {mockUserPortfolio.reputation}
-            </Badge>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
