@@ -114,6 +114,20 @@ serve(async (req) => {
   }
 });
 
+async function getUserIdFromUsername(username: string): Promise<string> {
+  console.log(`Looking up user ID for @${username}`);
+  
+  const response = await fetch(`https://api.manifold.markets/v0/user/${username}`);
+  
+  if (!response.ok) {
+    throw new Error(`User @${username} not found`);
+  }
+  
+  const userData = await response.json();
+  console.log(`Found user ID: ${userData.id}`);
+  return userData.id;
+}
+
 async function sendManagram(
   senderApiKey: string,
   toUsername: string,
@@ -122,6 +136,9 @@ async function sendManagram(
 ): Promise<{ txnId?: string; error?: string }> {
   console.log(`Sending M$${amount} to @${toUsername}: ${message}`);
   
+  // First get the user ID from username
+  const userId = await getUserIdFromUsername(toUsername);
+  
   const response = await fetch("https://api.manifold.markets/v0/managram", {
     method: "POST",
     headers: {
@@ -129,10 +146,9 @@ async function sendManagram(
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      toIds: [], // Will use toUsername instead
+      toIds: [userId],
       amount: amount,
-      message: message,
-      toUsername: toUsername
+      message: message
     })
   });
 
