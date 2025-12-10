@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.process-bond-maturity]
 verify_jwt = false
+
+[functions.purchase-bond]
+verify_jwt = true

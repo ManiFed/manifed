@@ -127,67 +127,13 @@ export default function BondMarket() {
 
     setBuyingId(listing.id);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Deduct buyer's balance
-      const { error: buyerError } = await supabase.rpc('modify_user_balance', {
-        p_user_id: user.id,
-        p_amount: listing.asking_price,
-        p_operation: 'subtract'
+      // Use secure edge function for the entire purchase transaction
+      const { data, error } = await supabase.functions.invoke('purchase-bond', {
+        body: { listing_id: listing.id }
       });
 
-      if (buyerError) throw buyerError;
-
-      // Credit seller's balance
-      const { error: sellerError } = await supabase.rpc('modify_user_balance', {
-        p_user_id: listing.seller_id,
-        p_amount: listing.asking_price,
-        p_operation: 'add'
-      });
-
-      if (sellerError) throw sellerError;
-
-      // Transfer bond ownership
-      const { error: bondError } = await supabase
-        .from('bonds')
-        .update({ user_id: user.id })
-        .eq('id', listing.bond_id);
-
-      if (bondError) throw bondError;
-
-      // Update listing status
-      const { error: listingError } = await supabase
-        .from('bond_listings')
-        .update({ status: 'sold' })
-        .eq('id', listing.id);
-
-      if (listingError) throw listingError;
-
-      // Record transaction
-      await supabase.from('bond_transactions').insert({
-        bond_id: listing.bond_id,
-        from_user_id: listing.seller_id,
-        to_user_id: user.id,
-        price: listing.asking_price,
-        transaction_type: 'sale',
-      });
-
-      // Record in transactions table
-      await supabase.from('transactions').insert([
-        {
-          user_id: user.id,
-          type: 'bond_purchase',
-          amount: -listing.asking_price,
-          description: `Purchased bond from market`,
-        },
-        {
-          user_id: listing.seller_id,
-          type: 'bond_sale',
-          amount: listing.asking_price,
-          description: `Sold bond on market`,
-        }
-      ]);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Bond Purchased!',
@@ -195,7 +141,7 @@ export default function BondMarket() {
       });
 
       await fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error buying bond:', error);
       toast({
         title: 'Purchase Failed',
