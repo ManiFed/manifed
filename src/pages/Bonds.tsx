@@ -15,7 +15,7 @@ import {
   AlertCircle,
   CheckCircle,
   LogOut,
-  Lock
+  Store,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -46,8 +46,6 @@ const BOND_TERMS = [
   { weeks: 52, label: '52 Weeks', description: '1 Year T-Bill' },
 ];
 
-const TRANSACTION_FEE = 0.005; // 0.5%
-
 export default function Bonds() {
   const [selectedTerm, setSelectedTerm] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
@@ -75,7 +73,6 @@ export default function Bonds() {
         .order('term_weeks', { ascending: true });
 
       if (ratesData) {
-        // Get latest rate for each term
         const latestRates = BOND_TERMS.map(term => {
           const termRates = ratesData.filter(r => r.term_weeks === term.weeks);
           return termRates[termRates.length - 1] || { term_weeks: term.weeks, annual_yield: 6.0, monthly_yield: 0.5 };
@@ -84,7 +81,6 @@ export default function Bonds() {
       }
 
       if (user) {
-        // Check API key
         const { data: settings } = await supabase
           .from('user_manifold_settings')
           .select('manifold_api_key')
@@ -93,7 +89,6 @@ export default function Bonds() {
         
         setHasApiKey(!!settings?.manifold_api_key);
 
-        // Fetch user's bonds
         const { data: bondsData } = await supabase
           .from('bonds')
           .select('*')
@@ -126,13 +121,11 @@ export default function Bonds() {
       return;
     }
 
-    const fee = purchaseAmount * TRANSACTION_FEE;
-    const totalCost = purchaseAmount + fee;
-
-    if (totalCost > balance) {
+    // No transaction fee for bonds
+    if (purchaseAmount > balance) {
       toast({
         title: 'Insufficient Balance',
-        description: `You need M$${totalCost.toFixed(2)} (including 0.5% fee) to make this purchase`,
+        description: `You need M$${purchaseAmount.toFixed(2)} to make this purchase`,
         variant: 'destructive',
       });
       return;
@@ -150,11 +143,11 @@ export default function Bonds() {
       const termYears = selectedTerm / 52;
       const totalReturn = purchaseAmount * (1 + (rate.annual_yield / 100) * termYears);
 
-      // Withdraw from ManiFed balance (sends to @ManiFed)
+      // Withdraw from ManiFed balance
       const { data: withdrawData, error: withdrawError } = await supabase.functions.invoke('managram', {
         body: {
           action: 'withdraw',
-          amount: totalCost, // Include fee
+          amount: purchaseAmount,
         },
       });
 
@@ -179,10 +172,9 @@ export default function Bonds() {
 
       toast({
         title: 'Bond Purchased!',
-        description: `M$${purchaseAmount.toLocaleString()} ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description} purchased (+ M$${fee.toFixed(2)} fee). You'll receive M$${totalReturn.toFixed(2)} at maturity.`,
+        description: `M$${purchaseAmount.toLocaleString()} ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description} purchased. You'll receive M$${totalReturn.toFixed(2)} at maturity.`,
       });
 
-      // Refresh data
       await checkAuthAndFetchData();
       setAmount('');
       setSelectedTerm(null);
@@ -206,12 +198,11 @@ export default function Bonds() {
 
   const selectedRate = rates.find(r => r.term_weeks === selectedTerm);
   const purchaseAmount = parseFloat(amount) || 0;
-  const fee = purchaseAmount * TRANSACTION_FEE;
   const termYears = selectedTerm ? selectedTerm / 52 : 0;
   const estimatedReturn = selectedRate ? purchaseAmount * (1 + (selectedRate.annual_yield / 100) * termYears) : 0;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
@@ -227,6 +218,14 @@ export default function Bonds() {
             </Link>
 
             <div className="flex items-center gap-3">
+              {isAuthenticated && (
+                <Link to="/bond-market">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Store className="w-4 h-4" />
+                    Bond Market
+                  </Button>
+                </Link>
+              )}
               {isAuthenticated ? (
                 <>
                   <Link to="/hub">
@@ -243,7 +242,7 @@ export default function Bonds() {
                     <Button variant="ghost" size="sm">Sign In</Button>
                   </Link>
                   <Link to="/auth?mode=signup">
-                    <Button variant="glow" size="sm">Get Started</Button>
+                    <Button variant="default" size="sm">Get Started</Button>
                   </Link>
                 </>
               )}
@@ -264,7 +263,7 @@ export default function Bonds() {
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Earn stable yields on your M$ with our Treasury Bills. Fixed terms, guaranteed returns at maturity.
-            Currently offering {rates[0]?.annual_yield || 6}% APY. <strong>0.5% transaction fee applies.</strong>
+            Currently offering {rates[0]?.annual_yield || 6}% APY. <strong>Bonds are now tradable!</strong>
           </p>
         </div>
 
@@ -308,7 +307,7 @@ export default function Bonds() {
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">{term.description}</p>
                           <div className="flex items-center gap-2">
-                            <Badge variant="active">{rate?.annual_yield || 6}% APY</Badge>
+                            <Badge variant="secondary">{rate?.annual_yield || 6}% APY</Badge>
                             <span className="text-xs text-muted-foreground">
                               ({rate?.monthly_yield || 0.5}% monthly)
                             </span>
@@ -364,7 +363,7 @@ export default function Bonds() {
                           />
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Minimum purchase: M$10 • 0.5% transaction fee: M${fee.toFixed(2)}
+                          Minimum purchase: M$10 • No transaction fee
                         </p>
 
                         {purchaseAmount >= 10 && (
@@ -379,17 +378,14 @@ export default function Bonds() {
                                 <p className="text-lg font-semibold text-success">+M${(estimatedReturn - purchaseAmount).toFixed(2)}</p>
                               </div>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Total cost: M${(purchaseAmount + fee).toFixed(2)} (including fee)
-                            </p>
                           </div>
                         )}
 
                         <Button 
-                          variant="glow" 
+                          variant="default" 
                           className="w-full gap-2"
                           onClick={handlePurchaseBond}
-                          disabled={isPurchasing || purchaseAmount < 10 || (purchaseAmount + fee) > balance}
+                          disabled={isPurchasing || purchaseAmount < 10 || purchaseAmount > balance}
                         >
                           {isPurchasing ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -403,22 +399,6 @@ export default function Bonds() {
                   </CardContent>
                 </Card>
               )}
-
-              {/* Non-tradable notice */}
-              <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '300ms' }}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Lock className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Non-Tradable Instrument</p>
-                      <p className="text-sm text-muted-foreground">
-                        ManiFed T-Bills cannot be sold or transferred before maturity. Early redemption incurs a 50% penalty on accrued interest. 
-                        This helps maintain the stability and predictability of returns.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Sidebar - My Bonds */}
@@ -436,32 +416,33 @@ export default function Bonds() {
                   </CardHeader>
                   <CardContent>
                     {userBonds.length === 0 ? (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p>No bonds yet</p>
-                        <p className="text-sm">Purchase your first Treasury Bill above</p>
+                      <div className="text-center py-8">
+                        <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                        <p className="text-sm text-muted-foreground">No bonds yet</p>
+                        <p className="text-xs text-muted-foreground mt-1">Purchase a T-Bill to get started</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {userBonds.map((bond) => (
-                          <div
-                            key={bond.id}
-                            className="p-3 rounded-lg bg-secondary/30 border border-border/50"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <Badge variant={bond.status === 'active' ? 'active' : 'secondary'}>
-                                {bond.status === 'active' ? 'Active' : 'Matured'}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {BOND_TERMS.find(t => t.weeks === bond.term_weeks)?.description}
-                              </span>
+                          <Link key={bond.id} to={`/bond/${bond.id}`} className="block">
+                            <div className="p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                              <div className="flex items-center justify-between mb-1">
+                                <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
+                                  {bond.status}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {bond.term_weeks}w • {bond.annual_yield}% APY
+                                </span>
+                              </div>
+                              <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
+                              </p>
+                              <p className="text-xs text-success mt-1">
+                                Returns: M${bond.total_return.toFixed(2)}
+                              </p>
                             </div>
-                            <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
-                            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                              <span>Return: M${bond.total_return.toFixed(2)}</span>
-                              <span>Matures: {format(new Date(bond.maturity_date), 'MMM d')}</span>
-                            </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     )}
@@ -470,13 +451,10 @@ export default function Bonds() {
               ) : (
                 <Card className="glass animate-slide-up" style={{ animationDelay: '150ms' }}>
                   <CardContent className="p-6 text-center">
-                    <FileText className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
-                    <h3 className="font-semibold text-foreground mb-2">Sign In to Purchase</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Create an account to start investing in Treasury Bills
-                    </p>
-                    <Link to="/auth?mode=signup">
-                      <Button variant="glow" className="w-full">Get Started</Button>
+                    <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground mb-4">Sign in to purchase and manage bonds</p>
+                    <Link to="/auth">
+                      <Button variant="default" size="sm">Sign In</Button>
                     </Link>
                   </CardContent>
                 </Card>

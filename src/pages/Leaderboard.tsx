@@ -21,36 +21,117 @@ interface LeaderboardEntry {
   metric: string;
 }
 
-// Mock data for demo - in production, aggregate from database
-const MOCK_LENDERS: LeaderboardEntry[] = [
-  { rank: 1, username: 'TopLender', value: 50000, metric: 'M$ invested' },
-  { rank: 2, username: 'ManaKing', value: 35000, metric: 'M$ invested' },
-  { rank: 3, username: 'PredictPro', value: 28000, metric: 'M$ invested' },
-  { rank: 4, username: 'BetMaster', value: 22000, metric: 'M$ invested' },
-  { rank: 5, username: 'YieldFarmer', value: 18000, metric: 'M$ invested' },
-];
-
-const MOCK_TRADERS: LeaderboardEntry[] = [
-  { rank: 1, username: 'MemeLord', value: 15000, metric: 'M$ profit' },
-  { rank: 2, username: 'CoinHunter', value: 8500, metric: 'M$ profit' },
-  { rank: 3, username: 'DiamondHands', value: 6200, metric: 'M$ profit' },
-  { rank: 4, username: 'SwingTrader', value: 4100, metric: 'M$ profit' },
-  { rank: 5, username: 'Mooner', value: 2800, metric: 'M$ profit' },
-];
-
-const MOCK_EARNERS: LeaderboardEntry[] = [
-  { rank: 1, username: 'SafeYield', value: 12000, metric: 'M$ earned' },
-  { rank: 2, username: 'BondMaster', value: 9500, metric: 'M$ earned' },
-  { rank: 3, username: 'InterestPro', value: 7800, metric: 'M$ earned' },
-  { rank: 4, username: 'CompoundFan', value: 5200, metric: 'M$ earned' },
-  { rank: 5, username: 'YieldSeeker', value: 3600, metric: 'M$ earned' },
-];
-
 export default function Leaderboard() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [lenders, setLenders] = useState(MOCK_LENDERS);
-  const [traders, setTraders] = useState(MOCK_TRADERS);
-  const [earners, setEarners] = useState(MOCK_EARNERS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lenders, setLenders] = useState<LeaderboardEntry[]>([]);
+  const [traders, setTraders] = useState<LeaderboardEntry[]>([]);
+  const [earners, setEarners] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    fetchLeaderboardData();
+  }, []);
+
+  const fetchLeaderboardData = async () => {
+    try {
+      // Fetch top lenders (by total invested in loans)
+      const { data: investmentsData } = await supabase
+        .from('investments')
+        .select('investor_username, amount')
+        .order('amount', { ascending: false });
+
+      if (investmentsData) {
+        const lenderMap = new Map<string, number>();
+        investmentsData.forEach(inv => {
+          const current = lenderMap.get(inv.investor_username) || 0;
+          lenderMap.set(inv.investor_username, current + Number(inv.amount));
+        });
+        
+        const sortedLenders = Array.from(lenderMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map((entry, index) => ({
+            rank: index + 1,
+            username: entry[0],
+            value: entry[1],
+            metric: 'M$ invested',
+          }));
+        setLenders(sortedLenders);
+      }
+
+      // Fetch top traders (by memecoin trading volume)
+      const { data: tradesData } = await supabase
+        .from('memecoin_trades')
+        .select('user_id, mana_amount, trade_type');
+
+      if (tradesData) {
+        const traderMap = new Map<string, number>();
+        tradesData.forEach(trade => {
+          const current = traderMap.get(trade.user_id) || 0;
+          // Calculate profit: sells add, buys subtract
+          const amount = trade.trade_type === 'sell' ? Number(trade.mana_amount) : -Number(trade.mana_amount);
+          traderMap.set(trade.user_id, current + amount);
+        });
+        
+        // Get usernames for traders
+        const userIds = Array.from(traderMap.keys());
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username')
+          .in('user_id', userIds);
+        
+        const usernameMap = new Map(profiles?.map(p => [p.user_id, p.username || 'Anonymous']) || []);
+        
+        const sortedTraders = Array.from(traderMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map((entry, index) => ({
+            rank: index + 1,
+            username: usernameMap.get(entry[0]) || 'Anonymous',
+            value: entry[1],
+            metric: 'M$ profit',
+          }));
+        setTraders(sortedTraders);
+      }
+
+      // Fetch top earners (by bond returns)
+      const { data: bondsData } = await supabase
+        .from('bonds')
+        .select('user_id, total_return, amount')
+        .eq('status', 'matured');
+
+      if (bondsData) {
+        const earnerMap = new Map<string, number>();
+        bondsData.forEach(bond => {
+          const current = earnerMap.get(bond.user_id) || 0;
+          earnerMap.set(bond.user_id, current + (Number(bond.total_return) - Number(bond.amount)));
+        });
+        
+        // Get usernames
+        const userIds = Array.from(earnerMap.keys());
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username')
+          .in('user_id', userIds);
+        
+        const usernameMap = new Map(profiles?.map(p => [p.user_id, p.username || 'Anonymous']) || []);
+        
+        const sortedEarners = Array.from(earnerMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map((entry, index) => ({
+            rank: index + 1,
+            username: usernameMap.get(entry[0]) || 'Anonymous',
+            value: entry[1],
+            metric: 'M$ earned',
+          }));
+        setEarners(sortedEarners);
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -67,32 +148,38 @@ export default function Leaderboard() {
 
   const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => (
     <div className="space-y-2">
-      {entries.map((entry) => (
-        <div
-          key={entry.rank}
-          className={`flex items-center justify-between p-4 rounded-lg transition-colors ${
-            entry.rank <= 3 ? 'bg-primary/10' : 'bg-secondary/30'
-          } hover:bg-secondary/50`}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 flex items-center justify-center text-lg">
-              {getRankIcon(entry.rank)}
-            </div>
-            <div>
-              <p className="font-medium text-foreground">@{entry.username}</p>
-              <p className="text-xs text-muted-foreground">{entry.metric}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="font-semibold text-foreground">M${entry.value.toLocaleString()}</p>
-          </div>
+      {entries.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No data yet. Be the first!
         </div>
-      ))}
+      ) : (
+        entries.map((entry) => (
+          <div
+            key={entry.rank}
+            className={`flex items-center justify-between p-4 rounded-lg transition-colors ${
+              entry.rank <= 3 ? 'bg-primary/10' : 'bg-secondary/30'
+            } hover:bg-secondary/50`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 flex items-center justify-center text-lg">
+                {getRankIcon(entry.rank)}
+              </div>
+              <div>
+                <p className="font-medium text-foreground">@{entry.username}</p>
+                <p className="text-xs text-muted-foreground">{entry.metric}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-foreground">M${entry.value.toLocaleString()}</p>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
@@ -171,7 +258,7 @@ export default function Leaderboard() {
         )}
 
         <p className="text-center text-sm text-muted-foreground mt-8 animate-slide-up" style={{ animationDelay: '200ms' }}>
-          Leaderboard updates daily. Rankings based on all-time performance.
+          Leaderboard updates in real-time based on platform activity.
         </p>
       </main>
     </div>

@@ -47,14 +47,12 @@ const CATEGORY_ICONS = {
 };
 
 const RARITY_COLORS = {
-  common: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-  uncommon: 'bg-green-500/20 text-green-400 border-green-500/30',
-  rare: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  epic: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  legendary: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  common: 'bg-muted text-muted-foreground border-border',
+  uncommon: 'bg-green-500/20 text-green-600 border-green-500/30',
+  rare: 'bg-blue-500/20 text-blue-600 border-blue-500/30',
+  epic: 'bg-purple-500/20 text-purple-600 border-purple-500/30',
+  legendary: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
 };
-
-const TRANSACTION_FEE = 0.005; // 0.5%
 
 export default function Market() {
   const [items, setItems] = useState<MarketItem[]>([]);
@@ -63,6 +61,7 @@ export default function Market() {
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [equippingId, setEquippingId] = useState<string | null>(null);
   const { balance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
@@ -111,13 +110,10 @@ export default function Market() {
   };
 
   const handlePurchase = async (item: MarketItem) => {
-    const fee = item.price * TRANSACTION_FEE;
-    const totalCost = item.price + fee;
-
-    if (totalCost > balance) {
+    if (item.price > balance) {
       toast({
         title: 'Insufficient Balance',
-        description: `You need M$${totalCost.toFixed(2)} (including 0.5% fee) to purchase this item`,
+        description: `You need M$${item.price} to purchase this item`,
         variant: 'destructive',
       });
       return;
@@ -128,17 +124,14 @@ export default function Market() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Deduct balance via managram
-      const { data: withdrawData, error: withdrawError } = await supabase.functions.invoke('managram', {
-        body: {
-          action: 'withdraw',
-          amount: totalCost,
-        },
+      // Deduct from ManiFed balance (this is a purchase, not a withdrawal)
+      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: user.id,
+        p_amount: item.price,
+        p_operation: 'subtract'
       });
 
-      if (withdrawError || withdrawData?.error) {
-        throw new Error(withdrawData?.error || 'Failed to process purchase');
-      }
+      if (balanceError) throw balanceError;
 
       // Add item to user's inventory
       const { error: insertError } = await supabase
@@ -150,17 +143,24 @@ export default function Market() {
 
       if (insertError) throw insertError;
 
-      // Record transaction
+      // Record transaction as market_purchase (not withdrawal)
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'market_purchase',
-        amount: -totalCost,
+        amount: -item.price,
         description: `Purchased ${item.name}`,
+      });
+
+      // Record fee to fee pool
+      await supabase.from('fee_pool').insert({
+        user_id: user.id,
+        amount: item.price * 0.005,
+        source: 'market',
       });
 
       toast({
         title: 'Purchase Successful!',
-        description: `You now own ${item.name}! (M$${fee.toFixed(2)} fee applied)`,
+        description: `You now own ${item.name}!`,
       });
 
       await fetchData();
@@ -173,6 +173,45 @@ export default function Market() {
       });
     } finally {
       setPurchasingId(null);
+    }
+  };
+
+  const handleEquip = async (item: MarketItem) => {
+    setEquippingId(item.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Update profile with equipped item
+      const updateField = `equipped_${item.category}`;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [updateField]: item.id })
+        .eq('user_id', user.id);
+
+      if (error) {
+        // Profile might not exist, create it
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({ 
+            user_id: user.id, 
+            [updateField]: item.id 
+          });
+        if (insertError) throw insertError;
+      }
+
+      toast({
+        title: 'Item Equipped!',
+        description: `${item.name} is now active on your profile`,
+      });
+    } catch (error) {
+      console.error('Error equipping item:', error);
+      toast({
+        title: 'Equip Failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setEquippingId(null);
     }
   };
 
@@ -196,14 +235,14 @@ export default function Market() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
-                <Store className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
+                <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed Market</h1>
@@ -213,6 +252,9 @@ export default function Market() {
 
             <div className="flex items-center gap-3">
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <Link to="/profile">
+                <Button variant="outline" size="sm">My Profile</Button>
+              </Link>
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />
@@ -238,8 +280,7 @@ export default function Market() {
             ManiFed <span className="text-gradient">Market</span>
           </h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Customize your profile with unique flairs, badges, backgrounds, and effects. 
-            <strong className="text-foreground"> 0.5% transaction fee applies.</strong>
+            Customize your profile with unique flairs, badges, backgrounds, and effects.
           </p>
         </div>
 
@@ -295,7 +336,7 @@ export default function Market() {
             const Icon = CATEGORY_ICONS[item.category];
             const isOwned = ownedItemIds.has(item.id);
             const isPurchasing = purchasingId === item.id;
-            const fee = item.price * TRANSACTION_FEE;
+            const isEquipping = equippingId === item.id;
 
             return (
               <Card key={item.id} className={`glass transition-all hover:-translate-y-1 ${isOwned ? 'border-success/50' : ''}`}>
@@ -317,17 +358,24 @@ export default function Market() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-lg font-bold text-foreground">M${item.price}</p>
-                      <p className="text-xs text-muted-foreground">+M${fee.toFixed(2)} fee</p>
                     </div>
                     {isOwned ? (
-                      <Badge variant="success" className="gap-1">
-                        <Check className="w-3 h-3" />
-                        Owned
-                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEquip(item)}
+                        disabled={isEquipping}
+                      >
+                        {isEquipping ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Equip'
+                        )}
+                      </Button>
                     ) : (
                       <Button
                         size="sm"
-                        variant="glow"
+                        variant="default"
                         onClick={() => handlePurchase(item)}
                         disabled={isPurchasing || !hasApiKey}
                       >
