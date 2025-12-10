@@ -83,7 +83,9 @@ export default function BondMarket() {
         .order('created_at', { ascending: false });
 
       if (listingsData) {
-        setListings(listingsData as unknown as BondListing[]);
+        // Filter out listings where bond data couldn't be loaded
+        const validListings = listingsData.filter(l => l.bond !== null);
+        setListings(validListings as unknown as BondListing[]);
       }
 
       // Fetch user's bonds that can be listed
