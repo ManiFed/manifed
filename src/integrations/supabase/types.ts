@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bond_listings: {
+        Row: {
+          asking_price: number
+          bond_id: string
+          created_at: string
+          id: string
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asking_price: number
+          bond_id: string
+          created_at?: string
+          id?: string
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asking_price?: number
+          bond_id?: string
+          created_at?: string
+          id?: string
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bond_listings_bond_id_fkey"
+            columns: ["bond_id"]
+            isOneToOne: false
+            referencedRelation: "bonds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bond_rates: {
         Row: {
           annual_yield: number
@@ -40,6 +78,44 @@ export type Database = {
           term_weeks?: number
         }
         Relationships: []
+      }
+      bond_transactions: {
+        Row: {
+          bond_id: string
+          created_at: string
+          from_user_id: string
+          id: string
+          price: number
+          to_user_id: string
+          transaction_type: string
+        }
+        Insert: {
+          bond_id: string
+          created_at?: string
+          from_user_id: string
+          id?: string
+          price: number
+          to_user_id: string
+          transaction_type: string
+        }
+        Update: {
+          bond_id?: string
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          price?: number
+          to_user_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bond_transactions_bond_id_fkey"
+            columns: ["bond_id"]
+            isOneToOne: false
+            referencedRelation: "bonds"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bonds: {
         Row: {
@@ -362,6 +438,45 @@ export type Database = {
           pool_tokens?: number
           symbol?: string
           total_supply?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          equipped_background: string | null
+          equipped_badge: string | null
+          equipped_effect: string | null
+          equipped_flair: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          equipped_background?: string | null
+          equipped_badge?: string | null
+          equipped_effect?: string | null
+          equipped_flair?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          equipped_background?: string | null
+          equipped_badge?: string | null
+          equipped_effect?: string | null
+          equipped_flair?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
         }
         Relationships: []
       }

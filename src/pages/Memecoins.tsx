@@ -51,11 +51,17 @@ interface Trade {
   created_at: string;
 }
 
+interface Holding {
+  memecoin_id: string;
+  amount: number;
+}
+
 const TRANSACTION_FEE = 0.005; // 0.5%
 const AMM_FEE = 0.003; // 0.3% AMM fee
 
 export default function Memecoins() {
   const [coins, setCoins] = useState<Memecoin[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<Memecoin | null>(null);
   const [priceHistory, setPriceHistory] = useState<{ timestamp: string; price: number }[]>([]);
   const [tradeAmount, setTradeAmount] = useState('');
@@ -103,6 +109,16 @@ export default function Memecoins() {
           .eq('user_id', user.id)
           .maybeSingle();
         setHasApiKey(!!settings?.manifold_api_key);
+
+        // Fetch holdings
+        const { data: holdingsData } = await supabase
+          .from('memecoin_holdings')
+          .select('memecoin_id, amount')
+          .eq('user_id', user.id);
+        
+        if (holdingsData) {
+          setHoldings(holdingsData as Holding[]);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -125,7 +141,6 @@ export default function Memecoins() {
         price: t.price_per_token,
       })));
     } else {
-      // Show initial price if no trades
       const coin = coins.find(c => c.id === coinId);
       if (coin && coin.pool_tokens > 0) {
         setPriceHistory([{ timestamp: 'Now', price: coin.pool_mana / coin.pool_tokens }]);
@@ -141,6 +156,10 @@ export default function Memecoins() {
   const getPrice = (coin: Memecoin) => {
     if (coin.pool_tokens === 0) return 0;
     return coin.pool_mana / coin.pool_tokens;
+  };
+
+  const getHolding = (coinId: string) => {
+    return holdings.find(h => h.memecoin_id === coinId)?.amount || 0;
   };
 
   const calculateBuyOutput = (coin: Memecoin, manaIn: number) => {
@@ -170,7 +189,7 @@ export default function Memecoins() {
       return;
     }
 
-    // Enforce M$10 minimum for buys (due to Manifold API constraint)
+    // Enforce M$10 minimum for buys
     if (tradeType === 'buy' && amount < 10) {
       toast({ title: 'Minimum Trade', description: 'Minimum buy amount is M$10', variant: 'destructive' });
       return;
@@ -202,8 +221,15 @@ export default function Memecoins() {
         const newPoolTokens = selectedCoin.pool_tokens - tokensOut;
         const pricePerToken = amount / tokensOut;
 
-        // Deduct balance
-        await supabase.functions.invoke('managram', { body: { action: 'withdraw', amount: amount + txFee } });
+        // Deduct from ManiFed balance (not withdrawal!)
+        const totalDeduct = amount + txFee;
+        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+          p_user_id: user.id,
+          p_amount: totalDeduct,
+          p_operation: 'subtract'
+        });
+
+        if (balanceError) throw balanceError;
 
         // Update pool
         await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
@@ -227,9 +253,24 @@ export default function Memecoins() {
           await supabase.from('memecoin_holdings').insert({ user_id: user.id, memecoin_id: selectedCoin.id, amount: tokensOut });
         }
 
+        // Record transaction
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'memecoin_buy',
+          amount: -totalDeduct,
+          description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol}`,
+        });
+
+        // Record fee
+        await supabase.from('fee_pool').insert({
+          user_id: user.id,
+          amount: txFee,
+          source: 'memecoin',
+        });
+
         toast({ title: 'Trade Executed!', description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol} for M$${amount} (+M$${txFee.toFixed(2)} fee)` });
       } else {
-        // Sell logic - check holdings first
+        // Sell logic
         const { data: holding } = await supabase.from('memecoin_holdings').select('*').eq('user_id', user.id).eq('memecoin_id', selectedCoin.id).maybeSingle();
         if (!holding || holding.amount < amount) {
           toast({ title: 'Insufficient Tokens', variant: 'destructive' });
@@ -240,13 +281,20 @@ export default function Memecoins() {
         const manaOut = calculateSellOutput(selectedCoin, amount);
         const newPoolTokens = selectedCoin.pool_tokens + amount;
         const newPoolMana = selectedCoin.pool_mana - manaOut - (manaOut * AMM_FEE);
-        const netMana = manaOut - txFee;
+        const fee = manaOut * TRANSACTION_FEE;
+        const netMana = manaOut - fee;
 
         // Update pool
         await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
 
-        // Credit balance
-        await supabase.functions.invoke('managram', { body: { action: 'deposit', amount: netMana } });
+        // Credit balance (add to ManiFed balance, not deposit!)
+        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+          p_user_id: user.id,
+          p_amount: netMana,
+          p_operation: 'add'
+        });
+
+        if (balanceError) throw balanceError;
 
         // Record trade
         await supabase.from('memecoin_trades').insert({
@@ -256,11 +304,26 @@ export default function Memecoins() {
           mana_amount: manaOut,
           token_amount: amount,
           price_per_token: manaOut / amount,
-          fee_amount: txFee,
+          fee_amount: fee,
         });
 
         // Update holdings
         await supabase.from('memecoin_holdings').update({ amount: holding.amount - amount }).eq('id', holding.id);
+
+        // Record transaction
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'memecoin_sell',
+          amount: netMana,
+          description: `Sold ${amount} ${selectedCoin.symbol}`,
+        });
+
+        // Record fee
+        await supabase.from('fee_pool').insert({
+          user_id: user.id,
+          amount: fee,
+          source: 'memecoin',
+        });
 
         toast({ title: 'Trade Executed!', description: `Sold ${amount} ${selectedCoin.symbol} for M$${netMana.toFixed(2)} (after fees)` });
       }
@@ -302,21 +365,44 @@ export default function Memecoins() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Deduct balance
-      await supabase.functions.invoke('managram', { body: { action: 'withdraw', amount: liquidity + fee } });
+      const totalCost = liquidity + fee;
 
-      // Create coin with initial pool (50/50 split)
+      // Deduct from ManiFed balance
+      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: user.id,
+        p_amount: totalCost,
+        p_operation: 'subtract'
+      });
+
+      if (balanceError) throw balanceError;
+
+      // Create coin with initial pool
       const { error } = await supabase.from('memecoins').insert({
         name: newCoin.name,
         symbol: newCoin.symbol.toUpperCase(),
         image_url: newCoin.emoji,
         creator_id: user.id,
         pool_mana: liquidity,
-        pool_tokens: liquidity * 2, // Start at 0.5 M$ per token
+        pool_tokens: liquidity * 2,
         total_supply: 1000000,
       });
 
       if (error) throw error;
+
+      // Record transaction
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'memecoin_create',
+        amount: -totalCost,
+        description: `Created memecoin ${newCoin.name}`,
+      });
+
+      // Record fee
+      await supabase.from('fee_pool').insert({
+        user_id: user.id,
+        amount: fee,
+        source: 'memecoin',
+      });
 
       toast({ title: 'Memecoin Created!', description: `${newCoin.name} is now live! (M$${fee.toFixed(2)} fee applied)` });
       setCreateOpen(false);
@@ -336,17 +422,17 @@ export default function Memecoins() {
   );
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
-                <Coins className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
+                <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed Memecoins</h1>
@@ -361,7 +447,7 @@ export default function Memecoins() {
                   <Button variant="ghost" size="sm" onClick={handleSignOut}><LogOut className="w-4 h-4" /></Button>
                 </>
               ) : (
-                <Link to="/auth"><Button variant="glow" size="sm">Sign In</Button></Link>
+                <Link to="/auth"><Button variant="default" size="sm">Sign In</Button></Link>
               )}
             </div>
           </div>
@@ -385,7 +471,7 @@ export default function Memecoins() {
           </div>
           {isAuthenticated && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-              <DialogTrigger asChild><Button variant="glow" className="gap-2"><Plus className="w-4 h-4" />Create Memecoin</Button></DialogTrigger>
+              <DialogTrigger asChild><Button variant="default" className="gap-2"><Plus className="w-4 h-4" />Create Memecoin</Button></DialogTrigger>
               <DialogContent className="glass">
                 <DialogHeader><DialogTitle>Create New Memecoin</DialogTitle></DialogHeader>
                 <div className="space-y-4 mt-4">
@@ -393,7 +479,7 @@ export default function Memecoins() {
                   <div><Label>Symbol</Label><Input placeholder="MCAT" value={newCoin.symbol} onChange={(e) => setNewCoin({ ...newCoin, symbol: e.target.value.toUpperCase().slice(0, 6) })} className="bg-secondary/50" maxLength={6} /></div>
                   <div><Label>Emoji</Label><Input value={newCoin.emoji} onChange={(e) => setNewCoin({ ...newCoin, emoji: e.target.value.slice(0, 2) })} className="bg-secondary/50 text-2xl text-center" maxLength={2} /></div>
                   <div><Label>Initial Liquidity (M$, min 100)</Label><Input type="number" placeholder="100" value={newCoin.initialLiquidity} onChange={(e) => setNewCoin({ ...newCoin, initialLiquidity: e.target.value })} className="bg-secondary/50" min={100} /></div>
-                  <Button variant="glow" className="w-full" onClick={handleCreateCoin} disabled={isCreating}>{isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create & Fund Pool'}</Button>
+                  <Button variant="default" className="w-full" onClick={handleCreateCoin} disabled={isCreating}>{isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create & Fund Pool'}</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -409,21 +495,28 @@ export default function Memecoins() {
               filteredCoins.map((coin) => {
                 const price = getPrice(coin);
                 const isSelected = selectedCoin?.id === coin.id;
+                const holding = getHolding(coin.id);
                 return (
                   <Card key={coin.id} className={`glass cursor-pointer transition-all hover:-translate-y-0.5 ${isSelected ? 'ring-2 ring-primary' : ''}`} onClick={() => setSelectedCoin(coin)}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-secondary/50 flex items-center justify-center text-2xl">{coin.image_url}</div>
-                          <div><h3 className="font-semibold text-foreground">{coin.name}</h3><p className="text-sm text-muted-foreground">{coin.symbol}</p></div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">{coin.name}</h3>
+                            <p className="text-sm text-muted-foreground">{coin.symbol}</p>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-foreground">M${price.toFixed(4)}</p>
+                          {holding > 0 && (
+                            <p className="text-xs text-primary">You own: {holding.toFixed(2)}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1"><Droplets className="w-3 h-3" />Pool: M${coin.pool_mana.toLocaleString()}</div>
-                        <div className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />Tokens: {coin.pool_tokens.toLocaleString()}</div>
+                        <span className="flex items-center gap-1"><Droplets className="w-3 h-3" />Pool: M${coin.pool_mana.toFixed(0)}</span>
+                        <span className="flex items-center gap-1"><BarChart3 className="w-3 h-3" />Tokens: {coin.pool_tokens.toFixed(0)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -432,41 +525,77 @@ export default function Memecoins() {
             )}
           </div>
 
-          <div className="space-y-6">
+          {/* Trading Panel */}
+          <div className="space-y-4">
             {selectedCoin ? (
               <>
                 <Card className="glass">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-3">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-3">
                       <span className="text-2xl">{selectedCoin.image_url}</span>
-                      <div><CardTitle>{selectedCoin.name}</CardTitle><p className="text-sm text-muted-foreground">{selectedCoin.symbol}</p></div>
-                    </div>
+                      {selectedCoin.name}
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="h-32">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={priceHistory}><XAxis dataKey="timestamp" hide /><YAxis hide domain={['auto', 'auto']} /><Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} /><Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} /></LineChart>
-                      </ResponsiveContainer>
+                  <CardContent className="space-y-4">
+                    {priceHistory.length > 0 && (
+                      <div className="h-32">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={priceHistory}>
+                            <XAxis dataKey="timestamp" tick={false} />
+                            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10 }} width={40} />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                    <div className="flex gap-2 p-1 bg-secondary/30 rounded-lg">
+                      <Button variant={tradeType === 'buy' ? 'default' : 'ghost'} size="sm" className="flex-1 gap-1" onClick={() => setTradeType('buy')}><ArrowUp className="w-3 h-3" />Buy</Button>
+                      <Button variant={tradeType === 'sell' ? 'default' : 'ghost'} size="sm" className="flex-1 gap-1" onClick={() => setTradeType('sell')}><ArrowDown className="w-3 h-3" />Sell</Button>
                     </div>
+                    <div>
+                      <Label>{tradeType === 'buy' ? 'Amount (M$)' : 'Tokens to sell'}</Label>
+                      <Input type="number" placeholder={tradeType === 'buy' ? 'Min M$10' : 'Enter tokens'} value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="bg-secondary/50" />
+                    </div>
+                    {tradeAmount && parseFloat(tradeAmount) > 0 && (
+                      <div className="p-3 rounded-lg bg-secondary/30 text-sm">
+                        {tradeType === 'buy' ? (
+                          <>
+                            <p className="text-muted-foreground">You'll receive:</p>
+                            <p className="font-semibold text-foreground">{calculateBuyOutput(selectedCoin, parseFloat(tradeAmount)).toFixed(4)} {selectedCoin.symbol}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Fee: M${(parseFloat(tradeAmount) * TRANSACTION_FEE).toFixed(2)}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-muted-foreground">You'll receive:</p>
+                            <p className="font-semibold text-foreground">M${(calculateSellOutput(selectedCoin, parseFloat(tradeAmount)) * (1 - TRANSACTION_FEE)).toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">After 0.5% fee</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <Button variant="default" className="w-full" onClick={handleTrade} disabled={isTrading || !isAuthenticated || !hasApiKey}>
+                      {isTrading ? <Loader2 className="w-4 h-4 animate-spin" /> : `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${selectedCoin.symbol}`}
+                    </Button>
                   </CardContent>
                 </Card>
 
-                {isAuthenticated && (
+                {/* Holdings */}
+                {getHolding(selectedCoin.id) > 0 && (
                   <Card className="glass">
-                    <CardHeader><CardTitle className="text-lg">Trade {selectedCoin.symbol}</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                      <Tabs value={tradeType} onValueChange={(v) => setTradeType(v as 'buy' | 'sell')}>
-                        <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="buy" className="gap-1"><ArrowUp className="w-3 h-3" />Buy</TabsTrigger><TabsTrigger value="sell" className="gap-1"><ArrowDown className="w-3 h-3" />Sell</TabsTrigger></TabsList>
-                      </Tabs>
-                      <Input type="number" placeholder={tradeType === 'buy' ? 'M$ to spend' : 'Tokens to sell'} value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="bg-secondary/50" />
-                      <p className="text-xs text-muted-foreground">0.3% AMM fee + 0.5% transaction fee</p>
-                      <Button variant="glow" className="w-full" onClick={handleTrade} disabled={isTrading || !hasApiKey}>{isTrading ? <Loader2 className="w-4 h-4 animate-spin" /> : tradeType === 'buy' ? 'Buy Tokens' : 'Sell Tokens'}</Button>
+                    <CardContent className="p-4">
+                      <p className="text-sm text-muted-foreground">Your Holdings</p>
+                      <p className="text-xl font-bold text-foreground">{getHolding(selectedCoin.id).toFixed(4)} {selectedCoin.symbol}</p>
+                      <p className="text-sm text-muted-foreground">≈ M${(getHolding(selectedCoin.id) * getPrice(selectedCoin)).toFixed(2)}</p>
                     </CardContent>
                   </Card>
                 )}
               </>
             ) : (
-              <Card className="glass p-8 text-center text-muted-foreground"><Coins className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>Select a coin to trade</p></Card>
+              <Card className="glass p-8 text-center text-muted-foreground">
+                <Coins className="w-8 h-8 mx-auto mb-3 opacity-50" />
+                Select a coin to trade
+              </Card>
             )}
           </div>
         </div>
