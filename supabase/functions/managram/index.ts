@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Bounty market configuration
-const BOUNTY_MARKET_ID = "n9gzb0Q4nV"; // manifed-bonds market ID
+const BOUNTY_MARKET_SLUG = "manifed-bonds"; // URL slug from https://manifold.markets/ManiFed/manifed-bonds
 const WITHDRAWAL_COMMENT_ID = "a5ansst2fbt"; // Comment to award bounty to for withdrawals
 const MANIFED_TRADING_API_KEY = Deno.env.get("MANIFED_TRADING_API_KEY") || "";
 const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
@@ -156,9 +156,9 @@ serve(async (req) => {
 
     if (action === "deposit") {
       // DEPOSIT: User adds to the bounty market
-      console.log(`Adding M$${amount} to bounty market ${BOUNTY_MARKET_ID}`);
+      console.log(`Adding M$${amount} to bounty market ${BOUNTY_MARKET_SLUG}`);
       
-      const bountyResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_ID}/add-bounty`, {
+      const bountyResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_SLUG}/add-bounty`, {
         method: "POST",
         headers: {
           "Authorization": `Key ${userApiKey}`,
@@ -208,7 +208,7 @@ serve(async (req) => {
       console.log(`Awarding M$${amount} from bounty to comment ${WITHDRAWAL_COMMENT_ID}`);
 
       // Step 1: Award bounty to the withdrawal comment using @ManiFed's API key
-      const awardResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_ID}/award-bounty`, {
+      const awardResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_SLUG}/award-bounty`, {
         method: "POST",
         headers: {
           "Authorization": `Key ${MANIFED_API_KEY}`,
