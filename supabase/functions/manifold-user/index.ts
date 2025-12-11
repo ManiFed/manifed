@@ -28,8 +28,8 @@ interface ManifoldPortfolio {
   dailyProfit: number;
 }
 
-// MEANER Credit score formula - average should be ~50, worst is 0
-// Each factor can add or subtract points from base of 25
+// New credit score formula based on MMR
+// Variables: B=balance, P=profit, A=ageDays, L=netLoanBalance, r=rank, n=transactionCount
 function calculateCreditScore(
   user: ManifoldUser,
   portfolio: ManifoldPortfolio | null,
@@ -38,201 +38,100 @@ function calculateCreditScore(
   status: string;
   factors: { name: string; impact: string; value: string }[];
 } {
-  // New credit score logic
-  {
-    const balance = portfolio?.balance ?? user.balance;
-    const netLoanBalance = portfolio?.loanTotal ? -portfolio.loanTotal : 0;
-    const calculatedProfit = portfolio?.profit ?? 0;
-    const ageDays = (Date.now() - user.createdTime) / (1000 * 60 * 60 * 24);
-    const rank = 100;
-    const maxRank = 100;
-    const transactionCount = 0;
-    const rankWeight = Math.min(1, Math.max(0, 1 - (rank - 1) / (maxRank - 1)));
-    const rankMMR = 1000 * rankWeight;
-    let transactionMMR;
-    if (transactionCount < 5) {
-      transactionMMR = -1000000;
-    } else if (transactionCount <= 20) {
-      transactionMMR = -100000 + 90000 * ((transactionCount - 5) / 15);
-    } else if (transactionCount <= 100) {
-      transactionMMR = -10000 + 10000 * ((transactionCount - 20) / 80);
-    } else if (transactionCount <= 1000) {
-      transactionMMR = 1000 * ((transactionCount - 100) / 900);
-    } else {
-      transactionMMR = 1000;
-    }
-    const rawMMR =
-      balance * 0.1 +
-      netLoanBalance * 0.15 +
-      calculatedProfit * 0.5 +
-      ageDays * 0.05 +
-      rankMMR * 0.1 +
-      transactionMMR * 0.1;
-    const transform = (x) => Math.sign(x) * Math.log10(1 + Math.abs(x));
-    const minMMR = -500000;
-    const maxMMR = 2000000;
-    const normalized = (transform(rawMMR) - transform(minMMR)) / (transform(maxMMR) - transform(minMMR));
-    const scoreNumber = Math.round(Math.max(0, Math.min(1000, normalized * 1000)));
-    return scoreNumber;
-  }
-  let score = 25; // Lower base score
   const factors: { name: string; impact: string; value: string }[] = [];
 
-  // Account age factor (-5 to +15 points) - penalize new accounts
-  const accountAgeMs = Date.now() - user.createdTime;
-  const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
-  let ageFactor: number;
-  if (accountAgeDays < 30) {
-    ageFactor = -5; // New account penalty
-  } else if (accountAgeDays < 90) {
-    ageFactor = 0;
-  } else if (accountAgeDays < 365) {
-    ageFactor = (accountAgeDays - 90) / 30; // ~9 points max in first year
+  // Extract values
+  const B = portfolio?.balance ?? user.balance; // balance
+  const P = portfolio?.profit ?? 0; // calculatedProfit
+  const A = (Date.now() - user.createdTime) / (1000 * 60 * 60 * 24); // ageDays
+  const L = portfolio?.loanTotal ? -portfolio.loanTotal : 0; // netLoanBalance (negative when you owe)
+  const r = 50; // rank (we don't have this from API, use middle value)
+  const R_max = 100; // maxRank
+  const n = user.currentBettingStreak ?? 0; // using streak as proxy for activity
+
+  // Weights
+  const w_B = 0.1;
+  const w_L = 0.15;
+  const w_P = 0.5;
+  const w_A = 0.05;
+  const w_rank = 0.1;
+  const w_txn = 0.1;
+
+  // Rank term: rankWeight = clamp[0,1](1 - (r-1)/(R_max-1))
+  const rankWeight = Math.max(0, Math.min(1, 1 - (r - 1) / (R_max - 1)));
+  const rankMMR = 1000 * rankWeight;
+
+  // Transaction activity term (piecewise)
+  let transactionMMR: number;
+  if (n < 5) {
+    transactionMMR = -1000000;
+  } else if (n <= 20) {
+    transactionMMR = -100000 + 90000 * ((n - 5) / 15);
+  } else if (n <= 100) {
+    transactionMMR = -10000 + 10000 * ((n - 20) / 80);
+  } else if (n <= 1000) {
+    transactionMMR = 1000 * ((n - 100) / 900);
   } else {
-    ageFactor = Math.min(15, 9 + (accountAgeDays - 365) / 60); // Slower growth after year 1
+    transactionMMR = 1000;
   }
-  score += ageFactor;
+
+  // Main formula: MMR = w_B*B + w_L*L + w_P*P + w_A*A + w_rank*rankMMR + w_txn*transactionMMR
+  const rawMMR = w_B * B + w_L * L + w_P * P + w_A * A + w_rank * rankMMR + w_txn * transactionMMR;
+
+  // Signed log transform
+  const transform = (x: number): number => Math.sign(x) * Math.log10(1 + Math.abs(x));
+
+  // Constants for normalization
+  const minMMR = -500000;
+  const maxMMR = 2000000;
+
+  // Apply transform and normalize
+  const t_min = transform(minMMR);
+  const t_max = transform(maxMMR);
+  const t = transform(rawMMR);
+
+  const normalized = (t - t_min) / (t_max - t_min);
+  const score = Math.round(Math.max(0, Math.min(1000, normalized * 1000)));
+
+  // Build factors for display
+  factors.push({
+    name: "Balance",
+    impact: B >= 1000 ? "positive" : B <= 100 ? "negative" : "neutral",
+    value: `M$${B.toLocaleString()}`,
+  });
+
+  factors.push({
+    name: "All-Time Profit",
+    impact: P >= 1000 ? "positive" : P <= -1000 ? "negative" : "neutral",
+    value: `${P >= 0 ? "+" : ""}M$${P.toLocaleString()}`,
+  });
+
   factors.push({
     name: "Account Age",
-    impact: ageFactor >= 8 ? "positive" : ageFactor <= 0 ? "negative" : "neutral",
-    value: `${Math.floor(accountAgeDays)} days`,
+    impact: A >= 365 ? "positive" : A <= 30 ? "negative" : "neutral",
+    value: `${Math.floor(A)} days`,
   });
 
-  // Balance factor (-5 to +10 points) - penalize low/zero balance
-  let balanceFactor: number;
-  if (user.balance < 50) {
-    balanceFactor = -5;
-  } else if (user.balance < 500) {
-    balanceFactor = 0;
-  } else {
-    balanceFactor = Math.min(10, Math.log10(user.balance / 500) * 5);
+  if (L !== 0) {
+    factors.push({
+      name: "Loan Balance",
+      impact: L >= 0 ? "neutral" : "negative",
+      value: `M$${L.toLocaleString()}`,
+    });
   }
-  score += balanceFactor;
+
   factors.push({
-    name: "Current Balance",
-    impact: balanceFactor >= 5 ? "positive" : balanceFactor <= 0 ? "negative" : "neutral",
-    value: `M$${user.balance.toLocaleString()}`,
+    name: "Activity",
+    impact: n >= 20 ? "positive" : n <= 5 ? "negative" : "neutral",
+    value: n > 0 ? `${n} day streak` : "No recent activity",
   });
 
-  // Total deposits factor (-5 to +10 points) - penalize no real money in
-  let depositFactor: number;
-  if (user.totalDeposits <= 0) {
-    depositFactor = -5;
-  } else if (user.totalDeposits < 100) {
-    depositFactor = -2;
-  } else if (user.totalDeposits < 1000) {
-    depositFactor = 2;
-  } else {
-    depositFactor = Math.min(10, Math.log10(user.totalDeposits / 100) * 3);
-  }
-  score += depositFactor;
-  factors.push({
-    name: "Total Deposits",
-    impact: depositFactor >= 5 ? "positive" : depositFactor <= 0 ? "negative" : "neutral",
-    value: `M$${user.totalDeposits.toLocaleString()}`,
-  });
-
-  // Recent activity factor (-10 to +10 points) - heavily penalize inactivity
-  if (user.lastBetTime) {
-    const lastBetDaysAgo = (Date.now() - user.lastBetTime) / (1000 * 60 * 60 * 24);
-    let activityFactor: number;
-    if (lastBetDaysAgo < 3) {
-      activityFactor = 10;
-    } else if (lastBetDaysAgo < 7) {
-      activityFactor = 7;
-    } else if (lastBetDaysAgo < 14) {
-      activityFactor = 3;
-    } else if (lastBetDaysAgo < 30) {
-      activityFactor = 0;
-    } else if (lastBetDaysAgo < 90) {
-      activityFactor = -5;
-    } else {
-      activityFactor = -10;
-    }
-    score += activityFactor;
-    factors.push({
-      name: "Recent Activity",
-      impact: activityFactor >= 5 ? "positive" : activityFactor <= -5 ? "negative" : "neutral",
-      value: lastBetDaysAgo < 1 ? "Today" : `${Math.floor(lastBetDaysAgo)} days ago`,
-    });
-  } else {
-    score -= 10;
-    factors.push({
-      name: "Recent Activity",
-      impact: "negative",
-      value: "Never",
-    });
-  }
-
-  // Betting streak factor (0 to +5 points)
-  if (user.currentBettingStreak) {
-    const streakFactor = Math.min(5, user.currentBettingStreak / 3);
-    score += streakFactor;
-    factors.push({
-      name: "Betting Streak",
-      impact: user.currentBettingStreak >= 7 ? "positive" : "neutral",
-      value: `${user.currentBettingStreak} days`,
-    });
-  }
-
-  // Portfolio factors if available
-  if (portfolio) {
-    // Investment value factor (-5 to +10 points)
-    let investFactor: number;
-    if (portfolio.investmentValue < 100) {
-      investFactor = -5;
-    } else if (portfolio.investmentValue < 1000) {
-      investFactor = 0;
-    } else {
-      investFactor = Math.min(10, Math.log10(portfolio.investmentValue / 1000) * 5);
-    }
-    score += investFactor;
-    factors.push({
-      name: "Investment Value",
-      impact: investFactor >= 5 ? "positive" : investFactor <= 0 ? "negative" : "neutral",
-      value: `M$${portfolio.investmentValue.toLocaleString()}`,
-    });
-
-    // Profit factor (-15 to +15 points) - biggest swing factor
-    if (portfolio.profit !== undefined) {
-      let profitFactor: number;
-      if (portfolio.profit < -5000) {
-        profitFactor = -15;
-      } else if (portfolio.profit < -1000) {
-        profitFactor = -10;
-      } else if (portfolio.profit < 0) {
-        profitFactor = Math.max(-10, portfolio.profit / 100);
-      } else if (portfolio.profit < 1000) {
-        profitFactor = portfolio.profit / 200;
-      } else {
-        profitFactor = Math.min(15, 5 + Math.log10(portfolio.profit / 1000) * 5);
-      }
-      score += profitFactor;
-      factors.push({
-        name: "All-Time Profit",
-        impact: profitFactor >= 5 ? "positive" : profitFactor <= -5 ? "negative" : "neutral",
-        value: `${portfolio.profit >= 0 ? "+" : ""}M$${portfolio.profit.toLocaleString()}`,
-      });
-    }
-  } else {
-    // No portfolio data is bad
-    score -= 5;
-    factors.push({
-      name: "Portfolio Data",
-      impact: "negative",
-      value: "Unavailable",
-    });
-  }
-
-  // Clamp score between 0 and 100
-  score = Math.max(0, Math.min(100, Math.round(score)));
-
-  // Determine status based on score - meaner thresholds
+  // Determine status based on score (0-1000 scale)
   let status: string;
-  if (score >= 80) status = "excellent";
-  else if (score >= 60) status = "good";
-  else if (score >= 40) status = "fair";
-  else if (score >= 20) status = "poor";
+  if (score >= 800) status = "excellent";
+  else if (score >= 600) status = "good";
+  else if (score >= 400) status = "fair";
+  else if (score >= 200) status = "poor";
   else status = "very_poor";
 
   return { score, status, factors };

@@ -13,13 +13,13 @@ import {
   Store,
   Sparkles,
   Crown,
-  Image,
+  Palette,
   Zap,
   Award,
+  CheckCircle,
   Loader2,
   LogOut,
   Settings,
-  Check,
   ShoppingCart,
 } from 'lucide-react';
 
@@ -27,7 +27,7 @@ interface MarketItem {
   id: string;
   name: string;
   description: string | null;
-  category: 'flair' | 'badge' | 'background' | 'effect';
+  category: 'theme' | 'badge' | 'accent' | 'effect';
   image_url: string | null;
   price: number;
   rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -40,18 +40,25 @@ interface UserItem {
 }
 
 const CATEGORY_ICONS = {
-  flair: Sparkles,
-  badge: Award,
-  background: Image,
+  theme: Palette,
+  badge: CheckCircle,
+  accent: Sparkles,
   effect: Zap,
+};
+
+const CATEGORY_LABELS = {
+  theme: 'Site Themes',
+  badge: 'Verified Badges',
+  accent: 'Accent Colors',
+  effect: 'Visual Effects',
 };
 
 const RARITY_COLORS = {
   common: 'bg-muted text-muted-foreground border-border',
-  uncommon: 'bg-green-500/20 text-green-600 border-green-500/30',
-  rare: 'bg-blue-500/20 text-blue-600 border-blue-500/30',
-  epic: 'bg-purple-500/20 text-purple-600 border-purple-500/30',
-  legendary: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
+  uncommon: 'bg-green-500/20 text-green-400 border-green-500/30',
+  rare: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  epic: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  legendary: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 };
 
 export default function Market() {
@@ -124,7 +131,7 @@ export default function Market() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Deduct from ManiFed balance (this is a purchase, not a withdrawal)
+      // Deduct from ManiFed balance
       const { error: balanceError } = await supabase.rpc('modify_user_balance', {
         p_user_id: user.id,
         p_amount: item.price,
@@ -143,7 +150,7 @@ export default function Market() {
 
       if (insertError) throw insertError;
 
-      // Record transaction as market_purchase (not withdrawal)
+      // Record transaction
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'market_purchase',
@@ -182,27 +189,27 @@ export default function Market() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update profile with equipped item
-      const updateField = `equipped_${item.category}`;
-      const { error } = await supabase
-        .from('profiles')
-        .update({ [updateField]: item.id })
-        .eq('user_id', user.id);
-
-      if (error) {
-        // Profile might not exist, create it
-        const { error: insertError } = await supabase
+      // For badges, update profile with equipped badge
+      if (item.category === 'badge') {
+        const { error } = await supabase
           .from('profiles')
-          .insert({ 
-            user_id: user.id, 
-            [updateField]: item.id 
-          });
-        if (insertError) throw insertError;
+          .update({ equipped_badge: item.id })
+          .eq('user_id', user.id);
+
+        if (error) {
+          // Profile might not exist, create it
+          await supabase
+            .from('profiles')
+            .insert({ 
+              user_id: user.id, 
+              equipped_badge: item.id 
+            });
+        }
       }
 
       toast({
         title: 'Item Equipped!',
-        description: `${item.name} is now active on your profile`,
+        description: `${item.name} is now active`,
       });
     } catch (error) {
       console.error('Error equipping item:', error);
@@ -245,16 +252,13 @@ export default function Market() {
                 <Landmark className="w-5 h-5 text-primary-foreground" />
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gradient">ManiFed Market</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Profile Customization</p>
+                <h1 className="text-lg font-bold text-gradient">ManiFed Shop</h1>
+                <p className="text-xs text-muted-foreground -mt-0.5">Site Customization</p>
               </div>
             </Link>
 
             <div className="flex items-center gap-3">
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
-              <Link to="/profile">
-                <Button variant="outline" size="sm">My Profile</Button>
-              </Link>
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />
@@ -274,13 +278,13 @@ export default function Market() {
         <div className="text-center mb-8 animate-slide-up">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
             <Crown className="w-4 h-4" />
-            Profile Customization
+            Site Customization
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            ManiFed <span className="text-gradient">Market</span>
+            ManiFed <span className="text-gradient">Shop</span>
           </h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Customize your profile with unique flairs, badges, backgrounds, and effects.
+            Customize your ManiFed experience with themes, verified badges, and visual effects.
           </p>
         </div>
 
@@ -288,17 +292,17 @@ export default function Market() {
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="mb-8">
           <TabsList className="grid w-full grid-cols-5 max-w-lg mx-auto">
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="flair" className="gap-1">
-              <Sparkles className="w-3 h-3" />
-              Flairs
-            </TabsTrigger>
             <TabsTrigger value="badge" className="gap-1">
-              <Award className="w-3 h-3" />
+              <CheckCircle className="w-3 h-3" />
               Badges
             </TabsTrigger>
-            <TabsTrigger value="background" className="gap-1">
-              <Image className="w-3 h-3" />
-              BGs
+            <TabsTrigger value="theme" className="gap-1">
+              <Palette className="w-3 h-3" />
+              Themes
+            </TabsTrigger>
+            <TabsTrigger value="accent" className="gap-1">
+              <Sparkles className="w-3 h-3" />
+              Accents
             </TabsTrigger>
             <TabsTrigger value="effect" className="gap-1">
               <Zap className="w-3 h-3" />
@@ -318,7 +322,7 @@ export default function Market() {
               {userItems.map((ui) => {
                 const item = items.find(i => i.id === ui.item_id);
                 if (!item) return null;
-                const Icon = CATEGORY_ICONS[item.category];
+                const Icon = CATEGORY_ICONS[item.category as keyof typeof CATEGORY_ICONS] || Sparkles;
                 return (
                   <Badge key={ui.id} variant="secondary" className="gap-1 py-1.5 px-3">
                     <Icon className="w-3 h-3" />
@@ -333,7 +337,7 @@ export default function Market() {
         {/* Items Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
           {filteredItems.map((item) => {
-            const Icon = CATEGORY_ICONS[item.category];
+            const Icon = CATEGORY_ICONS[item.category as keyof typeof CATEGORY_ICONS] || Sparkles;
             const isOwned = ownedItemIds.has(item.id);
             const isPurchasing = purchasingId === item.id;
             const isEquipping = equippingId === item.id;
@@ -343,7 +347,11 @@ export default function Market() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-lg bg-secondary/50 flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-primary" />
+                      {item.category === 'badge' ? (
+                        <CheckCircle className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Icon className="w-5 h-5 text-primary" />
+                      )}
                     </div>
                     <Badge className={RARITY_COLORS[item.rarity]}>
                       {item.rarity}
@@ -353,6 +361,9 @@ export default function Market() {
                   {item.description && (
                     <CardDescription className="text-xs">{item.description}</CardDescription>
                   )}
+                  <Badge variant="outline" className="w-fit text-xs">
+                    {CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS] || item.category}
+                  </Badge>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">

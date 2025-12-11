@@ -424,25 +424,23 @@ export default function Bonds() {
                     ) : (
                       <div className="space-y-3">
                         {userBonds.map((bond) => (
-                          <Link key={bond.id} to={`/bond/${bond.id}`} className="block">
-                            <div className="p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                              <div className="flex items-center justify-between mb-1">
-                                <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
-                                  {bond.status}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {bond.term_weeks}w • {bond.annual_yield}% APY
-                                </span>
-                              </div>
-                              <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
-                              </p>
-                              <p className="text-xs text-success mt-1">
-                                Returns: M${bond.total_return.toFixed(2)}
-                              </p>
+                          <div key={bond.id} className="p-3 rounded-lg bg-secondary/30">
+                            <div className="flex items-center justify-between mb-1">
+                              <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
+                                {bond.status}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {bond.term_weeks}w • {bond.annual_yield}% APY
+                              </span>
                             </div>
-                          </Link>
+                            <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
+                            </p>
+                            <p className="text-xs text-success mt-1">
+                              Returns: M${bond.total_return.toFixed(2)}
+                            </p>
+                          </div>
                         ))}
                       </div>
                     )}
