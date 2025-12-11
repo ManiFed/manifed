@@ -24,6 +24,7 @@ import {
   Search,
   Sparkles,
   Store,
+  CheckCircle,
 } from 'lucide-react';
 
 interface Transaction {
@@ -41,6 +42,10 @@ interface Bond {
   total_return: number;
 }
 
+interface Profile {
+  equipped_badge: string | null;
+}
+
 export default function Hub() {
   const { balance, totalInvested, isLoading: balanceLoading, fetchBalance } = useUserBalance();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -50,6 +55,7 @@ export default function Hub() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string>('');
+  const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
 
   useEffect(() => {
     fetchHubData();
@@ -70,6 +76,24 @@ export default function Hub() {
       setHasApiKey(!!settings?.manifold_api_key);
       if (settings?.manifold_username) {
         setUsername(settings.manifold_username);
+      }
+
+      // Fetch profile for verified badge
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('equipped_badge')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profile?.equipped_badge) {
+        // Check if user has a badge item
+        const { data: badgeItem } = await supabase
+          .from('market_items')
+          .select('category')
+          .eq('id', profile.equipped_badge)
+          .maybeSingle();
+        
+        setHasVerifiedBadge(badgeItem?.category === 'badge');
       }
 
       // Fetch recent transactions
@@ -176,8 +200,11 @@ export default function Hub() {
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Welcome */}
         <div className="mb-8 animate-slide-up">
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             Welcome back{username ? `, @${username}` : ''}
+            {hasVerifiedBadge && (
+              <CheckCircle className="w-6 h-6 text-primary" />
+            )}
           </h1>
           <p className="text-muted-foreground mt-1">
             Your ManiFed dashboard
@@ -294,7 +321,34 @@ export default function Hub() {
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    View Bonds
+                    Buy Bonds
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Bond Market - Now more prominent */}
+            <Link to="/bond-market" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50 border-primary/30">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+                      <Store className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="outline" className="border-primary/50 text-primary">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Trade
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">Bond Market</CardTitle>
+                  <CardDescription>
+                    Buy and sell Treasury Bills from other users. Trade bonds before maturity.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    Trade Bonds
                     <ArrowUpRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
@@ -309,7 +363,7 @@ export default function Hub() {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
                       <Coins className="w-6 h-6 text-white" />
                     </div>
-                    <Badge variant="outline">New!</Badge>
+                    <Badge variant="outline">AMM</Badge>
                   </div>
                   <CardTitle className="text-xl mt-4">Memecoins</CardTitle>
                   <CardDescription>
@@ -330,7 +384,7 @@ export default function Hub() {
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                       <Search className="w-6 h-6 text-white" />
                     </div>
                     <Badge variant="secondary">Tool</Badge>
@@ -349,27 +403,27 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Market */}
+            {/* Shop */}
             <Link to="/market" className="group">
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
-                      <Store className="w-6 h-6 text-white" />
+                      <CheckCircle className="w-6 h-6 text-white" />
                     </div>
                     <Badge variant="outline">
                       <Sparkles className="w-3 h-3 mr-1" />
                       New!
                     </Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">ManiFed Market</CardTitle>
+                  <CardTitle className="text-xl mt-4">ManiFed Shop</CardTitle>
                   <CardDescription>
-                    Buy profile flairs, badges, backgrounds and effects to customize your ManiFed profile.
+                    Buy verified badges, site themes, and visual effects to customize your experience.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Browse Market
+                    Browse Shop
                     <ArrowUpRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
@@ -381,7 +435,7 @@ export default function Hub() {
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
                       <Trophy className="w-6 h-6 text-white" />
                     </div>
                     <Badge variant="secondary">Rankings</Badge>
@@ -423,13 +477,10 @@ export default function Hub() {
                       const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
                       
                       return (
-                        <div
-                          key={tx.id}
-                          className="flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors"
-                        >
+                        <div key={tx.id} className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${isPositive ? 'bg-success/10 text-success' : 'bg-secondary/50 text-muted-foreground'}`}>
-                              <Icon className="w-4 h-4" />
+                            <div className={`p-2 rounded-lg ${isPositive ? 'bg-success/10' : 'bg-muted'}`}>
+                              <Icon className={`w-4 h-4 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
                             </div>
                             <div>
                               <p className="font-medium text-foreground text-sm">{tx.description || tx.type}</p>
@@ -438,90 +489,45 @@ export default function Hub() {
                               </p>
                             </div>
                           </div>
-                          <span className={`font-semibold ${isPositive ? 'text-success' : 'text-foreground'}`}>
-                            {isPositive ? '+' : '-'}M${Math.abs(tx.amount).toLocaleString()}
-                          </span>
+                          <p className={`font-semibold ${tx.amount >= 0 ? 'text-success' : 'text-foreground'}`}>
+                            {tx.amount >= 0 ? '+' : ''}M${Math.abs(tx.amount).toLocaleString()}
+                          </p>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No recent activity</p>
+                  <div className="p-8 text-center">
+                    <Activity className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground">No recent activity</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Notifications & Quick Actions */}
-          <div className="space-y-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
-            {/* Notifications */}
-            {notifications.length > 0 && (
-              <Card className="glass border-warning/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-warning" />
-                    Notifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {notifications.map((notif, i) => (
-                    <div key={i} className="p-3 rounded-lg bg-warning/10 text-sm text-foreground">
-                      {notif}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Fee Notice */}
+          {/* Notifications */}
+          <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Notifications
+            </h2>
             <Card className="glass">
               <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Coins className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-foreground mb-1">0.5% Transaction Fee</p>
-                    <p className="text-muted-foreground">
-                      All transactions incur a 0.5% fee. Fees are bundled and paid out in groups of M$25.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Leaderboard Preview */}
-            <Card className="glass">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-primary" />
-                    Top Lenders
-                  </CardTitle>
-                  <Link to="/leaderboard">
-                    <Button variant="ghost" size="sm">View All</Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[1, 2, 3].map((rank) => (
-                    <div key={rank} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          rank === 1 ? 'bg-yellow-500/20 text-yellow-500' :
-                          rank === 2 ? 'bg-gray-400/20 text-gray-400' :
-                          'bg-amber-600/20 text-amber-600'
-                        }`}>
-                          {rank}
-                        </span>
-                        <span className="text-sm text-foreground">@trader{rank}</span>
+                {notifications.length > 0 ? (
+                  <div className="space-y-3">
+                    {notifications.map((notif, i) => (
+                      <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <p className="text-sm text-foreground">{notif}</p>
                       </div>
-                      <span className="text-sm text-muted-foreground">M${(1000 - rank * 200).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground">No new notifications</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
