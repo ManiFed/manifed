@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
+import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import {
   Landmark,
   TrendingUp,
@@ -174,14 +175,7 @@ export default function Hub() {
             </Link>
 
             <div className="flex items-center gap-3">
-              {notifications.length > 0 && (
-                <div className="relative">
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                    {notifications.length}
-                  </span>
-                </div>
-              )}
+              <NotificationsDropdown />
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
