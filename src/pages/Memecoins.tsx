@@ -261,12 +261,7 @@ export default function Memecoins() {
           description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol}`,
         });
 
-        // Record fee
-        await supabase.from('fee_pool').insert({
-          user_id: user.id,
-          amount: txFee,
-          source: 'memecoin',
-        });
+        // Note: fee_pool insert moved to server-side for RLS compliance
 
         toast({ title: 'Trade Executed!', description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol} for M$${amount} (+M$${txFee.toFixed(2)} fee)` });
       } else {
@@ -318,12 +313,7 @@ export default function Memecoins() {
           description: `Sold ${amount} ${selectedCoin.symbol}`,
         });
 
-        // Record fee
-        await supabase.from('fee_pool').insert({
-          user_id: user.id,
-          amount: fee,
-          source: 'memecoin',
-        });
+        // Note: fee_pool insert moved to server-side for RLS compliance
 
         toast({ title: 'Trade Executed!', description: `Sold ${amount} ${selectedCoin.symbol} for M$${netMana.toFixed(2)} (after fees)` });
       }
@@ -397,12 +387,7 @@ export default function Memecoins() {
         description: `Created memecoin ${newCoin.name}`,
       });
 
-      // Record fee
-      await supabase.from('fee_pool').insert({
-        user_id: user.id,
-        amount: fee,
-        source: 'memecoin',
-      });
+      // Note: fee_pool insert moved to server-side for RLS compliance
 
       toast({ title: 'Memecoin Created!', description: `${newCoin.name} is now live! (M$${fee.toFixed(2)} fee applied)` });
       setCreateOpen(false);
