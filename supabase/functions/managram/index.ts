@@ -6,17 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Bounty market configuration
-const BOUNTY_MARKET_SLUG = "manifed-bonds"; // URL slug from https://manifold.markets/ManiFed/manifed-bonds
-const WITHDRAWAL_COMMENT_ID = "a5ansst2fbt"; // Comment to award bounty to for withdrawals
-const MANIFED_TRADING_API_KEY = Deno.env.get("MANIFED_TRADING_API_KEY") || "";
 const MANIFED_API_KEY = Deno.env.get("MANIFED_API_KEY") || "";
+const MANIFED_USERNAME = "ManiFed";
 const ENCRYPTION_KEY = Deno.env.get("API_ENCRYPTION_KEY") || "";
 
-// Check if a string looks like an encrypted API key
+// Check if a string looks like an encrypted API key (base64 with sufficient length for IV + data)
 function isEncryptedKey(key: string): boolean {
+  // Encrypted keys are base64 encoded and have at least 12 bytes IV + some encrypted data
+  // A UUID-style API key like "fd09f0a3-493d-4e2a-8af4-015c5b192678" is 36 chars
+  // An encrypted key will be longer and use base64 charset (A-Za-z0-9+/=)
   try {
+    // Try to decode as base64
     const decoded = atob(key);
+    // Encrypted keys should be at least 12 (IV) + 16 (min encrypted) = 28 bytes
+    // which would be ~38+ chars in base64
     return decoded.length >= 28 && /^[A-Za-z0-9+/=]+$/.test(key);
   } catch {
     return false;
@@ -25,6 +28,7 @@ function isEncryptedKey(key: string): boolean {
 
 // Decrypt API key using AES-GCM, or return plaintext for legacy keys
 async function decryptApiKey(storedKey: string): Promise<string> {
+  // Check if this is a legacy plaintext key (UUID format or similar)
   if (!isEncryptedKey(storedKey)) {
     console.log("Using legacy plaintext API key");
     return storedKey;
@@ -34,6 +38,7 @@ async function decryptApiKey(storedKey: string): Promise<string> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   
+  // Derive key from encryption secret
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     encoder.encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32)),
@@ -42,10 +47,12 @@ async function decryptApiKey(storedKey: string): Promise<string> {
     ["decrypt"]
   );
   
+  // Decode base64 and extract IV + encrypted data
   const combined = Uint8Array.from(atob(storedKey), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const encrypted = combined.slice(12);
   
+  // Decrypt
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
     keyMaterial,
@@ -59,8 +66,8 @@ interface ManagramRequest {
   action: "deposit" | "withdraw" | "invest";
   amount: number;
   message?: string;
-  recipientUsername?: string;
-  loanId?: string;
+  recipientUsername?: string; // For invest action
+  loanId?: string; // For invest action
 }
 
 serve(async (req) => {
@@ -69,6 +76,7 @@ serve(async (req) => {
   }
 
   try {
+    // Get auth header and validate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -81,6 +89,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Create client with user token for auth validation
     const supabaseUser = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -111,7 +120,7 @@ serve(async (req) => {
 
     console.log(`Processing ${action} for amount M$${amount} by user ${user.id}`);
 
-    // Fetch user's API key and settings
+    // Fetch user's API key server-side using service role
     const { data: userSettings, error: settingsError } = await supabase
       .from("user_manifold_settings")
       .select("manifold_api_key, manifold_username")
@@ -126,16 +135,18 @@ serve(async (req) => {
       );
     }
 
+    // Decrypt the API key
     let userApiKey: string;
     try {
       userApiKey = await decryptApiKey(userSettings.manifold_api_key);
     } catch (decryptError) {
       console.error("Failed to decrypt API key:", decryptError);
       return new Response(
-        JSON.stringify({ error: "API key decryption failed. Please reconnect your Manifold account." }),
+        JSON.stringify({ error: "API key decryption failed. Please reconnect your Manifold account in Settings." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const manifoldUsername = userSettings.manifold_username;
 
     // Verify user's API key
     const meResponse = await fetch("https://api.manifold.markets/v0/me", {
@@ -155,41 +166,30 @@ serve(async (req) => {
     let result;
 
     if (action === "deposit") {
-      // DEPOSIT: User adds to the bounty market
-      console.log(`Adding M$${amount} to bounty market ${BOUNTY_MARKET_SLUG}`);
-      
-      const bountyResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_SLUG}/add-bounty`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${userApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ amount })
-      });
+      // User sends managram to ManiFed
+      result = await sendManagram(
+        userApiKey,
+        MANIFED_USERNAME,
+        amount,
+        message || `ManiFed deposit from @${userData.username}`
+      );
 
-      if (!bountyResponse.ok) {
-        const errorText = await bountyResponse.text();
-        console.error(`Bounty add failed: ${bountyResponse.status} - ${errorText}`);
-        throw new Error(`Failed to add to bounty: ${errorText}`);
+      if (result.txnId) {
+        // Credit user's ManiFed balance using service role
+        await updateUserBalance(supabase, user.id, amount, "add");
+        
+        // Record transaction
+        await supabase.from("transactions").insert({
+          user_id: user.id,
+          type: "deposit",
+          amount: amount,
+          description: `Deposit from Manifold: M$${amount}`
+        });
+        
+        console.log(`Credited M$${amount} to user ${user.id} ManiFed balance`);
       }
-
-      result = await bountyResponse.json();
-      console.log("Bounty added successfully:", result);
-
-      // Credit user's ManiFed balance
-      await updateUserBalance(supabase, user.id, amount, "add");
-      
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        type: "deposit",
-        amount: amount,
-        description: `Deposit via bounty: M$${amount}`
-      });
-      
-      console.log(`Credited M$${amount} to user ${user.id} ManiFed balance`);
-
     } else if (action === "withdraw") {
-      // Check balance first
+      // First check if user has sufficient balance
       const { data: balanceData } = await supabase
         .from("user_balances")
         .select("balance")
@@ -204,71 +204,30 @@ serve(async (req) => {
         );
       }
 
-      // WITHDRAW: Award bounty to the withdrawal comment, then ManiFedTrading managrams to user
-      console.log(`Awarding M$${amount} from bounty to comment ${WITHDRAWAL_COMMENT_ID}`);
+      // ManiFed sends managram back to user
+      result = await sendManagram(
+        MANIFED_API_KEY,
+        userData.username,
+        amount,
+        message || `ManiFed withdrawal to @${userData.username}`
+      );
 
-      // Step 1: Award bounty to the withdrawal comment using @ManiFed's API key
-      const awardResponse = await fetch(`https://api.manifold.markets/v0/market/${BOUNTY_MARKET_SLUG}/award-bounty`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${MANIFED_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ 
-          amount,
-          commentId: WITHDRAWAL_COMMENT_ID
-        })
-      });
-
-      if (!awardResponse.ok) {
-        const errorText = await awardResponse.text();
-        console.error(`Bounty award failed: ${awardResponse.status} - ${errorText}`);
-        throw new Error(`Failed to award bounty: ${errorText}`);
-      }
-
-      console.log("Bounty awarded successfully");
-
-      // Step 2: ManiFedTrading managrams the amount to the user
-      console.log(`ManiFedTrading sending M$${amount} to @${userData.username}`);
-      
-      const manifoldUserId = await getUserIdFromUsername(userData.username);
-      
-      const managramResponse = await fetch("https://api.manifold.markets/v0/managram", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${MANIFED_TRADING_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          toIds: [manifoldUserId],
+      if (result.txnId) {
+        // Debit user's ManiFed balance
+        await updateUserBalance(supabase, user.id, amount, "subtract");
+        
+        // Record transaction
+        await supabase.from("transactions").insert({
+          user_id: user.id,
+          type: "withdraw",
           amount: amount,
-          message: message || `ManiFed withdrawal to @${userData.username}`
-        })
-      });
-
-      if (!managramResponse.ok) {
-        const errorText = await managramResponse.text();
-        console.error(`Managram failed: ${managramResponse.status} - ${errorText}`);
-        throw new Error(`Failed to send withdrawal: ${errorText}`);
+          description: `Withdrawal to Manifold: M$${amount}`
+        });
+        
+        console.log(`Debited M$${amount} from user ${user.id} ManiFed balance`);
       }
-
-      result = await managramResponse.json();
-      console.log("Withdrawal managram sent:", result);
-
-      // Debit user's ManiFed balance
-      await updateUserBalance(supabase, user.id, amount, "subtract");
-      
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        type: "withdraw",
-        amount: amount,
-        description: `Withdrawal via bounty: M$${amount}`
-      });
-      
-      console.log(`Debited M$${amount} from user ${user.id} ManiFed balance`);
-
     } else if (action === "invest") {
-      // INVEST: ManiFedTrading sends managram to loan borrower
+      // ManiFed sends managram to loan borrower
       if (!recipientUsername) {
         return new Response(
           JSON.stringify({ error: "recipientUsername required for invest action" }),
@@ -276,6 +235,7 @@ serve(async (req) => {
         );
       }
 
+      // Check user's balance first
       const { data: balanceData } = await supabase
         .from("user_balances")
         .select("balance, total_invested")
@@ -290,56 +250,42 @@ serve(async (req) => {
         );
       }
 
-      const recipientUserId = await getUserIdFromUsername(recipientUsername);
-      
-      const investResponse = await fetch("https://api.manifold.markets/v0/managram", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${MANIFED_TRADING_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          toIds: [recipientUserId],
+      result = await sendManagram(
+        MANIFED_API_KEY,
+        recipientUsername,
+        amount,
+        message || `Loan investment from @${userData.username} via ManiFed`
+      );
+
+      if (result.txnId) {
+        // Debit user's balance and increase total_invested
+        const currentTotalInvested = Number(balanceData?.total_invested) || 0;
+        
+        const { error: updateError } = await supabase
+          .from("user_balances")
+          .update({
+            balance: currentBalance - amount,
+            total_invested: currentTotalInvested + amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq("user_id", user.id);
+
+        if (updateError) {
+          console.error("Error updating balance after investment:", updateError);
+          throw updateError;
+        }
+
+        // Record the investment transaction
+        await supabase.from("transactions").insert({
+          user_id: user.id,
+          type: "invest",
           amount: amount,
-          message: message || `Loan investment from @${userData.username} via ManiFed`
-        })
-      });
+          description: message || `Investment in loan`,
+          loan_id: loanId
+        });
 
-      if (!investResponse.ok) {
-        const errorText = await investResponse.text();
-        console.error(`Investment managram failed: ${investResponse.status} - ${errorText}`);
-        throw new Error(`Failed to send investment: ${errorText}`);
+        console.log(`Debited M$${amount} from user ${user.id} for investment`);
       }
-
-      result = await investResponse.json();
-      console.log("Investment managram sent:", result);
-
-      const currentTotalInvested = Number(balanceData?.total_invested) || 0;
-      
-      const { error: updateError } = await supabase
-        .from("user_balances")
-        .update({
-          balance: currentBalance - amount,
-          total_invested: currentTotalInvested + amount,
-          updated_at: new Date().toISOString()
-        })
-        .eq("user_id", user.id);
-
-      if (updateError) {
-        console.error("Error updating balance after investment:", updateError);
-        throw updateError;
-      }
-
-      await supabase.from("transactions").insert({
-        user_id: user.id,
-        type: "invest",
-        amount: amount,
-        description: message || `Investment in loan`,
-        loan_id: loanId
-      });
-
-      console.log(`Debited M$${amount} from user ${user.id} for investment`);
-
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid action. Use: deposit, withdraw, or invest" }),
@@ -347,6 +293,7 @@ serve(async (req) => {
       );
     }
 
+    // Fetch updated balance to return
     const { data: updatedBalance } = await supabase
       .from("user_balances")
       .select("balance, total_invested")
@@ -381,6 +328,7 @@ async function updateUserBalance(
   amount: number,
   operation: "add" | "subtract"
 ): Promise<void> {
+  // Get current balance
   const { data: balanceData } = await supabase
     .from("user_balances")
     .select("balance")
@@ -398,6 +346,7 @@ async function updateUserBalance(
       .update({ balance: newBalance, updated_at: new Date().toISOString() })
       .eq("user_id", userId);
   } else {
+    // Create initial record
     await supabase
       .from("user_balances")
       .insert({ 
@@ -420,4 +369,39 @@ async function getUserIdFromUsername(username: string): Promise<string> {
   const userData = await response.json();
   console.log(`Found user ID: ${userData.id}`);
   return userData.id;
+}
+
+async function sendManagram(
+  senderApiKey: string,
+  toUsername: string,
+  amount: number,
+  message: string
+): Promise<{ txnId?: string; error?: string }> {
+  console.log(`Sending M$${amount} to @${toUsername}: ${message}`);
+  
+  // First get the user ID from username
+  const userId = await getUserIdFromUsername(toUsername);
+  
+  const response = await fetch("https://api.manifold.markets/v0/managram", {
+    method: "POST",
+    headers: {
+      "Authorization": `Key ${senderApiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      toIds: [userId],
+      amount: amount,
+      message: message
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Managram failed: ${response.status} - ${errorText}`);
+    throw new Error(`Failed to send managram: ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log("Managram sent successfully:", data);
+  return { txnId: data.id || "success" };
 }

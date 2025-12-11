@@ -11,7 +11,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { toast } from '@/hooks/use-toast';
 import { WalletPopover } from '@/components/WalletPopover';
-import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import {
   Landmark,
   Coins,
@@ -444,7 +443,6 @@ export default function Memecoins() {
               {isAuthenticated ? (
                 <>
                   <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
-                  <NotificationsDropdown />
                   <Link to="/hub"><Button variant="ghost" size="sm">Hub</Button></Link>
                   <Button variant="ghost" size="sm" onClick={handleSignOut}><LogOut className="w-4 h-4" /></Button>
                 </>

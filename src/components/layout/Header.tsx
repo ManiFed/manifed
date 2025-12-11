@@ -7,7 +7,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WalletPopover } from '@/components/WalletPopover';
 import { useUserBalance } from '@/hooks/useUserBalance';
-import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 
 const navItems = [
   { path: '/marketplace', label: 'Marketplace', icon: TrendingUp },
@@ -99,7 +98,6 @@ export function Header() {
                 onBalanceChange={fetchBalance}
               />
             </div>
-            <NotificationsDropdown />
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
