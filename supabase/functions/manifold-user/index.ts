@@ -30,14 +30,54 @@ interface ManifoldPortfolio {
 
 // MEANER Credit score formula - average should be ~50, worst is 0
 // Each factor can add or subtract points from base of 25
-function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio | null): {
+function calculateCreditScore(
+  user: ManifoldUser,
+  portfolio: ManifoldPortfolio | null,
+): {
   score: number;
   status: string;
   factors: { name: string; impact: string; value: string }[];
 } {
+  // New credit score logic
+  {
+    const balance = portfolio?.balance ?? user.balance;
+    const netLoanBalance = portfolio?.loanTotal ? -portfolio.loanTotal : 0;
+    const calculatedProfit = portfolio?.profit ?? 0;
+    const ageDays = (Date.now() - user.createdTime) / (1000 * 60 * 60 * 24);
+    const rank = 100;
+    const maxRank = 100;
+    const transactionCount = 0;
+    const rankWeight = Math.min(1, Math.max(0, 1 - (rank - 1) / (maxRank - 1)));
+    const rankMMR = 1000 * rankWeight;
+    let transactionMMR;
+    if (transactionCount < 5) {
+      transactionMMR = -1000000;
+    } else if (transactionCount <= 20) {
+      transactionMMR = -100000 + 90000 * ((transactionCount - 5) / 15);
+    } else if (transactionCount <= 100) {
+      transactionMMR = -10000 + 10000 * ((transactionCount - 20) / 80);
+    } else if (transactionCount <= 1000) {
+      transactionMMR = 1000 * ((transactionCount - 100) / 900);
+    } else {
+      transactionMMR = 1000;
+    }
+    const rawMMR =
+      balance * 0.1 +
+      netLoanBalance * 0.15 +
+      calculatedProfit * 0.5 +
+      ageDays * 0.05 +
+      rankMMR * 0.1 +
+      transactionMMR * 0.1;
+    const transform = (x) => Math.sign(x) * Math.log10(1 + Math.abs(x));
+    const minMMR = -500000;
+    const maxMMR = 2000000;
+    const normalized = (transform(rawMMR) - transform(minMMR)) / (transform(maxMMR) - transform(minMMR));
+    const scoreNumber = Math.round(Math.max(0, Math.min(1000, normalized * 1000)));
+    return scoreNumber;
+  }
   let score = 25; // Lower base score
   const factors: { name: string; impact: string; value: string }[] = [];
-  
+
   // Account age factor (-5 to +15 points) - penalize new accounts
   const accountAgeMs = Date.now() - user.createdTime;
   const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
@@ -55,7 +95,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
   factors.push({
     name: "Account Age",
     impact: ageFactor >= 8 ? "positive" : ageFactor <= 0 ? "negative" : "neutral",
-    value: `${Math.floor(accountAgeDays)} days`
+    value: `${Math.floor(accountAgeDays)} days`,
   });
 
   // Balance factor (-5 to +10 points) - penalize low/zero balance
@@ -71,7 +111,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
   factors.push({
     name: "Current Balance",
     impact: balanceFactor >= 5 ? "positive" : balanceFactor <= 0 ? "negative" : "neutral",
-    value: `M$${user.balance.toLocaleString()}`
+    value: `M$${user.balance.toLocaleString()}`,
   });
 
   // Total deposits factor (-5 to +10 points) - penalize no real money in
@@ -89,7 +129,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
   factors.push({
     name: "Total Deposits",
     impact: depositFactor >= 5 ? "positive" : depositFactor <= 0 ? "negative" : "neutral",
-    value: `M$${user.totalDeposits.toLocaleString()}`
+    value: `M$${user.totalDeposits.toLocaleString()}`,
   });
 
   // Recent activity factor (-10 to +10 points) - heavily penalize inactivity
@@ -113,14 +153,14 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
     factors.push({
       name: "Recent Activity",
       impact: activityFactor >= 5 ? "positive" : activityFactor <= -5 ? "negative" : "neutral",
-      value: lastBetDaysAgo < 1 ? "Today" : `${Math.floor(lastBetDaysAgo)} days ago`
+      value: lastBetDaysAgo < 1 ? "Today" : `${Math.floor(lastBetDaysAgo)} days ago`,
     });
   } else {
     score -= 10;
     factors.push({
       name: "Recent Activity",
       impact: "negative",
-      value: "Never"
+      value: "Never",
     });
   }
 
@@ -131,7 +171,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
     factors.push({
       name: "Betting Streak",
       impact: user.currentBettingStreak >= 7 ? "positive" : "neutral",
-      value: `${user.currentBettingStreak} days`
+      value: `${user.currentBettingStreak} days`,
     });
   }
 
@@ -150,7 +190,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
     factors.push({
       name: "Investment Value",
       impact: investFactor >= 5 ? "positive" : investFactor <= 0 ? "negative" : "neutral",
-      value: `M$${portfolio.investmentValue.toLocaleString()}`
+      value: `M$${portfolio.investmentValue.toLocaleString()}`,
     });
 
     // Profit factor (-15 to +15 points) - biggest swing factor
@@ -171,7 +211,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
       factors.push({
         name: "All-Time Profit",
         impact: profitFactor >= 5 ? "positive" : profitFactor <= -5 ? "negative" : "neutral",
-        value: `${portfolio.profit >= 0 ? '+' : ''}M$${portfolio.profit.toLocaleString()}`
+        value: `${portfolio.profit >= 0 ? "+" : ""}M$${portfolio.profit.toLocaleString()}`,
       });
     }
   } else {
@@ -180,7 +220,7 @@ function calculateCreditScore(user: ManifoldUser, portfolio: ManifoldPortfolio |
     factors.push({
       name: "Portfolio Data",
       impact: "negative",
-      value: "Unavailable"
+      value: "Unavailable",
     });
   }
 
@@ -207,23 +247,23 @@ serve(async (req) => {
     const { username, apiKey } = await req.json();
 
     if (!username) {
-      return new Response(
-        JSON.stringify({ error: "Username is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Username is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log(`Fetching Manifold user data for: ${username}`);
 
     // Fetch user data from Manifold API
     const userResponse = await fetch(`https://api.manifold.markets/v0/user/${username}`);
-    
+
     if (!userResponse.ok) {
       if (userResponse.status === 404) {
-        return new Response(
-          JSON.stringify({ error: "User not found on Manifold Markets" }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "User not found on Manifold Markets" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       throw new Error(`Failed to fetch user: ${userResponse.status}`);
     }
@@ -234,9 +274,7 @@ serve(async (req) => {
     // Fetch portfolio data
     let portfolioData: ManifoldPortfolio | null = null;
     try {
-      const portfolioResponse = await fetch(
-        `https://api.manifold.markets/v0/get-user-portfolio?userId=${userData.id}`
-      );
+      const portfolioResponse = await fetch(`https://api.manifold.markets/v0/get-user-portfolio?userId=${userData.id}`);
       if (portfolioResponse.ok) {
         portfolioData = await portfolioResponse.json();
         console.log("Portfolio data fetched successfully");
@@ -250,7 +288,7 @@ serve(async (req) => {
     if (apiKey) {
       try {
         const meResponse = await fetch("https://api.manifold.markets/v0/me", {
-          headers: { Authorization: `Key ${apiKey}` }
+          headers: { Authorization: `Key ${apiKey}` },
         });
         if (meResponse.ok) {
           const meData = await meResponse.json();
@@ -278,24 +316,26 @@ serve(async (req) => {
           lastBetTime: userData.lastBetTime,
           currentBettingStreak: userData.currentBettingStreak,
         },
-        portfolio: portfolioData ? {
-          investmentValue: portfolioData.investmentValue,
-          balance: portfolioData.balance,
-          totalDeposits: portfolioData.totalDeposits,
-          loanTotal: portfolioData.loanTotal,
-          profit: portfolioData.profit,
-          dailyProfit: portfolioData.dailyProfit,
-        } : null,
+        portfolio: portfolioData
+          ? {
+              investmentValue: portfolioData.investmentValue,
+              balance: portfolioData.balance,
+              totalDeposits: portfolioData.totalDeposits,
+              loanTotal: portfolioData.loanTotal,
+              profit: portfolioData.profit,
+              dailyProfit: portfolioData.dailyProfit,
+            }
+          : null,
         creditScore,
         isVerified,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error("Error in manifold-user function:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
