@@ -304,80 +304,68 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Bonds */}
-            <Link to="/bonds" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="secondary">{bonds.length} active</Badge>
+            {/* Bonds - Coming Soon */}
+            <Card className="glass h-full opacity-60 cursor-not-allowed">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-white" />
                   </div>
-                  <CardTitle className="text-xl mt-4">Treasury Bills</CardTitle>
-                  <CardDescription>
-                    Fixed-income instruments with guaranteed yields. Earn 6% APY on your M$ deposits.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Buy Bonds
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+                  <Badge variant="secondary">Coming Soon</Badge>
+                </div>
+                <CardTitle className="text-xl mt-4">Treasury Bills</CardTitle>
+                <CardDescription>
+                  Fixed-income instruments with guaranteed yields. Earn 6% APY on your M$ deposits.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full" disabled>
+                  Coming Soon
+                </Button>
+              </CardContent>
+            </Card>
 
-            {/* Bond Market - Now more prominent */}
-            <Link to="/bond-market" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50 border-primary/30">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-                      <Store className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="outline" className="border-primary/50 text-primary">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      Trade
-                    </Badge>
+            {/* Bond Market - Coming Soon */}
+            <Card className="glass h-full opacity-60 cursor-not-allowed">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+                    <Store className="w-6 h-6 text-white" />
                   </div>
-                  <CardTitle className="text-xl mt-4">Bond Market</CardTitle>
-                  <CardDescription>
-                    Buy and sell Treasury Bills from other users. Trade bonds before maturity.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Trade Bonds
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+                  <Badge variant="secondary">Coming Soon</Badge>
+                </div>
+                <CardTitle className="text-xl mt-4">Bond Market</CardTitle>
+                <CardDescription>
+                  Buy and sell Treasury Bills from other users. Trade bonds before maturity.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full" disabled>
+                  Coming Soon
+                </Button>
+              </CardContent>
+            </Card>
 
-            {/* Memecoins */}
-            <Link to="/memecoins" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
-                      <Coins className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="outline">AMM</Badge>
+            {/* Memecoins - Coming Soon */}
+            <Card className="glass h-full opacity-60 cursor-not-allowed">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
+                    <Coins className="w-6 h-6 text-white" />
                   </div>
-                  <CardTitle className="text-xl mt-4">Memecoins</CardTitle>
-                  <CardDescription>
-                    Trade memecoins using M$. Create your own or trade in AMM-style liquidity pools.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Trade Memecoins
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+                  <Badge variant="secondary">Coming Soon</Badge>
+                </div>
+                <CardTitle className="text-xl mt-4">Memecoins</CardTitle>
+                <CardDescription>
+                  Trade memecoins using M$. Create your own or trade in AMM-style liquidity pools.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full" disabled>
+                  Coming Soon
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Credit Search */}
             <Link to="/credit-search" className="group">
@@ -403,32 +391,26 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Shop */}
-            <Link to="/market" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="outline">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      New!
-                    </Badge>
+            {/* Shop - Coming Soon */}
+            <Card className="glass h-full opacity-60 cursor-not-allowed">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-white" />
                   </div>
-                  <CardTitle className="text-xl mt-4">ManiFed Shop</CardTitle>
-                  <CardDescription>
-                    Buy verified badges, site themes, and visual effects to customize your experience.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Browse Shop
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
+                  <Badge variant="secondary">Coming Soon</Badge>
+                </div>
+                <CardTitle className="text-xl mt-4">ManiFed Shop</CardTitle>
+                <CardDescription>
+                  Buy verified badges, site themes, and visual effects to customize your experience.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full" disabled>
+                  Coming Soon
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Leaderboard */}
             <Link to="/leaderboard" className="group">

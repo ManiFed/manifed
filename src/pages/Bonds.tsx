@@ -143,17 +143,24 @@ export default function Bonds() {
       const termYears = selectedTerm / 52;
       const totalReturn = purchaseAmount * (1 + (rate.annual_yield / 100) * termYears);
 
-      // Withdraw from ManiFed balance
-      const { data: withdrawData, error: withdrawError } = await supabase.functions.invoke('managram', {
-        body: {
-          action: 'withdraw',
-          amount: purchaseAmount,
-        },
+      // Deduct from ManiFed balance (bond purchase - money stays with ManiFed)
+      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: user.id,
+        p_amount: purchaseAmount,
+        p_operation: 'subtract'
       });
 
-      if (withdrawError || withdrawData?.error) {
-        throw new Error(withdrawData?.error || 'Failed to process bond purchase');
+      if (balanceError) {
+        throw new Error('Insufficient balance or failed to deduct');
       }
+
+      // Record the bond purchase transaction
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'bond_purchase',
+        amount: -purchaseAmount,
+        description: `Purchased ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description}`,
+      });
 
       // Create bond record
       const { error: bondError } = await supabase
