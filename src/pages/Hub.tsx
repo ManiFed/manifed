@@ -130,7 +130,7 @@ export default function Hub() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <img src={trumpPortrait} alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" />
+              <img alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png" />
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground -mt-0.5">Making Manifold Great Again</p>
