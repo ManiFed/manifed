@@ -128,42 +128,12 @@ export default function Market() {
 
     setPurchasingId(item.id);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Deduct from ManiFed balance
-      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-        p_user_id: user.id,
-        p_amount: item.price,
-        p_operation: 'subtract'
+      const { data, error } = await supabase.functions.invoke('purchase-market-item', {
+        body: { itemId: item.id }
       });
 
-      if (balanceError) throw balanceError;
-
-      // Add item to user's inventory
-      const { error: insertError } = await supabase
-        .from('user_items')
-        .insert({
-          user_id: user.id,
-          item_id: item.id,
-        });
-
-      if (insertError) throw insertError;
-
-      // Record transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'market_purchase',
-        amount: -item.price,
-        description: `Purchased ${item.name}`,
-      });
-
-      // Record fee to fee pool
-      await supabase.from('fee_pool').insert({
-        user_id: user.id,
-        amount: item.price * 0.005,
-        source: 'market',
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Purchase Successful!',

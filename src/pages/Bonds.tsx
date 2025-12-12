@@ -116,7 +116,6 @@ export default function Bonds() {
       return;
     }
 
-    // No transaction fee for bonds
     if (purchaseAmount > balance) {
       toast({
         title: 'Insufficient Balance',
@@ -127,54 +126,16 @@ export default function Bonds() {
     }
     setIsPurchasing(true);
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const rate = rates.find(r => r.term_weeks === selectedTerm);
-      if (!rate) throw new Error('Rate not found');
-      const maturityDate = addWeeks(new Date(), selectedTerm);
-      const termYears = selectedTerm / 52;
-      const totalReturn = purchaseAmount * (1 + rate.annual_yield / 100 * termYears);
-
-      // Deduct from ManiFed balance (bond purchase - money stays with ManiFed)
-      const {
-        error: balanceError
-      } = await supabase.rpc('modify_user_balance', {
-        p_user_id: user.id,
-        p_amount: purchaseAmount,
-        p_operation: 'subtract'
-      });
-      if (balanceError) {
-        throw new Error('Insufficient balance or failed to deduct');
-      }
-
-      // Record the bond purchase transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'bond_purchase',
-        amount: -purchaseAmount,
-        description: `Purchased ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description}`
+      const { data, error } = await supabase.functions.invoke('purchase-bond-treasury', {
+        body: { amount: purchaseAmount, termWeeks: selectedTerm }
       });
 
-      // Create bond record
-      const {
-        error: bondError
-      } = await supabase.from('bonds').insert({
-        user_id: user.id,
-        amount: purchaseAmount,
-        term_weeks: selectedTerm,
-        annual_yield: rate.annual_yield,
-        monthly_yield: rate.monthly_yield,
-        maturity_date: maturityDate.toISOString(),
-        total_return: totalReturn
-      });
-      if (bondError) throw bondError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       toast({
         title: 'Bond Purchased!',
-        description: `M$${purchaseAmount.toLocaleString()} ${BOND_TERMS.find(t => t.weeks === selectedTerm)?.description} purchased. You'll receive M$${totalReturn.toFixed(2)} at maturity.`
+        description: data.message || `Bond purchased successfully. Returns M$${data.totalReturn?.toFixed(2)} at maturity.`
       });
       await checkAuthAndFetchData();
       setAmount('');

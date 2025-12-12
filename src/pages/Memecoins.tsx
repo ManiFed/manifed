@@ -212,122 +212,33 @@ export default function Memecoins() {
 
     setIsTrading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data, error } = await supabase.functions.invoke('trade-memecoin', {
+        body: { coinId: selectedCoin.id, amount, tradeType }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (tradeType === 'buy') {
-        const tokensOut = calculateBuyOutput(selectedCoin, amount);
-        const newPoolMana = selectedCoin.pool_mana + amount - (amount * AMM_FEE);
-        const newPoolTokens = selectedCoin.pool_tokens - tokensOut;
-        const pricePerToken = amount / tokensOut;
-
-        // Deduct from ManiFed balance (not withdrawal!)
-        const totalDeduct = amount + txFee;
-        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-          p_user_id: user.id,
-          p_amount: totalDeduct,
-          p_operation: 'subtract'
+        toast({ 
+          title: 'Trade Executed!', 
+          description: `Bought ${data.tokensOut?.toFixed(2)} ${selectedCoin.symbol} for M$${amount} (+M$${data.fee?.toFixed(2)} fee)` 
         });
-
-        if (balanceError) throw balanceError;
-
-        // Update pool
-        await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
-
-        // Record trade
-        await supabase.from('memecoin_trades').insert({
-          memecoin_id: selectedCoin.id,
-          user_id: user.id,
-          trade_type: 'buy',
-          mana_amount: amount,
-          token_amount: tokensOut,
-          price_per_token: pricePerToken,
-          fee_amount: txFee,
-        });
-
-        // Update holdings
-        const { data: holding } = await supabase.from('memecoin_holdings').select('*').eq('user_id', user.id).eq('memecoin_id', selectedCoin.id).maybeSingle();
-        if (holding) {
-          await supabase.from('memecoin_holdings').update({ amount: holding.amount + tokensOut }).eq('id', holding.id);
-        } else {
-          await supabase.from('memecoin_holdings').insert({ user_id: user.id, memecoin_id: selectedCoin.id, amount: tokensOut });
-        }
-
-        // Record transaction
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: 'memecoin_buy',
-          amount: -totalDeduct,
-          description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol}`,
-        });
-
-        // Note: fee_pool insert moved to server-side for RLS compliance
-
-        toast({ title: 'Trade Executed!', description: `Bought ${tokensOut.toFixed(2)} ${selectedCoin.symbol} for M$${amount} (+M$${txFee.toFixed(2)} fee)` });
       } else {
-        // Sell logic
-        const { data: holding } = await supabase.from('memecoin_holdings').select('*').eq('user_id', user.id).eq('memecoin_id', selectedCoin.id).maybeSingle();
-        if (!holding || holding.amount < amount) {
-          toast({ title: 'Insufficient Tokens', variant: 'destructive' });
-          setIsTrading(false);
-          return;
-        }
-
-        const manaOut = calculateSellOutput(selectedCoin, amount);
-        const newPoolTokens = selectedCoin.pool_tokens + amount;
-        const newPoolMana = selectedCoin.pool_mana - manaOut - (manaOut * AMM_FEE);
-        const fee = manaOut * TRANSACTION_FEE;
-        const netMana = manaOut - fee;
-
-        // Update pool
-        await supabase.from('memecoins').update({ pool_mana: newPoolMana, pool_tokens: newPoolTokens }).eq('id', selectedCoin.id);
-
-        // Credit balance (add to ManiFed balance, not deposit!)
-        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-          p_user_id: user.id,
-          p_amount: netMana,
-          p_operation: 'add'
+        toast({ 
+          title: 'Trade Executed!', 
+          description: `Sold ${amount} ${selectedCoin.symbol} for M$${data.manaOut?.toFixed(2)} (after fees)` 
         });
-
-        if (balanceError) throw balanceError;
-
-        // Record trade
-        await supabase.from('memecoin_trades').insert({
-          memecoin_id: selectedCoin.id,
-          user_id: user.id,
-          trade_type: 'sell',
-          mana_amount: manaOut,
-          token_amount: amount,
-          price_per_token: manaOut / amount,
-          fee_amount: fee,
-        });
-
-        // Update holdings
-        await supabase.from('memecoin_holdings').update({ amount: holding.amount - amount }).eq('id', holding.id);
-
-        // Record transaction
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: 'memecoin_sell',
-          amount: netMana,
-          description: `Sold ${amount} ${selectedCoin.symbol}`,
-        });
-
-        // Note: fee_pool insert moved to server-side for RLS compliance
-
-        toast({ title: 'Trade Executed!', description: `Sold ${amount} ${selectedCoin.symbol} for M$${netMana.toFixed(2)} (after fees)` });
       }
 
       setTradeAmount('');
       await fetchData();
       if (selectedCoin) {
-        const updated = coins.find(c => c.id === selectedCoin.id);
-        if (updated) setSelectedCoin(updated);
         fetchPriceHistory(selectedCoin.id);
       }
     } catch (error) {
       console.error('Trade error:', error);
-      toast({ title: 'Trade Failed', variant: 'destructive' });
+      toast({ title: 'Trade Failed', description: error instanceof Error ? error.message : 'Could not complete trade', variant: 'destructive' });
     } finally {
       setIsTrading(false);
     }
@@ -352,50 +263,25 @@ export default function Memecoins() {
 
     setIsCreating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const totalCost = liquidity + fee;
-
-      // Deduct from ManiFed balance
-      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-        p_user_id: user.id,
-        p_amount: totalCost,
-        p_operation: 'subtract'
-      });
-
-      if (balanceError) throw balanceError;
-
-      // Create coin with initial pool
-      const { error } = await supabase.from('memecoins').insert({
-        name: newCoin.name,
-        symbol: newCoin.symbol.toUpperCase(),
-        image_url: newCoin.emoji,
-        creator_id: user.id,
-        pool_mana: liquidity,
-        pool_tokens: liquidity * 2,
-        total_supply: 1000000,
+      const { data, error } = await supabase.functions.invoke('create-memecoin', {
+        body: { 
+          name: newCoin.name, 
+          symbol: newCoin.symbol, 
+          emoji: newCoin.emoji, 
+          initialLiquidity: newCoin.initialLiquidity 
+        }
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Record transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'memecoin_create',
-        amount: -totalCost,
-        description: `Created memecoin ${newCoin.name}`,
-      });
-
-      // Note: fee_pool insert moved to server-side for RLS compliance
-
-      toast({ title: 'Memecoin Created!', description: `${newCoin.name} is now live! (M$${fee.toFixed(2)} fee applied)` });
+      toast({ title: 'Memecoin Created!', description: `${newCoin.name} is now live! (M$${data.fee?.toFixed(2)} fee applied)` });
       setCreateOpen(false);
       setNewCoin({ name: '', symbol: '', emoji: '🪙', initialLiquidity: '' });
       await fetchData();
     } catch (error) {
       console.error('Create error:', error);
-      toast({ title: 'Creation Failed', variant: 'destructive' });
+      toast({ title: 'Creation Failed', description: error instanceof Error ? error.message : 'Could not create memecoin', variant: 'destructive' });
     } finally {
       setIsCreating(false);
     }

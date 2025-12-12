@@ -20,3 +20,15 @@ verify_jwt = false
 
 [functions.purchase-bond]
 verify_jwt = true
+
+[functions.trade-memecoin]
+verify_jwt = true
+
+[functions.create-memecoin]
+verify_jwt = true
+
+[functions.purchase-market-item]
+verify_jwt = true
+
+[functions.purchase-bond-treasury]
+verify_jwt = true
