@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Clock, Search, Newspaper } from 'lucide-react';
 import trumpPortrait from '@/assets/trump-portrait.png';
 import trumpSignature from '@/assets/trump-signature.png';
-
 export default function Landing() {
   return <div className="min-h-screen">
       {/* Hero Section */}
@@ -57,7 +56,7 @@ export default function Landing() {
               borrowing, and financial services for the prediction market ecosystem.
             </p>
             <p className="text-lg font-semibold text-primary mb-4">Making Manifold Great Again!</p>
-            <img src={trumpSignature} alt="Signature" className="h-10 mx-auto mb-8 opacity-70" />
+            <img alt="Signature" className="h-10 mx-auto mb-8 opacity-70" src="/lovable-uploads/ac153951-a664-4258-a2a1-69968ea06607.png" />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=signup">
                 <Button variant="glow" size="xl" className="gap-2">
@@ -86,7 +85,9 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Loans */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <Card className="glass border-primary/30 animate-slide-up" style={{
+            animationDelay: '100ms'
+          }}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
@@ -106,7 +107,9 @@ export default function Landing() {
             </Card>
 
             {/* Bonds */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <Card className="glass border-primary/30 animate-slide-up" style={{
+            animationDelay: '150ms'
+          }}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -130,7 +133,9 @@ export default function Landing() {
 
         {/* Fee Notice */}
         <section className="container mx-auto px-4 py-4">
-          <Card className="glass animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <Card className="glass animate-slide-up" style={{
+          animationDelay: '300ms'
+        }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4 justify-center text-center">
                 <Clock className="w-5 h-5 text-primary shrink-0" />
@@ -144,7 +149,9 @@ export default function Landing() {
 
         {/* Disclaimer */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '350ms' }}>
+          <Card className="glass border-warning/30 animate-slide-up" style={{
+          animationDelay: '350ms'
+        }}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-2 rounded-lg bg-warning/10 shrink-0">
@@ -171,7 +178,9 @@ export default function Landing() {
 
         {/* Contact Section */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass animate-slide-up" style={{ animationDelay: '400ms' }}>
+          <Card className="glass animate-slide-up" style={{
+          animationDelay: '400ms'
+        }}>
             <CardContent className="p-6">
               <div className="text-center">
                 <h3 className="font-semibold text-foreground mb-2">Questions or Need Help?</h3>
