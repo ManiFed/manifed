@@ -18,6 +18,48 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
   const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<'select' | 'deposit' | 'withdraw'>('select');
+  const [manifoldBalance, setManifoldBalance] = useState<number | null>(null);
+  const [isFetchingManifoldBalance, setIsFetchingManifoldBalance] = useState(false);
+
+  const fetchManifoldBalance = async () => {
+    setIsFetchingManifoldBalance(true);
+    try {
+      // Get user's Manifold username from settings
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: settings } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_username')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!settings?.manifold_username) return;
+
+      // Fetch balance from Manifold API
+      const response = await fetch(`https://api.manifold.markets/v0/user/${settings.manifold_username}`);
+      if (response.ok) {
+        const userData = await response.json();
+        setManifoldBalance(Math.floor(userData.balance || 0));
+      }
+    } catch (error) {
+      console.error('Failed to fetch Manifold balance:', error);
+    } finally {
+      setIsFetchingManifoldBalance(false);
+    }
+  };
+
+  const handleMaxDeposit = () => {
+    if (manifoldBalance !== null && manifoldBalance >= 10) {
+      setAmount(manifoldBalance.toString());
+    } else {
+      toast({
+        title: 'Insufficient Manifold Balance',
+        description: 'You need at least M$10 in your Manifold account to deposit.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleDeposit = async () => {
     if (!hasApiKey) {
@@ -175,7 +217,10 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
               <p className="text-2xl font-bold text-foreground">M${balance.toLocaleString()}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => setMode('deposit')} className="gap-2">
+              <Button variant="outline" onClick={() => {
+                setMode('deposit');
+                fetchManifoldBalance();
+              }} className="gap-2">
                 <Plus className="w-4 h-4" />
                 Deposit
               </Button>
@@ -194,21 +239,53 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
               <h4 className="font-medium text-foreground">
                 {mode === 'deposit' ? 'Deposit M$' : 'Withdraw M$'}
               </h4>
-              <Button variant="ghost" size="sm" onClick={() => setMode('select')}>
+              <Button variant="ghost" size="sm" onClick={() => {
+                setMode('select');
+                setManifoldBalance(null);
+              }}>
                 Back
               </Button>
             </div>
-            <Input
-              type="number"
-              placeholder="Enter amount..."
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="bg-secondary/50"
-              min={10}
-            />
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Enter amount..."
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="bg-secondary/50 flex-1"
+                min={10}
+              />
+              {mode === 'deposit' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleMaxDeposit}
+                  disabled={isFetchingManifoldBalance}
+                  className="px-3"
+                >
+                  {isFetchingManifoldBalance ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    'Max'
+                  )}
+                </Button>
+              )}
+              {mode === 'withdraw' && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setAmount(Math.floor(balance).toString())}
+                  className="px-3"
+                >
+                  Max
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {mode === 'deposit' 
-                ? 'Sends M$ from your Manifold wallet to ManiFed'
+                ? manifoldBalance !== null 
+                  ? `Manifold balance: M$${manifoldBalance.toLocaleString()}`
+                  : 'Sends M$ from your Manifold wallet to ManiFed'
                 : `Available: M$${balance.toLocaleString()}`
               }
             </p>
