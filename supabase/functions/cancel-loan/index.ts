@@ -169,7 +169,12 @@ serve(async (req) => {
     // Refund each investor
     let refundedAmount = 0;
     for (const investment of investments || []) {
-      const refundAmount = Number(investment.amount);
+      // If loan is active (funded), must repay principal + interest
+      // If still seeking_funding, just return principal
+      const isActive = loan.status === "active";
+      const principal = Number(investment.amount);
+      const interestMultiplier = isActive ? (1 + Number(loan.interest_rate) / 100) : 1;
+      const refundAmount = Math.floor(principal * interestMultiplier);
 
       // Get investor's balance
       const { data: investorBalance } = await supabase
@@ -179,9 +184,9 @@ serve(async (req) => {
         .single();
 
       if (investorBalance) {
-        // Credit the investor's ManiFed balance (principal only, no interest)
+        // Credit the investor's ManiFed balance
         const newBalance = Number(investorBalance.balance) + refundAmount;
-        const newTotalInvested = Math.max(0, Number(investorBalance.total_invested) - refundAmount);
+        const newTotalInvested = Math.max(0, Number(investorBalance.total_invested) - principal);
 
         await supabase
           .from("user_balances")
@@ -193,13 +198,17 @@ serve(async (req) => {
           .eq("user_id", investment.investor_user_id);
 
         // Record the refund transaction
+        const refundDescription = isActive 
+          ? `Loan cancelled - refund with interest: ${loan.title}`
+          : `Loan cancelled - refund: ${loan.title}`;
+        
         await supabase
           .from("transactions")
           .insert({
             user_id: investment.investor_user_id,
             type: "refund",
             amount: refundAmount,
-            description: `Loan cancelled - refund: ${loan.title}`,
+            description: refundDescription,
             loan_id: loan.id
           });
 

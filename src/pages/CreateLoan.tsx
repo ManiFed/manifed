@@ -13,7 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
-import { DollarSign, Percent, Calendar as CalendarIcon, FileText, Shield, Sparkles, Plus, X, ExternalLink } from 'lucide-react';
+import { DollarSign, Percent, Calendar as CalendarIcon, FileText, Shield, Sparkles, Plus, X, ExternalLink, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Validation schema for loan creation
@@ -36,6 +36,10 @@ const loanSchema = z.object({
     .int('Term must be a whole number')
     .min(1, 'Minimum term is 1 day')
     .max(365, 'Maximum term is 365 days'),
+  fundingPeriodDays: z.number()
+    .int('Funding period must be a whole number')
+    .min(1, 'Minimum funding period is 1 day')
+    .max(30, 'Maximum funding period is 30 days'),
   collateralDescription: z.string()
     .max(1000, 'Collateral description must be less than 1000 characters')
     .optional(),
@@ -54,8 +58,10 @@ export default function CreateLoan() {
     amount: 1000,
     interestRate: 10,
     termDays: 30,
+    fundingPeriodDays: 7,
     collateralDescription: '',
   });
+  const [fundingDeadline, setFundingDeadline] = useState<Date | undefined>(addDays(new Date(), 7));
   const [maturityDate, setMaturityDate] = useState<Date | undefined>(addDays(new Date(), 30));
   const [embeddedMarkets, setEmbeddedMarkets] = useState<EmbeddedMarket[]>([]);
   const [newMarketUrl, setNewMarketUrl] = useState('');
@@ -180,6 +186,7 @@ export default function CreateLoan() {
       amount: formData.amount,
       interestRate: formData.interestRate,
       termDays: formData.termDays,
+      fundingPeriodDays: formData.fundingPeriodDays,
       collateralDescription: formData.collateralDescription || undefined,
     });
 
@@ -241,6 +248,8 @@ export default function CreateLoan() {
           amount: validatedData.amount,
           interest_rate: validatedData.interestRate,
           term_days: validatedData.termDays,
+          funding_period_days: validatedData.fundingPeriodDays,
+          funding_deadline: fundingDeadline?.toISOString() || null,
           collateral_description: validatedData.collateralDescription || null,
           maturity_date: maturityDate?.toISOString() || null,
           status: 'seeking_funding',
@@ -549,6 +558,53 @@ export default function CreateLoan() {
                       Maturity date: <span className="text-foreground font-medium">{format(maturityDate, 'PPP')}</span>
                     </p>
                   )}
+                </div>
+
+                {/* Funding Period */}
+                <div className="space-y-4 pt-4 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Funding Period
+                    </Label>
+                    <Input
+                      value={`${formData.fundingPeriodDays} days`}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                        if (!isNaN(num) && num >= 1) {
+                          setFormData({ ...formData, fundingPeriodDays: Math.min(num, 30) });
+                          setFundingDeadline(addDays(new Date(), Math.min(num, 30)));
+                        }
+                      }}
+                      className="w-28 text-right font-bold bg-secondary/50 h-8"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    How long investors can contribute to this loan before it closes.
+                  </p>
+                  <Slider
+                    value={[formData.fundingPeriodDays]}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, fundingPeriodDays: value[0] });
+                      setFundingDeadline(addDays(new Date(), value[0]));
+                    }}
+                    min={1}
+                    max={30}
+                    step={1}
+                    className="py-4"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>1 day</span>
+                    <span>30 days</span>
+                  </div>
+                  {fundingDeadline && (
+                    <p className="text-sm text-muted-foreground">
+                      Funding deadline: <span className="text-foreground font-medium">{format(fundingDeadline, 'PPP')}</span>
+                    </p>
+                  )}
+                  <p className="text-xs text-warning">
+                    Note: Funds will only be sent to you after the funding period ends.
+                  </p>
                 </div>
               </CardContent>
             </Card>

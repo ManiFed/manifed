@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Clock, Search, Newspaper } from 'lucide-react';
+import trumpPortrait from '@/assets/trump-portrait.png';
+import trumpSignature from '@/assets/trump-signature.png';
+
 export default function Landing() {
   return <div className="min-h-screen">
       {/* Hero Section */}
@@ -10,12 +13,10 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
-                <Landmark className="w-5 h-5 text-primary-foreground" />
-              </div>
+              <img src={trumpPortrait} alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" />
               <div>
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
-                
+                <p className="text-xs text-muted-foreground">Making Manifold Great Again</p>
               </div>
             </Link>
             <div className="flex items-center gap-3">
@@ -47,14 +48,16 @@ export default function Landing() {
         {/* Hero */}
         <section className="container mx-auto px-4 py-20 text-center space-y-8">
           <div className="animate-slide-up">
-            
+            <img src={trumpPortrait} alt="ManiFed Chairman" className="w-32 h-32 mx-auto rounded-full border-4 border-primary/50 mb-6 shadow-lg" />
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
               Welcome to <span className="text-gradient">ManiFed</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
               ManiFed is Manifold's decentralized financial institution. We provide lending, 
               borrowing, and financial services for the prediction market ecosystem.
             </p>
+            <p className="text-lg font-semibold text-primary mb-4">Making Manifold Great Again!</p>
+            <img src={trumpSignature} alt="Signature" className="h-10 mx-auto mb-8 opacity-70" />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=signup">
                 <Button variant="glow" size="xl" className="gap-2">
@@ -81,20 +84,15 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Loans */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '100ms'
-          }}>
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '100ms' }}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-primary-foreground" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">P2P Loans</h3>
-                    
-                  </div>
+                  <h3 className="text-lg font-bold text-foreground">P2P Loans</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Peer-to-peer marketplace for prediction market loans. Borrow or lend M$.
@@ -108,9 +106,7 @@ export default function Landing() {
             </Card>
 
             {/* Bonds */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '150ms'
-          }}>
+            <Card className="glass border-primary/30 animate-slide-up" style={{ animationDelay: '150ms' }}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -118,67 +114,15 @@ export default function Landing() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-foreground">T-Bills</h3>
-                    
+                    <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Fixed-income Treasury Bills with 6% APY. Guaranteed yields at maturity.
                 </p>
-                <Link to="/bonds">
-                  <Button variant="outline" className="w-full gap-2" size="sm">
-                    Explore Bonds <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Memecoins */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '200ms'
-          }}>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
-                    <Coins className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">Memecoins</h3>
-                    
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Trade memecoins in AMM liquidity pools. Create your own tokens.
-                </p>
-                <Link to="/memecoins">
-                  <Button variant="outline" className="w-full gap-2" size="sm">
-                    Trade Memecoins <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Credit Score */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '250ms'
-          }}>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                    <Search className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">Credit Search</h3>
-                    
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Check creditworthiness of any Manifold user before investing.
-                </p>
-                <Link to="/credit-search">
-                  <Button variant="outline" className="w-full gap-2" size="sm">
-                    Search Credits <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button variant="outline" className="w-full gap-2" size="sm" disabled>
+                  Coming Soon
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -186,14 +130,12 @@ export default function Landing() {
 
         {/* Fee Notice */}
         <section className="container mx-auto px-4 py-4">
-          <Card className="glass animate-slide-up" style={{
-          animationDelay: '300ms'
-        }}>
+          <Card className="glass animate-slide-up" style={{ animationDelay: '300ms' }}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4 justify-center text-center">
                 <Clock className="w-5 h-5 text-primary shrink-0" />
-                <p className="text-sm text-muted-foreground">Fees may apply on specific transactions. For more info, check out our Terms of Service.                               <strong className="text-foreground">0.5% transaction fee</strong> on all transactions. 
-                  Fees are bundled and paid out in groups of M$25 minimum to comply with Manifold's M$10 minimum transfer.
+                <p className="text-sm text-muted-foreground">
+                  <strong className="text-foreground">2% transaction fee</strong> on loans (charged to borrowers). Fees are bundled and paid out in groups of M$25 minimum.
                 </p>
               </div>
             </CardContent>
@@ -202,9 +144,7 @@ export default function Landing() {
 
         {/* Disclaimer */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass border-warning/30 animate-slide-up" style={{
-          animationDelay: '350ms'
-        }}>
+          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '350ms' }}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-2 rounded-lg bg-warning/10 shrink-0">
@@ -231,14 +171,12 @@ export default function Landing() {
 
         {/* Contact Section */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass animate-slide-up" style={{
-          animationDelay: '400ms'
-        }}>
+          <Card className="glass animate-slide-up" style={{ animationDelay: '400ms' }}>
             <CardContent className="p-6">
               <div className="text-center">
                 <h3 className="font-semibold text-foreground mb-2">Questions or Need Help?</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  ManiFed offers P2P loans backed by Manifold Markets. Reach out to us anytime:
+                  ManiFed offers P2P loans. Reach out to us anytime:
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
@@ -260,12 +198,12 @@ export default function Landing() {
           <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Landmark className="w-6 h-6 text-primary" />
+                <img src={trumpPortrait} alt="ManiFed" className="w-8 h-8 rounded-full" />
                 <span className="font-semibold text-foreground">ManiFed</span>
-                <span className="text-muted-foreground">- Manifold's Central Bank</span>
+                <span className="text-muted-foreground">- Making Manifold Great Again</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Powered by Manifold Markets • All loans settled in M$ • 0.5% transaction fee
+                Powered by Manifold Markets • All loans settled in M$ • 2% loan fee (borrowers only)
               </p>
             </div>
           </div>
