@@ -241,6 +241,7 @@ export type Database = {
           description: string
           funded_amount: number
           funding_deadline: string | null
+          funding_period_days: number
           id: string
           interest_rate: number
           manifold_market_id: string | null
@@ -261,6 +262,7 @@ export type Database = {
           description: string
           funded_amount?: number
           funding_deadline?: string | null
+          funding_period_days?: number
           id?: string
           interest_rate: number
           manifold_market_id?: string | null
@@ -281,6 +283,7 @@ export type Database = {
           description?: string
           funded_amount?: number
           funding_deadline?: string | null
+          funding_period_days?: number
           id?: string
           interest_rate?: number
           manifold_market_id?: string | null

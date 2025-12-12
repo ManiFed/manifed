@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
+import trumpPortrait from '@/assets/trump-portrait.png';
+import trumpSignature from '@/assets/trump-signature.png';
 import {
   Landmark,
   TrendingUp,
@@ -25,6 +28,8 @@ import {
   Sparkles,
   Store,
   CheckCircle,
+  MoreHorizontal,
+  ChevronDown,
 } from 'lucide-react';
 
 interface Transaction {
@@ -164,12 +169,10 @@ export default function Hub() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
-                <Landmark className="w-5 h-5 text-primary-foreground" />
-              </div>
+              <img src={trumpPortrait} alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" />
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Manifold's Central Bank</p>
+                <p className="text-xs text-muted-foreground -mt-0.5">Making Manifold Great Again</p>
               </div>
             </Link>
 
@@ -198,17 +201,20 @@ export default function Hub() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Welcome */}
+        {/* Welcome with Trump signature */}
         <div className="mb-8 animate-slide-up">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            Welcome back{username ? `, @${username}` : ''}
-            {hasVerifiedBadge && (
-              <CheckCircle className="w-6 h-6 text-primary" />
-            )}
-          </h1>
+          <div className="flex items-center gap-4 mb-2">
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              Welcome back{username ? `, @${username}` : ''}
+              {hasVerifiedBadge && (
+                <CheckCircle className="w-6 h-6 text-primary" />
+              )}
+            </h1>
+          </div>
           <p className="text-muted-foreground mt-1">
-            Your ManiFed dashboard
+            Your ManiFed dashboard - Making your portfolio great again!
           </p>
+          <img src={trumpSignature} alt="Signature" className="h-8 mt-2 opacity-60" />
         </div>
 
         {/* Portfolio Overview */}
@@ -325,116 +331,80 @@ export default function Hub() {
               </CardContent>
             </Card>
 
-            {/* Bond Market - Coming Soon */}
-            <Card className="glass h-full opacity-60 cursor-not-allowed">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-                    <Store className="w-6 h-6 text-white" />
-                  </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
-                </div>
-                <CardTitle className="text-xl mt-4">Bond Market</CardTitle>
-                <CardDescription>
-                  Buy and sell Treasury Bills from other users. Trade bonds before maturity.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Memecoins - Coming Soon */}
-            <Card className="glass h-full opacity-60 cursor-not-allowed">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center">
-                    <Coins className="w-6 h-6 text-white" />
-                  </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
-                </div>
-                <CardTitle className="text-xl mt-4">Memecoins</CardTitle>
-                <CardDescription>
-                  Trade memecoins using M$. Create your own or trade in AMM-style liquidity pools.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Credit Search */}
-            <Link to="/credit-search" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+            {/* Miscellaneous Dropdown */}
+            <Collapsible>
+              <Card className="glass h-full">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                      <Search className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500 to-slate-600 flex items-center justify-center">
+                      <MoreHorizontal className="w-6 h-6 text-white" />
                     </div>
-                    <Badge variant="secondary">Tool</Badge>
+                    <Badge variant="secondary">More</Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">Credit Search</CardTitle>
+                  <CardTitle className="text-xl mt-4">Miscellaneous</CardTitle>
                   <CardDescription>
-                    Check creditworthiness of any Manifold user before investing in their loans.
+                    Additional tools and features available on ManiFed.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Search Credits
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
-
-            {/* Shop - Coming Soon */}
-            <Card className="glass h-full opacity-60 cursor-not-allowed">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
-                </div>
-                <CardTitle className="text-xl mt-4">ManiFed Shop</CardTitle>
-                <CardDescription>
-                  Buy verified badges, site themes, and visual effects to customize your experience.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Leaderboard */}
-            <Link to="/leaderboard" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2">
+                      View Options
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-3">
+                    {/* Bond Market */}
+                    <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Store className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-foreground text-sm">Bond Market</span>
+                        <Badge variant="secondary" className="text-xs">Soon</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Buy and sell Treasury Bills from other users.</p>
                     </div>
-                    <Badge variant="secondary">Rankings</Badge>
-                  </div>
-                  <CardTitle className="text-xl mt-4">Leaderboard</CardTitle>
-                  <CardDescription>
-                    See who the top lenders, traders, and earners are on ManiFed.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    View Rankings
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
+                    
+                    {/* Memecoins */}
+                    <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Coins className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-foreground text-sm">Memecoins</span>
+                        <Badge variant="secondary" className="text-xs">Soon</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Trade memecoins using M$.</p>
+                    </div>
+                    
+                    {/* Credit Search */}
+                    <Link to="/credit-search" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Search className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Credit Search</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Check creditworthiness of any Manifold user.</p>
+                    </Link>
+                    
+                    {/* Shop */}
+                    <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-foreground text-sm">ManiFed Shop</span>
+                        <Badge variant="secondary" className="text-xs">Soon</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Buy verified badges and site themes.</p>
+                    </div>
+                    
+                    {/* Leaderboard */}
+                    <Link to="/leaderboard" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Trophy className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Leaderboard</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">See top lenders, traders, and earners.</p>
+                    </Link>
+                  </CollapsibleContent>
                 </CardContent>
               </Card>
-            </Link>
+            </Collapsible>
           </div>
         </section>
 

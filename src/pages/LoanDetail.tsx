@@ -443,7 +443,9 @@ export default function LoanDetail() {
                     <div>
                       <p className="font-medium text-foreground">Cancel This Loan</p>
                       <p className="text-sm text-muted-foreground">
-                        All investors will be refunded their principal immediately.
+                        {loan.status === 'active' 
+                          ? 'Cancelling after funding requires repaying principal + interest to all investors.'
+                          : 'All investors will be refunded their principal immediately.'}
                       </p>
                     </div>
                     <Button 

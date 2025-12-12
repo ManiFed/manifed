@@ -31,9 +31,11 @@ export function LoanCard({ loan }: LoanCardProps) {
   const risk = riskConfig[loan.riskScore] || riskConfig.medium;
   const StatusIcon = status.icon;
 
+  // Calculate days remaining based on funding deadline (createdAt + 7 days if no deadline set)
+  const fundingDeadline = loan.fundingDeadline || new Date(new Date(loan.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const daysRemaining = Math.max(
     0,
-    Math.ceil((new Date(loan.fundingDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    Math.ceil((new Date(fundingDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   );
 
   return (
