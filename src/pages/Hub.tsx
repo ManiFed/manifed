@@ -9,29 +9,7 @@ import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
 import trumpPortrait from '@/assets/trump-portrait.png';
 import trumpSignature from '@/assets/trump-signature.png';
-import {
-  Landmark,
-  TrendingUp,
-  FileText,
-  Coins,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Bell,
-  LogOut,
-  Trophy,
-  Activity,
-  Settings,
-  BarChart3,
-  Loader2,
-  Search,
-  Sparkles,
-  Store,
-  CheckCircle,
-  MoreHorizontal,
-  ChevronDown,
-} from 'lucide-react';
-
+import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown } from 'lucide-react';
 interface Transaction {
   id: string;
   type: string;
@@ -39,20 +17,22 @@ interface Transaction {
   description: string;
   created_at: string;
 }
-
 interface Bond {
   id: string;
   amount: number;
   maturity_date: string;
   total_return: number;
 }
-
 interface Profile {
   equipped_badge: string | null;
 }
-
 export default function Hub() {
-  const { balance, totalInvested, isLoading: balanceLoading, fetchBalance } = useUserBalance();
+  const {
+    balance,
+    totalInvested,
+    isLoading: balanceLoading,
+    fetchBalance
+  } = useUserBalance();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [loanCount, setLoanCount] = useState(0);
@@ -61,71 +41,60 @@ export default function Hub() {
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string>('');
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
-
   useEffect(() => {
     fetchHubData();
   }, []);
-
   const fetchHubData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Fetch manifold settings
-      const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_username, manifold_api_key')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
+      const {
+        data: settings
+      } = await supabase.from('user_manifold_settings').select('manifold_username, manifold_api_key').eq('user_id', user.id).maybeSingle();
       setHasApiKey(!!settings?.manifold_api_key);
       if (settings?.manifold_username) {
         setUsername(settings.manifold_username);
       }
 
       // Fetch profile for verified badge
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('equipped_badge')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('equipped_badge').eq('user_id', user.id).maybeSingle();
       if (profile?.equipped_badge) {
         // Check if user has a badge item
-        const { data: badgeItem } = await supabase
-          .from('market_items')
-          .select('category')
-          .eq('id', profile.equipped_badge)
-          .maybeSingle();
-        
+        const {
+          data: badgeItem
+        } = await supabase.from('market_items').select('category').eq('id', profile.equipped_badge).maybeSingle();
         setHasVerifiedBadge(badgeItem?.category === 'badge');
       }
 
       // Fetch recent transactions
-      const { data: transactionData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
+      const {
+        data: transactionData
+      } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', {
+        ascending: false
+      }).limit(5);
       setTransactions(transactionData || []);
 
       // Fetch active bonds
-      const { data: bondData } = await supabase
-        .from('bonds')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active');
-
+      const {
+        data: bondData
+      } = await supabase.from('bonds').select('*').eq('user_id', user.id).eq('status', 'active');
       setBonds(bondData || []);
 
       // Fetch investment count
-      const { count } = await supabase
-        .from('investments')
-        .select('*', { count: 'exact', head: true })
-        .eq('investor_user_id', user.id);
-
+      const {
+        count
+      } = await supabase.from('investments').select('*', {
+        count: 'exact',
+        head: true
+      }).eq('investor_user_id', user.id);
       setLoanCount(count || 0);
 
       // Generate notifications
@@ -137,7 +106,6 @@ export default function Hub() {
         notifs.push('Connect your Manifold account to start trading');
       }
       setNotifications(notifs);
-
       await fetchBalance();
     } catch (error) {
       console.error('Error fetching hub data:', error);
@@ -145,25 +113,18 @@ export default function Hub() {
       setIsLoading(false);
     }
   };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
   };
-
   const totalValue = balance + totalInvested;
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
-
   if (isLoading || balanceLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+    return <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen">
+  return <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
@@ -177,14 +138,12 @@ export default function Hub() {
             </Link>
 
             <div className="flex items-center gap-3">
-              {notifications.length > 0 && (
-                <div className="relative">
+              {notifications.length > 0 && <div className="relative">
                   <Bell className="w-5 h-5 text-muted-foreground" />
                   <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                     {notifications.length}
                   </span>
-                </div>
-              )}
+                </div>}
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
@@ -206,19 +165,19 @@ export default function Hub() {
           <div className="flex items-center gap-4 mb-2">
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               Welcome back{username ? `, @${username}` : ''}
-              {hasVerifiedBadge && (
-                <CheckCircle className="w-6 h-6 text-primary" />
-              )}
+              {hasVerifiedBadge && <CheckCircle className="w-6 h-6 text-primary" />}
             </h1>
           </div>
           <p className="text-muted-foreground mt-1">
             Your ManiFed dashboard - Making your portfolio great again!
           </p>
-          <img src={trumpSignature} alt="Signature" className="h-8 mt-2 opacity-60" />
+          <img alt="Signature" className="h-8 mt-2 opacity-60" src="/lovable-uploads/78e4cfcf-12cd-4422-9680-7d27f35dfd93.png" />
         </div>
 
         {/* Portfolio Overview */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: '50ms' }}>
+        <section className="mb-8 animate-slide-up" style={{
+        animationDelay: '50ms'
+      }}>
           <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
             Portfolio Overview
@@ -283,7 +242,9 @@ export default function Hub() {
         </section>
 
         {/* Products Grid */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <section className="mb-8 animate-slide-up" style={{
+        animationDelay: '100ms'
+      }}>
           <h2 className="text-lg font-semibold text-foreground mb-4">Products</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Loans */}
@@ -410,7 +371,9 @@ export default function Hub() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Activity Feed */}
-          <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <div className="lg:col-span-2 animate-slide-up" style={{
+          animationDelay: '150ms'
+        }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
@@ -422,14 +385,11 @@ export default function Hub() {
             </div>
             <Card className="glass">
               <CardContent className="p-0">
-                {transactions.length > 0 ? (
-                  <div className="divide-y divide-border/50">
-                    {transactions.map((tx) => {
-                      const isPositive = tx.type === 'deposit' || tx.type === 'repayment' || tx.type === 'loan_received' || tx.type === 'bond_maturity';
-                      const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
-                      
-                      return (
-                        <div key={tx.id} className="flex items-center justify-between p-4">
+                {transactions.length > 0 ? <div className="divide-y divide-border/50">
+                    {transactions.map(tx => {
+                  const isPositive = tx.type === 'deposit' || tx.type === 'repayment' || tx.type === 'loan_received' || tx.type === 'bond_maturity';
+                  const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
+                  return <div key={tx.id} className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${isPositive ? 'bg-success/10' : 'bg-muted'}`}>
                               <Icon className={`w-4 h-4 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
@@ -444,47 +404,38 @@ export default function Hub() {
                           <p className={`font-semibold ${tx.amount >= 0 ? 'text-success' : 'text-foreground'}`}>
                             {tx.amount >= 0 ? '+' : ''}M${Math.abs(tx.amount).toLocaleString()}
                           </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center">
+                        </div>;
+                })}
+                  </div> : <div className="p-8 text-center">
                     <Activity className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground">No recent activity</p>
-                  </div>
-                )}
+                  </div>}
               </CardContent>
             </Card>
           </div>
 
           {/* Notifications */}
-          <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div className="animate-slide-up" style={{
+          animationDelay: '200ms'
+        }}>
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-primary" />
               Notifications
             </h2>
             <Card className="glass">
               <CardContent className="p-4">
-                {notifications.length > 0 ? (
-                  <div className="space-y-3">
-                    {notifications.map((notif, i) => (
-                      <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                {notifications.length > 0 ? <div className="space-y-3">
+                    {notifications.map((notif, i) => <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                         <p className="text-sm text-foreground">{notif}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
+                      </div>)}
+                  </div> : <div className="text-center py-6">
                     <Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground">No new notifications</p>
-                  </div>
-                )}
+                  </div>}
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 }
