@@ -140,7 +140,7 @@ export default function Landing() {
               <div className="flex items-center gap-4 justify-center text-center">
                 <Clock className="w-5 h-5 text-primary shrink-0" />
                 <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">2% transaction fee</strong> on loans (charged to borrowers). Fees are bundled and paid out in groups of M$25 minimum.
+                  <strong className="text-foreground">2% transaction fee</strong> on loans (charged to borrowers).
                 </p>
               </div>
             </CardContent>
