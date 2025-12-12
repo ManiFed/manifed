@@ -12,7 +12,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
-              <img src={trumpPortrait} alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" />
+              <img alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" src="/lovable-uploads/2f4b846c-059e-4a08-a289-b1522b47cb1d.png" />
               <div>
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground">Making Manifold Great Again</p>
@@ -47,7 +47,7 @@ export default function Landing() {
         {/* Hero */}
         <section className="container mx-auto px-4 py-20 text-center space-y-8">
           <div className="animate-slide-up">
-            <img src={trumpPortrait} alt="ManiFed Chairman" className="w-32 h-32 mx-auto rounded-full border-4 border-primary/50 mb-6 shadow-lg" />
+            <img alt="ManiFed Chairman" className="w-32 h-32 mx-auto rounded-full border-4 border-primary/50 mb-6 shadow-lg" src="/lovable-uploads/628bdfd0-48bf-45b8-b87b-952e8ff91924.png" />
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
               Welcome to <span className="text-gradient">ManiFed</span>
             </h1>
