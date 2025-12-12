@@ -315,8 +315,24 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in managram function:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Check for insufficient balance error and return 400 instead of 500
+    if (errorMessage.includes("Insufficient balance")) {
+      // Extract the balance info for a friendly message
+      const match = errorMessage.match(/needed (\d+(?:\.\d+)?).+only had (\d+(?:\.\d+)?)/);
+      const friendlyMessage = match 
+        ? `Insufficient Manifold balance. You need M$${Math.ceil(Number(match[1]))} but only have M$${Math.floor(Number(match[2]))} in your Manifold account.`
+        : "Insufficient balance in your Manifold account to complete this deposit.";
+      
+      return new Response(
+        JSON.stringify({ error: friendlyMessage }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
