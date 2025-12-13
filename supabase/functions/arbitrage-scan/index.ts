@@ -700,31 +700,40 @@ serve(async (req) => {
         );
       }
 
-      const encryptionKey = Deno.env.get("API_ENCRYPTION_KEY");
-      if (!encryptionKey) {
-        throw new Error("Encryption key not configured");
-      }
-
-      const [ivHex, encryptedHex] = settings.manifold_api_key.split(':');
-      const iv = new Uint8Array(ivHex.match(/.{2}/g)!.map((byte: string) => parseInt(byte, 16)));
-      const encrypted = new Uint8Array(encryptedHex.match(/.{2}/g)!.map((byte: string) => parseInt(byte, 16)));
+      let apiKey: string;
       
-      const keyData = new TextEncoder().encode(encryptionKey.slice(0, 32).padEnd(32, '0'));
-      const cryptoKey = await crypto.subtle.importKey(
-        'raw',
-        keyData,
-        { name: 'AES-GCM' },
-        false,
-        ['decrypt']
-      );
+      // Check if API key is encrypted (contains ':' separator) or legacy plaintext
+      if (settings.manifold_api_key.includes(':')) {
+        const encryptionKey = Deno.env.get("API_ENCRYPTION_KEY");
+        if (!encryptionKey) {
+          throw new Error("Encryption key not configured");
+        }
 
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        cryptoKey,
-        encrypted
-      );
+        const [ivHex, encryptedHex] = settings.manifold_api_key.split(':');
+        const iv = new Uint8Array(ivHex.match(/.{2}/g)!.map((byte: string) => parseInt(byte, 16)));
+        const encrypted = new Uint8Array(encryptedHex.match(/.{2}/g)!.map((byte: string) => parseInt(byte, 16)));
+        
+        const keyData = new TextEncoder().encode(encryptionKey.slice(0, 32).padEnd(32, '0'));
+        const cryptoKey = await crypto.subtle.importKey(
+          'raw',
+          keyData,
+          { name: 'AES-GCM' },
+          false,
+          ['decrypt']
+        );
 
-      const apiKey = new TextDecoder().decode(decrypted);
+        const decrypted = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv },
+          cryptoKey,
+          encrypted
+        );
+
+        apiKey = new TextDecoder().decode(decrypted);
+      } else {
+        // Legacy plaintext API key
+        console.log("Using legacy plaintext API key");
+        apiKey = settings.manifold_api_key;
+      }
 
       // Execute trades for each market
       const results = [];
