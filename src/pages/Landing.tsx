@@ -47,7 +47,7 @@ export default function Landing() {
         {/* Hero */}
         <section className="container mx-auto px-4 py-20 text-center space-y-8">
           <div className="animate-slide-up">
-            <img alt="ManiFed Chairman" className="w-32 h-32 mx-auto rounded-full border-4 border-primary/50 mb-6 shadow-lg" src="/lovable-uploads/628bdfd0-48bf-45b8-b87b-952e8ff91924.png" />
+            <img alt="ManiFed Chairman" src="/lovable-uploads/628bdfd0-48bf-45b8-b87b-952e8ff91924.png" className="w-32 h-32 mx-auto border-primary/50 mb-6 border-0 rounded-3xl shadow-none" />
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
               Welcome to <span className="text-gradient">ManiFed</span>
             </h1>
@@ -55,7 +55,7 @@ export default function Landing() {
               ManiFed is Manifold's decentralized financial institution. We provide lending, 
               borrowing, and financial services for the prediction market ecosystem.
             </p>
-            <p className="text-lg font-semibold text-primary mb-4">Making Manifold Great Again!</p>
+            <p className="text-lg font-semibold text-primary mb-4">Make America 🇺🇸 like Manifold 💰without mods 🤮. DONALD J. TRUMP</p>
             <img alt="Signature" className="h-10 mx-auto mb-8 opacity-70" src="/lovable-uploads/ac153951-a664-4258-a2a1-69968ea06607.png" />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=signup">
