@@ -86,37 +86,44 @@ serve(async (req) => {
               .eq("user_id", investment.investor_user_id)
               .single();
 
-            if (investorBalance) {
-              // Credit the investor's ManiFed balance
-              const newBalance = Number(investorBalance.balance) + repaymentAmount;
-              const newTotalInvested = Math.max(0, Number(investorBalance.total_invested) - Number(investment.amount));
+            // Credit the investor's ManiFed balance using the secure RPC function
+            const { error: creditError } = await supabase.rpc('modify_user_balance', {
+              p_user_id: investment.investor_user_id,
+              p_amount: repaymentAmount,
+              p_operation: 'add'
+            });
 
+            if (creditError) {
+              console.error(`Error crediting repayment for investor ${investment.investor_user_id}:`, creditError);
+              failedRepayments++;
+              continue;
+            }
+
+            // Update total_invested separately (reduce by original investment amount)
+            if (investorBalance) {
+              const newTotalInvested = Math.max(0, Number(investorBalance.total_invested) - Number(investment.amount));
               await supabase
                 .from("user_balances")
                 .update({ 
-                  balance: newBalance,
                   total_invested: newTotalInvested,
                   updated_at: new Date().toISOString()
                 })
                 .eq("user_id", investment.investor_user_id);
-
-              // Record the transaction
-              await supabase
-                .from("transactions")
-                .insert({
-                  user_id: investment.investor_user_id,
-                  type: "repayment",
-                  amount: repaymentAmount,
-                  description: `Loan repaid: ${loan.title} (M$${investment.amount} + ${loan.interest_rate}% interest)`,
-                  loan_id: loan.id
-                });
-
-              console.log(`Credited M$${repaymentAmount} to investor ${investment.investor_username}`);
-              successfulRepayments++;
-            } else {
-              console.warn(`No balance record found for investor ${investment.investor_user_id}`);
-              failedRepayments++;
             }
+
+            // Record the transaction
+            await supabase
+              .from("transactions")
+              .insert({
+                user_id: investment.investor_user_id,
+                type: "repayment",
+                amount: repaymentAmount,
+                description: `Loan repaid: ${loan.title} (M$${investment.amount} + ${loan.interest_rate}% interest)`,
+                loan_id: loan.id
+              });
+
+            console.log(`Credited M$${repaymentAmount} to investor ${investment.investor_username} via RPC`);
+            successfulRepayments++;
           } catch (err) {
             console.error(`Error processing repayment for investment ${investment.id}:`, err);
             failedRepayments++;
