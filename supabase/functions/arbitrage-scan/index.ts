@@ -51,6 +51,7 @@ interface ArbitrageOpportunity {
   liquidityScore: number;
   similarityScore?: number;
   priceImpactEstimate: number;
+  matchReason?: string;
 }
 
 interface ScanConfig {
@@ -60,9 +61,97 @@ interface ScanConfig {
   dynamicThresholdEnabled: boolean;
   semanticMatchingEnabled: boolean;
   dryRun: boolean;
+  fullScan: boolean;
+  maxMarkets: number;
 }
 
-// Tokenize and normalize text for comparison
+// ============= IMPROVED TEXT PROCESSING =============
+
+const stopWords = new Set([
+  'the', 'will', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can',
+  'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'were',
+  'they', 'their', 'what', 'when', 'where', 'which', 'who', 'how', 'than',
+  'that', 'this', 'these', 'those', 'then', 'some', 'such', 'into', 'other',
+  'before', 'after', 'during', 'between', 'under', 'over', 'through', 'about',
+  'does', 'did', 'doing', 'would', 'could', 'should', 'might', 'must',
+  'being', 'there', 'here', 'from', 'with', 'also', 'just', 'only', 'very',
+  'most', 'more', 'less', 'much', 'many', 'any', 'each', 'every', 'both'
+]);
+
+// Verb synonym groups - verbs in same group mean equivalent outcomes
+const verbSynonymGroups: Record<string, string[]> = {
+  'win': ['win', 'wins', 'winning', 'won', 'clinch', 'clinches', 'take', 'takes', 'capture', 'captures', 'secure', 'secures', 'claim', 'claims'],
+  'lose': ['lose', 'loses', 'losing', 'lost', 'fall', 'falls', 'drop', 'drops'],
+  'nominate': ['nominate', 'nominated', 'nomination', 'select', 'selected', 'selection', 'choose', 'chosen', 'pick', 'picked'],
+  'elect': ['elect', 'elected', 'election', 'vote', 'voted'],
+  'confirm': ['confirm', 'confirmed', 'approve', 'approved', 'confirmation', 'approval'],
+  'pass': ['pass', 'passed', 'passing', 'enact', 'enacted', 'ratify', 'ratified'],
+  'fail': ['fail', 'failed', 'failing', 'reject', 'rejected', 'veto', 'vetoed'],
+  'announce': ['announce', 'announced', 'reveal', 'revealed', 'disclose', 'disclosed'],
+  'resign': ['resign', 'resigned', 'quit', 'quits', 'step down', 'leave', 'leaves'],
+  'die': ['die', 'dies', 'died', 'death', 'pass away', 'deceased'],
+  'convict': ['convict', 'convicted', 'conviction', 'guilty', 'found guilty'],
+  'acquit': ['acquit', 'acquitted', 'acquittal', 'not guilty', 'innocent'],
+  'impeach': ['impeach', 'impeached', 'impeachment'],
+  'reach': ['reach', 'reaches', 'reached', 'hit', 'hits', 'surpass', 'surpasses', 'exceed', 'exceeds'],
+  'beat': ['beat', 'beats', 'beaten', 'defeat', 'defeats', 'defeated', 'overcome', 'overcomes'],
+};
+
+// Get canonical verb form
+function getCanonicalVerb(word: string): string | null {
+  const lowerWord = word.toLowerCase();
+  for (const [canonical, synonyms] of Object.entries(verbSynonymGroups)) {
+    if (synonyms.includes(lowerWord)) {
+      return canonical;
+    }
+  }
+  return null;
+}
+
+// Extract year from text
+function extractYears(text: string): number[] {
+  const yearPattern = /\b(20\d{2})\b/g;
+  const matches = text.match(yearPattern);
+  return matches ? matches.map(y => parseInt(y)) : [];
+}
+
+// Extract entities (proper nouns, names) - simplified NER
+function extractEntities(text: string): string[] {
+  const entities: string[] = [];
+  
+  // Common political/public figures patterns
+  const namePatterns = [
+    /(?:president|senator|governor|secretary|ceo|cto|founder)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,
+    /([A-Z][a-z]+(?:\s+[A-Z]\.?\s+)?[A-Z][a-z]+)/g, // Full names
+    /\b(Trump|Biden|Harris|Vance|DeSantis|Haley|Pence|Obama|Clinton|Sanders|Warren|Musk|Bezos|Zuckerberg)\b/gi,
+  ];
+  
+  for (const pattern of namePatterns) {
+    const matches = text.matchAll(pattern);
+    for (const match of matches) {
+      entities.push(match[1]?.toLowerCase() || match[0].toLowerCase());
+    }
+  }
+  
+  return [...new Set(entities)];
+}
+
+// Extract core action verbs from question
+function extractCoreVerbs(text: string): string[] {
+  const words = text.toLowerCase().split(/\s+/);
+  const verbs: string[] = [];
+  
+  for (const word of words) {
+    const canonical = getCanonicalVerb(word);
+    if (canonical) {
+      verbs.push(canonical);
+    }
+  }
+  
+  return [...new Set(verbs)];
+}
+
+// Tokenize and normalize text
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -71,93 +160,232 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 2 && !stopWords.has(word));
 }
 
-const stopWords = new Set([
-  'the', 'will', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can',
-  'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'were',
-  'they', 'their', 'what', 'when', 'where', 'which', 'who', 'how', 'than',
-  'that', 'this', 'these', 'those', 'then', 'some', 'such', 'into', 'other',
-  'before', 'after', 'during', 'between', 'under', 'over', 'through', 'about'
-]);
+// Extract qualifiers that change meaning
+function extractQualifiers(text: string): Record<string, string> {
+  const lowerText = text.toLowerCase();
+  const qualifiers: Record<string, string> = {};
+  
+  // Time qualifiers
+  if (lowerText.includes('by ')) {
+    const byMatch = lowerText.match(/by\s+(\w+\s+\d{4}|\d{4}|end of \d{4})/);
+    if (byMatch) qualifiers.deadline = byMatch[1];
+  }
+  if (lowerText.includes('before ')) {
+    const beforeMatch = lowerText.match(/before\s+(\w+\s+\d{4}|\d{4})/);
+    if (beforeMatch) qualifiers.before = beforeMatch[1];
+  }
+  if (lowerText.includes('after ')) {
+    const afterMatch = lowerText.match(/after\s+(\w+\s+\d{4}|\d{4})/);
+    if (afterMatch) qualifiers.after = afterMatch[1];
+  }
+  
+  // Round/stage qualifiers
+  if (lowerText.includes('first round')) qualifiers.round = 'first';
+  if (lowerText.includes('second round')) qualifiers.round = 'second';
+  if (lowerText.includes('final round') || lowerText.includes('finals')) qualifiers.round = 'final';
+  if (lowerText.includes('general election')) qualifiers.stage = 'general';
+  if (lowerText.includes('primary')) qualifiers.stage = 'primary';
+  if (lowerText.includes('runoff')) qualifiers.stage = 'runoff';
+  
+  return qualifiers;
+}
 
-// Calculate Jaccard similarity between two questions
-function calculateSimilarity(q1: string, q2: string): number {
-  const tokens1 = new Set(tokenize(q1));
-  const tokens2 = new Set(tokenize(q2));
+// ============= IMPROVED SIMILARITY DETECTION =============
+
+interface QuestionAnalysis {
+  tokens: Set<string>;
+  entities: string[];
+  verbs: string[];
+  years: number[];
+  qualifiers: Record<string, string>;
+  originalText: string;
+}
+
+function analyzeQuestion(text: string): QuestionAnalysis {
+  return {
+    tokens: new Set(tokenize(text)),
+    entities: extractEntities(text),
+    verbs: extractCoreVerbs(text),
+    years: extractYears(text),
+    qualifiers: extractQualifiers(text),
+    originalText: text,
+  };
+}
+
+// Calculate n-gram overlap
+function calculateNgramSimilarity(text1: string, text2: string, n: number = 3): number {
+  const getNgrams = (text: string): Set<string> => {
+    const ngrams = new Set<string>();
+    const cleaned = text.toLowerCase().replace(/[^\w\s]/g, '');
+    for (let i = 0; i <= cleaned.length - n; i++) {
+      ngrams.add(cleaned.substring(i, i + n));
+    }
+    return ngrams;
+  };
   
-  if (tokens1.size === 0 || tokens2.size === 0) return 0;
+  const ngrams1 = getNgrams(text1);
+  const ngrams2 = getNgrams(text2);
   
-  const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
-  const union = new Set([...tokens1, ...tokens2]);
+  if (ngrams1.size === 0 || ngrams2.size === 0) return 0;
+  
+  const intersection = new Set([...ngrams1].filter(x => ngrams2.has(x)));
+  const union = new Set([...ngrams1, ...ngrams2]);
   
   return intersection.size / union.size;
 }
 
-// Check if two questions might be asking opposite things
-function areOppositeQuestions(q1: string, q2: string): { isOpposite: boolean; confidence: number } {
-  const lower1 = q1.toLowerCase();
-  const lower2 = q2.toLowerCase();
-  
-  // Negation patterns
-  const negationPatterns = [
-    { positive: /will (.+) happen/i, negative: /will (.+) not happen/i },
-    { positive: /will (.+) win/i, negative: /will (.+) lose/i },
-    { positive: /yes on (.+)/i, negative: /no on (.+)/i },
-    { positive: /(.+) before (\d+)/i, negative: /(.+) after (\d+)/i },
-    { positive: /(.+) above (\d+)/i, negative: /(.+) below (\d+)/i },
-    { positive: /(.+) more than/i, negative: /(.+) less than/i },
-  ];
-  
-  // Check for simple negation (one question has 'not' where the other doesn't)
-  const words1 = lower1.split(/\s+/);
-  const words2 = lower2.split(/\s+/);
-  
-  const hasNot1 = words1.includes('not') || words1.includes("won't") || words1.includes("n't");
-  const hasNot2 = words2.includes('not') || words2.includes("won't") || words2.includes("n't");
-  
-  // If similar questions but one has negation
-  const baseSimilarity = calculateSimilarity(q1, q2);
-  if (baseSimilarity > 0.5 && hasNot1 !== hasNot2) {
-    return { isOpposite: true, confidence: baseSimilarity };
+// Deep semantic comparison
+function areQuestionsEquivalent(q1: QuestionAnalysis, q2: QuestionAnalysis): { 
+  isEquivalent: boolean; 
+  confidence: number;
+  reason: string;
+} {
+  // Must have overlapping entities
+  const sharedEntities = q1.entities.filter(e => q2.entities.some(e2 => e2.includes(e) || e.includes(e2)));
+  if (sharedEntities.length === 0 && q1.entities.length > 0 && q2.entities.length > 0) {
+    return { isEquivalent: false, confidence: 0, reason: 'No shared entities' };
   }
   
-  // Check win/lose opposites
-  const winLosePattern1 = lower1.match(/will (.+?) (win|lose|beat|defeat)/);
-  const winLosePattern2 = lower2.match(/will (.+?) (win|lose|beat|defeat)/);
-  
-  if (winLosePattern1 && winLosePattern2) {
-    const subject1 = winLosePattern1[1];
-    const action1 = winLosePattern1[2];
-    const subject2 = winLosePattern2[1];
-    const action2 = winLosePattern2[2];
-    
-    const subjectSimilarity = calculateSimilarity(subject1, subject2);
-    const oppositeActions = 
-      (action1 === 'win' && action2 === 'lose') ||
-      (action1 === 'lose' && action2 === 'win') ||
-      (action1 === 'beat' && action2 === 'lose') ||
-      (action1 === 'defeat' && action2 === 'lose');
-    
-    if (subjectSimilarity > 0.6 && oppositeActions) {
-      return { isOpposite: true, confidence: subjectSimilarity };
+  // Must have same years (or no years in either)
+  const years1 = new Set(q1.years);
+  const years2 = new Set(q2.years);
+  if (years1.size > 0 && years2.size > 0) {
+    const sharedYears = [...years1].filter(y => years2.has(y));
+    if (sharedYears.length === 0) {
+      return { isEquivalent: false, confidence: 0, reason: 'Different years' };
     }
   }
   
-  return { isOpposite: false, confidence: 0 };
+  // Check verb compatibility - CRITICAL: different verbs = different questions
+  const verbs1 = new Set(q1.verbs);
+  const verbs2 = new Set(q2.verbs);
+  
+  if (verbs1.size > 0 && verbs2.size > 0) {
+    const sharedVerbs = [...verbs1].filter(v => verbs2.has(v));
+    
+    // If different core verbs, NOT equivalent (e.g., "nominate" vs "win")
+    if (sharedVerbs.length === 0) {
+      // Check if they're opposite verbs
+      const oppositePairs = [['win', 'lose'], ['pass', 'fail'], ['convict', 'acquit']];
+      for (const [v1, v2] of oppositePairs) {
+        if ((verbs1.has(v1) && verbs2.has(v2)) || (verbs1.has(v2) && verbs2.has(v1))) {
+          return { isEquivalent: false, confidence: 0, reason: `Opposite verbs: ${v1}/${v2}` };
+        }
+      }
+      return { isEquivalent: false, confidence: 0, reason: `Different core verbs: [${[...verbs1].join(',')}] vs [${[...verbs2].join(',')}]` };
+    }
+  }
+  
+  // Check qualifiers - must match or both be absent
+  const quals1 = q1.qualifiers;
+  const quals2 = q2.qualifiers;
+  
+  for (const key of Object.keys(quals1)) {
+    if (quals2[key] && quals1[key] !== quals2[key]) {
+      return { isEquivalent: false, confidence: 0, reason: `Different ${key}: ${quals1[key]} vs ${quals2[key]}` };
+    }
+  }
+  
+  // Calculate token overlap
+  const intersection = new Set([...q1.tokens].filter(x => q2.tokens.has(x)));
+  const union = new Set([...q1.tokens, ...q2.tokens]);
+  const jaccardSimilarity = intersection.size / union.size;
+  
+  // Also check n-gram similarity for ordering
+  const ngramSimilarity = calculateNgramSimilarity(q1.originalText, q2.originalText);
+  
+  // Combined score
+  const combinedScore = (jaccardSimilarity * 0.6 + ngramSimilarity * 0.4);
+  const entityBonus = sharedEntities.length > 0 ? 0.1 : 0;
+  const verbBonus = q1.verbs.some(v => q2.verbs.includes(v)) ? 0.1 : 0;
+  
+  const finalScore = Math.min(1, combinedScore + entityBonus + verbBonus);
+  
+  if (finalScore > 0.65) {
+    return { 
+      isEquivalent: true, 
+      confidence: finalScore, 
+      reason: `High similarity (${(finalScore * 100).toFixed(0)}%) with shared entities: ${sharedEntities.join(', ')}` 
+    };
+  }
+  
+  return { isEquivalent: false, confidence: finalScore, reason: `Low similarity: ${(finalScore * 100).toFixed(0)}%` };
 }
 
-// Check if market has clear, objective resolution criteria
+// Check if two questions are asking opposite things
+function areOppositeQuestions(q1: QuestionAnalysis, q2: QuestionAnalysis): { isOpposite: boolean; confidence: number; reason: string } {
+  // Must have same entities and years
+  const sharedEntities = q1.entities.filter(e => q2.entities.some(e2 => e2.includes(e) || e.includes(e2)));
+  if (sharedEntities.length === 0 && q1.entities.length > 0 && q2.entities.length > 0) {
+    return { isOpposite: false, confidence: 0, reason: 'No shared entities' };
+  }
+  
+  const years1 = new Set(q1.years);
+  const years2 = new Set(q2.years);
+  if (years1.size > 0 && years2.size > 0) {
+    const sharedYears = [...years1].filter(y => years2.has(y));
+    if (sharedYears.length === 0) {
+      return { isOpposite: false, confidence: 0, reason: 'Different years' };
+    }
+  }
+  
+  // Check for opposite verbs
+  const oppositePairs: [string, string][] = [
+    ['win', 'lose'], 
+    ['pass', 'fail'], 
+    ['convict', 'acquit'],
+    ['confirm', 'reject'],
+  ];
+  
+  for (const [v1, v2] of oppositePairs) {
+    if ((q1.verbs.includes(v1) && q2.verbs.includes(v2)) || 
+        (q1.verbs.includes(v2) && q2.verbs.includes(v1))) {
+      const tokenSimilarity = calculateNgramSimilarity(q1.originalText, q2.originalText);
+      if (tokenSimilarity > 0.4) {
+        return { 
+          isOpposite: true, 
+          confidence: tokenSimilarity + 0.2, 
+          reason: `Opposite verbs (${v1}/${v2}) with similar context` 
+        };
+      }
+    }
+  }
+  
+  // Check for negation patterns
+  const hasNegation1 = /\bnot\b|\bwon't\b|\bwill not\b|\bn't\b/i.test(q1.originalText);
+  const hasNegation2 = /\bnot\b|\bwon't\b|\bwill not\b|\bn't\b/i.test(q2.originalText);
+  
+  if (hasNegation1 !== hasNegation2) {
+    const baseSimilarity = calculateNgramSimilarity(
+      q1.originalText.replace(/\bnot\b|\bwon't\b|\bwill not\b/gi, ''),
+      q2.originalText.replace(/\bnot\b|\bwon't\b|\bwill not\b/gi, '')
+    );
+    if (baseSimilarity > 0.5) {
+      return { 
+        isOpposite: true, 
+        confidence: baseSimilarity, 
+        reason: 'Same question with negation difference' 
+      };
+    }
+  }
+  
+  return { isOpposite: false, confidence: 0, reason: 'Not opposite questions' };
+}
+
+// ============= MARKET VALIDATION =============
+
 function hasObjectiveResolution(market: ManifoldMarket): boolean {
   const subjectiveKeywords = [
     'subjective', 'opinion', 'feel', 'think', 'believe',
     'best', 'worst', 'favorite', 'prefer', 'personally',
-    'vibes', 'seems', 'might', 'probably'
+    'vibes', 'seems', 'might', 'probably', 'i think',
+    'my prediction', 'personal market'
   ];
   
   const text = (market.question + ' ' + (market.textDescription || '')).toLowerCase();
   return !subjectiveKeywords.some(keyword => text.includes(keyword));
 }
 
-// Check if market is still tradeable
 function isTradeable(market: ManifoldMarket): boolean {
   if (market.isResolved) return false;
   if (market.resolution) return false;
@@ -165,57 +393,45 @@ function isTradeable(market: ManifoldMarket): boolean {
   return true;
 }
 
-// Calculate dynamic threshold based on liquidity and volatility
-function calculateDynamicThreshold(market1: ManifoldMarket, market2?: ManifoldMarket): number {
-  const baseFee = 0.005; // 0.5% base fee
-  const baseThreshold = 0.02; // 2% minimum threshold
+// ============= DYNAMIC THRESHOLD CALCULATION =============
+
+function calculateDynamicThreshold(market1: ManifoldMarket, market2?: ManifoldMarket, config?: ScanConfig): number {
+  const baseFee = 0.005;
+  const baseThreshold = config?.baseThreshold || 0.02;
   
   const liq1 = market1.totalLiquidity || 100;
   const liq2 = market2?.totalLiquidity || liq1;
   const minLiquidity = Math.min(liq1, liq2);
   
-  // Lower liquidity = higher threshold needed (more slippage expected)
-  const liquidityFactor = Math.max(0.5, Math.min(2, 1000 / minLiquidity));
+  // Liquidity factor: low liquidity = need higher threshold
+  const liquidityFactor = Math.max(0.5, Math.min(2.5, 500 / (minLiquidity + 100)));
   
-  // Recent volume indicates active trading = lower threshold acceptable
+  // Volume factor: high recent volume = can accept lower threshold
   const vol1 = market1.volume24Hours || 0;
   const vol2 = market2?.volume24Hours || vol1;
   const avgVolume = (vol1 + vol2) / 2;
-  const volumeFactor = avgVolume > 100 ? 0.8 : avgVolume > 50 ? 0.9 : 1.0;
+  const volumeFactor = avgVolume > 200 ? 0.7 : avgVolume > 100 ? 0.8 : avgVolume > 50 ? 0.9 : 1.0;
   
-  return (baseThreshold + baseFee) * liquidityFactor * volumeFactor;
+  // Bettor factor: more bettors = more efficient pricing = need higher threshold
+  const bettors1 = market1.uniqueBettorCount || 0;
+  const bettors2 = market2?.uniqueBettorCount || bettors1;
+  const avgBettors = (bettors1 + bettors2) / 2;
+  const bettorFactor = avgBettors > 100 ? 1.2 : avgBettors > 50 ? 1.1 : 1.0;
+  
+  return (baseThreshold + baseFee) * liquidityFactor * volumeFactor * bettorFactor;
 }
 
-// Estimate price impact of a trade
 function estimatePriceImpact(market: ManifoldMarket, betAmount: number): number {
   const liquidity = market.totalLiquidity || 100;
-  // Simplified AMM price impact: larger bets relative to liquidity = more impact
   const impactFactor = betAmount / (liquidity + betAmount);
-  return impactFactor * 0.5; // Conservative estimate
+  return impactFactor * 0.5;
 }
 
-// Calculate optimal bet sizing using Kelly criterion (simplified)
-function calculateOptimalBet(probability: number, edge: number, bankroll: number): number {
-  // Kelly fraction = edge / odds
-  const impliedOdds = (1 / probability) - 1;
-  const kellyFraction = edge / impliedOdds;
-  
-  // Use fractional Kelly (quarter Kelly) for safety
-  const quarterKelly = kellyFraction * 0.25;
-  
-  // Cap at 10% of bankroll
-  const maxBet = bankroll * 0.1;
-  
-  return Math.max(0, Math.min(quarterKelly * bankroll, maxBet));
-}
-
-// Calculate liquidity score for a market
 function calculateLiquidityScore(market: ManifoldMarket): number {
   const liquidity = market.totalLiquidity || 0;
   const volume = market.volume || 0;
   const bettors = market.uniqueBettorCount || 0;
   
-  // Weighted score
   const score = (
     Math.log10(liquidity + 1) * 30 +
     Math.log10(volume + 1) * 40 +
@@ -225,12 +441,12 @@ function calculateLiquidityScore(market: ManifoldMarket): number {
   return Math.min(100, score);
 }
 
-// Find semantically similar market pairs
+// ============= ARBITRAGE DETECTION =============
+
 function findSemanticPairArbitrage(markets: ManifoldMarket[], config: ScanConfig): ArbitrageOpportunity[] {
   const opportunities: ArbitrageOpportunity[] = [];
   const processedPairs = new Set<string>();
   
-  // Filter to binary markets with sufficient liquidity
   const eligibleMarkets = markets.filter(m => 
     isTradeable(m) && 
     hasObjectiveResolution(m) && 
@@ -241,97 +457,137 @@ function findSemanticPairArbitrage(markets: ManifoldMarket[], config: ScanConfig
   
   console.log(`Analyzing ${eligibleMarkets.length} eligible markets for semantic pairs`);
   
-  // Group by tags for faster comparison
-  const tagGroups: Record<string, ManifoldMarket[]> = {};
-  for (const market of eligibleMarkets) {
-    const groups = market.groupSlugs || ['ungrouped'];
-    for (const group of groups) {
-      if (!tagGroups[group]) tagGroups[group] = [];
-      tagGroups[group].push(market);
+  // Pre-analyze all questions
+  const analyzedMarkets = eligibleMarkets.map(m => ({
+    market: m,
+    analysis: analyzeQuestion(m.question)
+  }));
+  
+  // Group by shared entities for faster comparison
+  const entityGroups: Record<string, typeof analyzedMarkets> = {};
+  for (const am of analyzedMarkets) {
+    for (const entity of am.analysis.entities) {
+      const key = entity.toLowerCase();
+      if (!entityGroups[key]) entityGroups[key] = [];
+      entityGroups[key].push(am);
     }
   }
   
-  // Compare within tag groups
-  for (const [tag, groupMarkets] of Object.entries(tagGroups)) {
-    if (groupMarkets.length < 2) continue;
+  // Also group by tags
+  const tagGroups: Record<string, typeof analyzedMarkets> = {};
+  for (const am of analyzedMarkets) {
+    const groups = am.market.groupSlugs || [];
+    for (const group of groups) {
+      if (!tagGroups[group]) tagGroups[group] = [];
+      tagGroups[group].push(am);
+    }
+  }
+  
+  // Combine groups for comparison
+  const allGroups = { ...entityGroups, ...tagGroups };
+  
+  for (const [groupKey, groupMarkets] of Object.entries(allGroups)) {
+    if (groupMarkets.length < 2 || groupMarkets.length > 100) continue;
     
-    for (let i = 0; i < groupMarkets.length && i < 50; i++) {
-      for (let j = i + 1; j < groupMarkets.length && j < 50; j++) {
-        const m1 = groupMarkets[i];
-        const m2 = groupMarkets[j];
+    for (let i = 0; i < groupMarkets.length; i++) {
+      for (let j = i + 1; j < groupMarkets.length; j++) {
+        const am1 = groupMarkets[i];
+        const am2 = groupMarkets[j];
         
-        const pairKey = [m1.id, m2.id].sort().join(':');
+        const pairKey = [am1.market.id, am2.market.id].sort().join(':');
         if (processedPairs.has(pairKey)) continue;
         processedPairs.add(pairKey);
         
-        // Check semantic similarity
-        const similarity = calculateSimilarity(m1.question, m2.question);
-        if (similarity < 0.4) continue;
+        const p1 = am1.market.probability || 0.5;
+        const p2 = am2.market.probability || 0.5;
         
-        // Check if they're opposite questions
-        const { isOpposite, confidence } = areOppositeQuestions(m1.question, m2.question);
+        // Check if equivalent questions
+        const equivalence = areQuestionsEquivalent(am1.analysis, am2.analysis);
         
-        const p1 = m1.probability || 0.5;
-        const p2 = m2.probability || 0.5;
-        
-        // Calculate dynamic threshold
-        const threshold = calculateDynamicThreshold(m1, m2);
-        
-        // Same question: arbitrage if one YES + other NO < 1
-        if (similarity > 0.7 && !isOpposite) {
-          // If same question, buy YES in cheaper and NO in expensive
+        if (equivalence.isEquivalent && equivalence.confidence > 0.65) {
+          const threshold = calculateDynamicThreshold(am1.market, am2.market, config);
+          
+          // For equivalent questions: arbitrage if buying YES in one + NO in other < 1
           const yesNo = p1 + (1 - p2);
           const noYes = (1 - p1) + p2;
+          const minCost = Math.min(yesNo, noYes);
           
-          if (yesNo < 1 - threshold || noYes < 1 - threshold) {
-            const spread = Math.min(yesNo, noYes);
-            const profitMargin = (1 - spread) * 100;
-            const avgLiquidity = ((m1.totalLiquidity || 100) + (m2.totalLiquidity || 100)) / 2;
-            const priceImpact = estimatePriceImpact(m1, 50) + estimatePriceImpact(m2, 50);
-            
-            const action1: 'BUY_YES' | 'BUY_NO' = yesNo < noYes ? 'BUY_YES' : 'BUY_NO';
-            const action2: 'BUY_YES' | 'BUY_NO' = yesNo < noYes ? 'BUY_NO' : 'BUY_YES';
+          if (minCost < 1 - threshold) {
+            const profitMargin = (1 - minCost) * 100;
+            const priceImpact = estimatePriceImpact(am1.market, 50) + estimatePriceImpact(am2.market, 50);
             
             opportunities.push({
-              id: `sp_${m1.id}_${m2.id}`,
+              id: `sp_${am1.market.id}_${am2.market.id}`,
               type: 'semantic_pair',
               markets: [
-                { id: m1.id, question: m1.question, probability: p1, url: m1.url, liquidity: m1.totalLiquidity, volume: m1.volume, action: action1 },
-                { id: m2.id, question: m2.question, probability: p2, url: m2.url, liquidity: m2.totalLiquidity, volume: m2.volume, action: action2 },
+                { 
+                  id: am1.market.id, 
+                  question: am1.market.question, 
+                  probability: p1, 
+                  url: am1.market.url, 
+                  liquidity: am1.market.totalLiquidity, 
+                  volume: am1.market.volume, 
+                  action: yesNo < noYes ? 'BUY_YES' : 'BUY_NO' 
+                },
+                { 
+                  id: am2.market.id, 
+                  question: am2.market.question, 
+                  probability: p2, 
+                  url: am2.market.url, 
+                  liquidity: am2.market.totalLiquidity, 
+                  volume: am2.market.volume, 
+                  action: yesNo < noYes ? 'BUY_NO' : 'BUY_YES' 
+                },
               ],
               expectedProfit: profitMargin * (1 - priceImpact),
-              maxLoss: 0, // Guaranteed arbitrage
+              maxLoss: 0,
               expectedVariance: profitMargin * priceImpact,
               requiredCapital: 100,
               riskLevel: profitMargin > 10 ? 'low' : profitMargin > 5 ? 'medium' : 'high',
-              description: `Similar questions (${(similarity * 100).toFixed(0)}% match) with spread of ${(spread * 100).toFixed(1)}%`,
+              description: `Equivalent questions (${(equivalence.confidence * 100).toFixed(0)}% match) with ${(profitMargin).toFixed(1)}% spread`,
               status: 'pending',
               dynamicThreshold: threshold,
-              liquidityScore: calculateLiquidityScore(m1),
-              similarityScore: similarity,
+              liquidityScore: calculateLiquidityScore(am1.market),
+              similarityScore: equivalence.confidence,
               priceImpactEstimate: priceImpact,
+              matchReason: equivalence.reason,
             });
           }
         }
         
-        // Opposite questions: arbitrage if both YES probabilities sum > 1 or < 1
-        if (isOpposite && confidence > 0.5) {
+        // Check for opposite questions
+        const opposition = areOppositeQuestions(am1.analysis, am2.analysis);
+        
+        if (opposition.isOpposite && opposition.confidence > 0.5) {
+          const threshold = calculateDynamicThreshold(am1.market, am2.market, config);
           const totalProb = p1 + p2;
           
           if (Math.abs(totalProb - 1) > threshold) {
             const profitMargin = Math.abs(totalProb - 1) * 100;
-            const avgLiquidity = ((m1.totalLiquidity || 100) + (m2.totalLiquidity || 100)) / 2;
-            const priceImpact = estimatePriceImpact(m1, 50) + estimatePriceImpact(m2, 50);
-            
-            const action1: 'BUY_YES' | 'BUY_NO' = totalProb > 1 ? 'BUY_NO' : 'BUY_YES';
-            const action2: 'BUY_YES' | 'BUY_NO' = totalProb > 1 ? 'BUY_NO' : 'BUY_YES';
+            const priceImpact = estimatePriceImpact(am1.market, 50) + estimatePriceImpact(am2.market, 50);
             
             opportunities.push({
-              id: `op_${m1.id}_${m2.id}`,
+              id: `op_${am1.market.id}_${am2.market.id}`,
               type: 'mutually_exclusive',
               markets: [
-                { id: m1.id, question: m1.question, probability: p1, url: m1.url, liquidity: m1.totalLiquidity, volume: m1.volume, action: action1 },
-                { id: m2.id, question: m2.question, probability: p2, url: m2.url, liquidity: m2.totalLiquidity, volume: m2.volume, action: action2 },
+                { 
+                  id: am1.market.id, 
+                  question: am1.market.question, 
+                  probability: p1, 
+                  url: am1.market.url, 
+                  liquidity: am1.market.totalLiquidity, 
+                  volume: am1.market.volume, 
+                  action: totalProb > 1 ? 'BUY_NO' : 'BUY_YES' 
+                },
+                { 
+                  id: am2.market.id, 
+                  question: am2.market.question, 
+                  probability: p2, 
+                  url: am2.market.url, 
+                  liquidity: am2.market.totalLiquidity, 
+                  volume: am2.market.volume, 
+                  action: totalProb > 1 ? 'BUY_NO' : 'BUY_YES' 
+                },
               ],
               expectedProfit: profitMargin * (1 - priceImpact),
               maxLoss: 0,
@@ -343,9 +599,10 @@ function findSemanticPairArbitrage(markets: ManifoldMarket[], config: ScanConfig
                 : `Opposite questions sum to ${(totalProb * 100).toFixed(1)}% (<100%)`,
               status: 'pending',
               dynamicThreshold: threshold,
-              liquidityScore: calculateLiquidityScore(m1),
-              similarityScore: confidence,
+              liquidityScore: calculateLiquidityScore(am1.market),
+              similarityScore: opposition.confidence,
               priceImpactEstimate: priceImpact,
+              matchReason: opposition.reason,
             });
           }
         }
@@ -356,7 +613,6 @@ function findSemanticPairArbitrage(markets: ManifoldMarket[], config: ScanConfig
   return opportunities;
 }
 
-// Find multiple choice markets where probabilities don't sum to 100%
 function findExhaustiveSetArbitrage(markets: ManifoldMarket[], config: ScanConfig): ArbitrageOpportunity[] {
   const opportunities: ArbitrageOpportunity[] = [];
 
@@ -366,15 +622,13 @@ function findExhaustiveSetArbitrage(markets: ManifoldMarket[], config: ScanConfi
     if ((market.totalLiquidity || 0) < config.minLiquidity) continue;
 
     const totalProb = market.answers.reduce((sum, a) => sum + a.probability, 0);
-    const threshold = calculateDynamicThreshold(market);
+    const threshold = calculateDynamicThreshold(market, undefined, config);
     
-    // Check for significant deviation from 100%
     if (Math.abs(totalProb - 1) > threshold) {
       const deviation = Math.abs(totalProb - 1);
       const profitMargin = deviation * 100;
       const priceImpact = estimatePriceImpact(market, 50);
       
-      // Determine optimal actions for each answer
       const marketDetails = market.answers.map(a => ({
         id: `${market.id}_${a.id}`,
         question: `${market.question} → ${a.text}`,
@@ -408,19 +662,17 @@ function findExhaustiveSetArbitrage(markets: ManifoldMarket[], config: ScanConfi
   return opportunities;
 }
 
-// Find multi-market outcome sets (e.g., election outcomes)
 function findMultiMarketArbitrage(markets: ManifoldMarket[], config: ScanConfig): ArbitrageOpportunity[] {
   const opportunities: ArbitrageOpportunity[] = [];
   
-  // Group markets by common themes/events
-  const eventGroups: Record<string, ManifoldMarket[]> = {};
+  // Group markets by common themes/events using improved analysis
+  const eventGroups: Record<string, { market: ManifoldMarket; analysis: QuestionAnalysis }[]> = {};
   
-  // Common event patterns to look for
   const eventPatterns = [
-    /(\d{4}) (election|primary|vote)/i,
-    /(president|presidential) (election|race|winner)/i,
-    /(world cup|olympics|championship|super bowl)/i,
-    /(apple|google|microsoft|amazon|meta|tesla) (stock|price|earnings)/i,
+    /(\d{4})\s+(us\s+)?presidential\s+election/i,
+    /president\s+(in|of|for)\s+(\d{4})/i,
+    /(super bowl|world cup|olympics|championship)\s+(\d{4})?/i,
+    /(academy awards?|oscars?)\s+(\d{4})?/i,
   ];
   
   for (const market of markets) {
@@ -428,100 +680,128 @@ function findMultiMarketArbitrage(markets: ManifoldMarket[], config: ScanConfig)
     if (market.outcomeType !== 'BINARY') continue;
     if ((market.totalLiquidity || 0) < config.minLiquidity * 0.5) continue;
     
+    const analysis = analyzeQuestion(market.question);
+    
     for (const pattern of eventPatterns) {
       const match = market.question.match(pattern);
       if (match) {
-        const eventKey = match[0].toLowerCase();
+        const eventKey = match[0].toLowerCase().replace(/\s+/g, '_');
         if (!eventGroups[eventKey]) eventGroups[eventKey] = [];
-        eventGroups[eventKey].push(market);
+        eventGroups[eventKey].push({ market, analysis });
         break;
       }
     }
   }
   
-  // Analyze each event group for arbitrage
   for (const [event, eventMarkets] of Object.entries(eventGroups)) {
-    if (eventMarkets.length < 2) continue;
+    if (eventMarkets.length < 2 || eventMarkets.length > 15) continue;
     
-    // Look for mutually exclusive outcomes within the event
-    // E.g., "Will X win?" and "Will Y win?" for the same election
-    const totalProb = eventMarkets.reduce((sum, m) => sum + (m.probability || 0.5), 0);
+    // Filter to only mutually exclusive outcomes (same verb category)
+    const verbGroups: Record<string, typeof eventMarkets> = {};
+    for (const em of eventMarkets) {
+      const mainVerb = em.analysis.verbs[0] || 'other';
+      if (!verbGroups[mainVerb]) verbGroups[mainVerb] = [];
+      verbGroups[mainVerb].push(em);
+    }
     
-    // If probabilities of mutually exclusive outcomes sum to > 1 or < 1 significantly
-    const threshold = 0.05 * eventMarkets.length; // Scale threshold with number of markets
-    
-    if (Math.abs(totalProb - 1) > threshold && eventMarkets.length <= 10) {
-      const deviation = Math.abs(totalProb - 1);
-      const profitMargin = deviation * 100;
-      const avgLiquidity = eventMarkets.reduce((sum, m) => sum + (m.totalLiquidity || 0), 0) / eventMarkets.length;
-      const priceImpact = eventMarkets.reduce((sum, m) => sum + estimatePriceImpact(m, 50 / eventMarkets.length), 0);
+    for (const [verb, verbMarkets] of Object.entries(verbGroups)) {
+      if (verbMarkets.length < 2) continue;
       
-      opportunities.push({
-        id: `mm_${event.replace(/\s+/g, '_')}_${eventMarkets[0].id}`,
-        type: 'multi_market',
-        markets: eventMarkets.map(m => ({
-          id: m.id,
-          question: m.question,
-          probability: m.probability || 0.5,
-          url: m.url,
-          liquidity: m.totalLiquidity,
-          volume: m.volume,
-          action: (totalProb > 1 ? 'BUY_NO' : 'BUY_YES') as 'BUY_YES' | 'BUY_NO',
-        })),
-        expectedProfit: profitMargin * (1 - priceImpact),
-        maxLoss: profitMargin * 0.1, // Some risk due to resolution uncertainty
-        expectedVariance: profitMargin * priceImpact * 1.5,
-        requiredCapital: 100 * eventMarkets.length,
-        riskLevel: deviation > 0.15 ? 'low' : deviation > 0.08 ? 'medium' : 'high',
-        description: `Multi-market "${event}" (${eventMarkets.length} markets) sums to ${(totalProb * 100).toFixed(1)}%`,
-        status: 'pending',
-        dynamicThreshold: threshold,
-        liquidityScore: avgLiquidity > 500 ? 80 : avgLiquidity > 100 ? 50 : 20,
-        priceImpactEstimate: priceImpact,
-      });
+      const totalProb = verbMarkets.reduce((sum, em) => sum + (em.market.probability || 0.5), 0);
+      const threshold = 0.03 * verbMarkets.length;
+      
+      if (Math.abs(totalProb - 1) > threshold && verbMarkets.length <= 10) {
+        const deviation = Math.abs(totalProb - 1);
+        const profitMargin = deviation * 100;
+        const avgLiquidity = verbMarkets.reduce((sum, em) => sum + (em.market.totalLiquidity || 0), 0) / verbMarkets.length;
+        const priceImpact = verbMarkets.reduce((sum, em) => sum + estimatePriceImpact(em.market, 50 / verbMarkets.length), 0);
+        
+        opportunities.push({
+          id: `mm_${event}_${verb}_${verbMarkets[0].market.id}`,
+          type: 'multi_market',
+          markets: verbMarkets.map(em => ({
+            id: em.market.id,
+            question: em.market.question,
+            probability: em.market.probability || 0.5,
+            url: em.market.url,
+            liquidity: em.market.totalLiquidity,
+            volume: em.market.volume,
+            action: (totalProb > 1 ? 'BUY_NO' : 'BUY_YES') as 'BUY_YES' | 'BUY_NO',
+          })),
+          expectedProfit: profitMargin * (1 - priceImpact),
+          maxLoss: profitMargin * 0.1,
+          expectedVariance: profitMargin * priceImpact * 1.5,
+          requiredCapital: 100 * verbMarkets.length,
+          riskLevel: deviation > 0.15 ? 'low' : deviation > 0.08 ? 'medium' : 'high',
+          description: `Multi-market "${event}" ${verb} (${verbMarkets.length} markets) sums to ${(totalProb * 100).toFixed(1)}%`,
+          status: 'pending',
+          dynamicThreshold: threshold,
+          liquidityScore: avgLiquidity > 500 ? 80 : avgLiquidity > 100 ? 50 : 20,
+          priceImpactEstimate: priceImpact,
+        });
+      }
     }
   }
   
   return opportunities;
 }
 
-// Fetch markets with pagination to get 1000+
-async function fetchAllMarkets(limit: number = 1000): Promise<ManifoldMarket[]> {
+// ============= MARKET FETCHING =============
+
+async function fetchAllMarkets(maxMarkets: number = 5000): Promise<ManifoldMarket[]> {
   const allMarkets: ManifoldMarket[] = [];
-  const batchSize = 100; // API max per request
-  let lastId: string | null = null;
+  const batchSize = 500;
+  let offset = 0;
+  let consecutiveEmpty = 0;
   
-  while (allMarkets.length < limit) {
-    let url = `https://api.manifold.markets/v0/search-markets?limit=${batchSize}&filter=open&sort=liquidity`;
-    if (lastId) {
-      url += `&before=${lastId}`;
-    }
+  console.log(`Starting to fetch up to ${maxMarkets} markets...`);
+  
+  while (allMarkets.length < maxMarkets && consecutiveEmpty < 3) {
+    const url = `https://api.manifold.markets/v0/search-markets?limit=${batchSize}&offset=${offset}&filter=open&sort=liquidity`;
     
-    console.log(`Fetching batch: ${url}`);
-    const response = await fetch(url);
+    console.log(`Fetching batch at offset ${offset}...`);
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Manifold API error:", response.status, errorText);
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`API error: ${response.status}`);
+        break;
+      }
+      
+      const markets: ManifoldMarket[] = await response.json();
+      
+      if (markets.length === 0) {
+        consecutiveEmpty++;
+        offset += batchSize;
+        continue;
+      }
+      
+      consecutiveEmpty = 0;
+      allMarkets.push(...markets);
+      offset += batchSize;
+      
+      console.log(`Fetched ${allMarkets.length} markets so far...`);
+      
+      if (markets.length < batchSize * 0.5) {
+        console.log('Received partial batch, likely near end of results');
+        break;
+      }
+      
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+    } catch (error) {
+      console.error('Fetch error:', error);
       break;
     }
-    
-    const markets: ManifoldMarket[] = await response.json();
-    if (markets.length === 0) break;
-    
-    allMarkets.push(...markets);
-    lastId = markets[markets.length - 1].id;
-    
-    console.log(`Fetched ${allMarkets.length} markets so far`);
-    
-    if (markets.length < batchSize) break;
-    
-    // Small delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
   }
   
+  console.log(`Finished fetching ${allMarkets.length} total markets`);
   return allMarkets;
 }
+
+// ============= MAIN HANDLER =============
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -556,7 +836,6 @@ serve(async (req) => {
     if (action === 'scan') {
       console.log("Starting enhanced arbitrage scan for user:", user.id);
 
-      // Merge user config with defaults
       const config: ScanConfig = {
         minLiquidity: userConfig?.minLiquidity ?? 50,
         minVolume: userConfig?.minVolume ?? 10,
@@ -564,19 +843,19 @@ serve(async (req) => {
         dynamicThresholdEnabled: userConfig?.dynamicThresholdEnabled ?? true,
         semanticMatchingEnabled: userConfig?.semanticMatchingEnabled ?? true,
         dryRun: userConfig?.dryRun ?? true,
+        fullScan: userConfig?.fullScan ?? false,
+        maxMarkets: userConfig?.maxMarkets ?? 2000,
       };
 
       console.log("Scan config:", config);
 
-      // Fetch 1000+ markets with pagination
-      const allMarkets = await fetchAllMarkets(1200);
+      const maxToFetch = config.fullScan ? 10000 : config.maxMarkets;
+      const allMarkets = await fetchAllMarkets(maxToFetch);
       console.log(`Fetched ${allMarkets.length} total markets`);
 
-      // Filter to tradeable markets only
       const tradeableMarkets = allMarkets.filter(m => isTradeable(m) && hasObjectiveResolution(m));
       console.log(`${tradeableMarkets.length} tradeable markets with objective resolution`);
 
-      // Find arbitrage opportunities using all methods
       const exhaustiveSetOpps = findExhaustiveSetArbitrage(tradeableMarkets, config);
       console.log(`Found ${exhaustiveSetOpps.length} exhaustive set opportunities`);
       
@@ -589,10 +868,8 @@ serve(async (req) => {
         console.log(`Found ${semanticPairOpps.length} semantic pair opportunities`);
       }
 
-      // Combine and sort by expected profit adjusted for risk
       const allOpportunities = [...exhaustiveSetOpps, ...multiMarketOpps, ...semanticPairOpps];
       
-      // Score opportunities by profit-to-risk ratio
       const scoredOpportunities = allOpportunities.map(opp => ({
         ...opp,
         score: (opp.expectedProfit - opp.maxLoss) / (opp.expectedVariance + 1) * opp.liquidityScore / 100
@@ -600,7 +877,7 @@ serve(async (req) => {
       
       const opportunities = scoredOpportunities
         .sort((a, b) => b.score - a.score)
-        .slice(0, 50) // Return top 50 opportunities
+        .slice(0, 100)
         .map(({ score, ...opp }) => opp);
 
       console.log(`Returning ${opportunities.length} arbitrage opportunities`);
@@ -620,7 +897,6 @@ serve(async (req) => {
     if (action === 'execute') {
       console.log("Executing arbitrage opportunity:", opportunityId);
 
-      // Get user's API key for trading
       const supabaseService = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -639,7 +915,6 @@ serve(async (req) => {
         );
       }
 
-      // Decrypt the API key
       const encryptionKey = Deno.env.get("API_ENCRYPTION_KEY");
       if (!encryptionKey) {
         throw new Error("Encryption key not configured");
@@ -666,16 +941,13 @@ serve(async (req) => {
 
       const apiKey = new TextDecoder().decode(decrypted);
 
-      // Execute trades
       const results = [];
       for (const market of markets) {
         console.log(`Placing ${market.action} bet on market ${market.id}`);
         
-        // Calculate bet amount (use optimalBet or default)
         const betAmount = market.optimalBet || 10;
         const outcome = market.action === 'BUY_YES' ? 'YES' : 'NO';
         
-        // Check current market price before trading
         const marketDataRes = await fetch(`https://api.manifold.markets/v0/market/${market.id}`);
         if (!marketDataRes.ok) {
           results.push({ marketId: market.id, success: false, error: 'Failed to fetch market data' });
@@ -686,18 +958,16 @@ serve(async (req) => {
         const currentProb = marketData.probability || 0.5;
         const expectedProb = market.probability;
         
-        // Check slippage
         const slippage = Math.abs(currentProb - expectedProb);
-        if (slippage > 0.05) { // 5% slippage limit
+        if (slippage > 0.05) {
           results.push({ 
             marketId: market.id, 
             success: false, 
-            error: `Slippage too high: ${(slippage * 100).toFixed(1)}% (expected ${(expectedProb * 100).toFixed(1)}%, got ${(currentProb * 100).toFixed(1)}%)` 
+            error: `Slippage too high: ${(slippage * 100).toFixed(1)}%` 
           });
           continue;
         }
         
-        // Place the bet using limit orders
         const betRes = await fetch('https://api.manifold.markets/v0/bet', {
           method: 'POST',
           headers: {
@@ -708,7 +978,7 @@ serve(async (req) => {
             contractId: market.id,
             amount: betAmount,
             outcome: outcome,
-            limitProb: outcome === 'YES' ? currentProb + 0.02 : currentProb - 0.02, // 2% limit
+            limitProb: outcome === 'YES' ? currentProb + 0.02 : currentProb - 0.02,
           }),
         });
         
