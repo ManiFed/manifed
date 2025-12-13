@@ -14,38 +14,7 @@ import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 import { WalletPopover } from '@/components/WalletPopover';
 import { AIAnalysisCard } from '@/components/arbitrage/AIAnalysisCard';
 import { toast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft, 
-  Settings, 
-  LogOut, 
-  Loader2, 
-  Play, 
-  Target, 
-  TrendingUp, 
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Zap,
-  BarChart3,
-  ExternalLink,
-  Shield,
-  Clock,
-  Eye,
-  Sliders,
-  AlertCircle,
-  Activity,
-  Droplets,
-  ArrowUpRight,
-  ArrowDownRight,
-  Brain,
-  Sparkles,
-  Filter,
-  Calendar,
-  ChevronDown,
-  ChevronRight,
-  HelpCircle
-} from 'lucide-react';
-
+import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Eye, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle } from 'lucide-react';
 interface ArbitrageOpportunity {
   id: string;
   type: 'mutually_exclusive' | 'exhaustive_incomplete' | 'semantic_pair' | 'multi_market';
@@ -79,7 +48,6 @@ interface ArbitrageOpportunity {
   categoryMatch?: boolean;
   canonicalEvent?: string;
 }
-
 interface ScanStats {
   marketsScanned: number;
   tradeableMarkets: number;
@@ -94,7 +62,6 @@ interface ScanStats {
     low: number;
   };
 }
-
 interface ScanConfig {
   minLiquidity: number;
   minVolume: number;
@@ -110,29 +77,47 @@ interface ScanConfig {
   focusCategories: string[];
   prioritizeNearClosing: boolean;
 }
-
-const CATEGORY_OPTIONS = [
-  { value: 'politics_us', label: 'US Politics' },
-  { value: 'politics_intl', label: 'International Politics' },
-  { value: 'sports', label: 'Sports' },
-  { value: 'crypto', label: 'Crypto' },
-  { value: 'tech', label: 'Technology' },
-  { value: 'entertainment', label: 'Entertainment' },
-  { value: 'geopolitics', label: 'Geopolitics' },
-  { value: 'science', label: 'Science' },
-  { value: 'economics', label: 'Economics' },
-];
-
+const CATEGORY_OPTIONS = [{
+  value: 'politics_us',
+  label: 'US Politics'
+}, {
+  value: 'politics_intl',
+  label: 'International Politics'
+}, {
+  value: 'sports',
+  label: 'Sports'
+}, {
+  value: 'crypto',
+  label: 'Crypto'
+}, {
+  value: 'tech',
+  label: 'Technology'
+}, {
+  value: 'entertainment',
+  label: 'Entertainment'
+}, {
+  value: 'geopolitics',
+  label: 'Geopolitics'
+}, {
+  value: 'science',
+  label: 'Science'
+}, {
+  value: 'economics',
+  label: 'Economics'
+}];
 export default function Arbitrage() {
-  const { balance, fetchBalance } = useUserBalance();
-  const { 
-    isAnalyzing, 
-    analyzePairs, 
-    explainOpportunity, 
-    submitFeedback, 
-    getAnalysis, 
+  const {
+    balance,
+    fetchBalance
+  } = useUserBalance();
+  const {
+    isAnalyzing,
+    analyzePairs,
+    explainOpportunity,
+    submitFeedback,
+    getAnalysis,
     explanations,
-    clearAnalysis 
+    clearAnalysis
   } = useAIArbitrage();
   const [hasApiKey, setHasApiKey] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState<string | null>(null);
@@ -146,7 +131,11 @@ export default function Arbitrage() {
     tradesExecuted: 0,
     totalProfit: 0,
     lastScanTime: null,
-    opportunitiesByConfidence: { high: 0, medium: 0, low: 0 },
+    opportunitiesByConfidence: {
+      high: 0,
+      medium: 0,
+      low: 0
+    }
   });
   const [isExecuting, setIsExecuting] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -164,52 +153,46 @@ export default function Arbitrage() {
     includeAllMarketTypes: true,
     focusThemes: '',
     focusCategories: [],
-    prioritizeNearClosing: false,
+    prioritizeNearClosing: false
   });
 
   // Collapsible sections
   const [showQuestionable, setShowQuestionable] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
-
   useEffect(() => {
     checkApiKey();
   }, []);
-
   const checkApiKey = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { data } = await supabase
-      .from('user_manifold_settings')
-      .select('manifold_api_key')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const {
+      data
+    } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
   };
-
   const handleScan = async () => {
     if (!hasApiKey) {
       toast({
         title: 'API Key Required',
         description: 'Please connect your Manifold account in Settings first.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     setIsScanning(true);
     setOpportunities([]);
     clearAnalysis();
-
     try {
-      const focusThemesArray = config.focusThemes
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
-
-      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
-        body: { 
+      const focusThemesArray = config.focusThemes.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('arbitrage-scan', {
+        body: {
           action: 'scan',
           config: {
             minLiquidity: config.minLiquidity,
@@ -223,14 +206,12 @@ export default function Arbitrage() {
             includeAllMarketTypes: config.includeAllMarketTypes,
             focusThemes: focusThemesArray,
             focusCategories: config.focusCategories,
-            prioritizeNearClosing: config.prioritizeNearClosing,
+            prioritizeNearClosing: config.prioritizeNearClosing
           }
         }
       });
-
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-
       const opps = data.opportunities || [];
       setOpportunities(opps);
       setStats({
@@ -241,46 +222,45 @@ export default function Arbitrage() {
         tradesExecuted: stats.tradesExecuted,
         totalProfit: stats.totalProfit,
         lastScanTime: new Date().toISOString(),
-        opportunitiesByConfidence: data.opportunitiesByConfidence || { high: 0, medium: 0, low: 0 },
+        opportunitiesByConfidence: data.opportunitiesByConfidence || {
+          high: 0,
+          medium: 0,
+          low: 0
+        }
       });
 
       // Run AI analysis on found opportunities if enabled
       if (config.aiAnalysisEnabled && opps.length > 0) {
         toast({
           title: 'Scan Complete',
-          description: `Found ${opps.length} opportunities. Running AI analysis...`,
+          description: `Found ${opps.length} opportunities. Running AI analysis...`
         });
-
-        const pairs = opps
-          .filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2)
-          .slice(0, 30) // Limit AI analysis to top 30
-          .map((opp: ArbitrageOpportunity) => ({
-            market1: {
-              id: opp.markets[0].id,
-              question: opp.markets[0].question,
-              probability: opp.markets[0].probability,
-              liquidity: opp.markets[0].liquidity,
-            },
-            market2: {
-              id: opp.markets[1].id,
-              question: opp.markets[1].question,
-              probability: opp.markets[1].probability,
-              liquidity: opp.markets[1].liquidity,
-            },
-            expectedProfit: opp.expectedProfit,
-            matchReason: opp.matchReason,
-          }));
-
+        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).slice(0, 30) // Limit AI analysis to top 30
+        .map((opp: ArbitrageOpportunity) => ({
+          market1: {
+            id: opp.markets[0].id,
+            question: opp.markets[0].question,
+            probability: opp.markets[0].probability,
+            liquidity: opp.markets[0].liquidity
+          },
+          market2: {
+            id: opp.markets[1].id,
+            question: opp.markets[1].question,
+            probability: opp.markets[1].probability,
+            liquidity: opp.markets[1].liquidity
+          },
+          expectedProfit: opp.expectedProfit,
+          matchReason: opp.matchReason
+        }));
         await analyzePairs(pairs);
-
         toast({
           title: 'AI Analysis Complete',
-          description: `Analyzed ${pairs.length} opportunities with AI semantic matching.`,
+          description: `Analyzed ${pairs.length} opportunities with AI semantic matching.`
         });
       } else {
         toast({
           title: 'Scan Complete',
-          description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.`,
+          description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.`
         });
       }
     } catch (error) {
@@ -288,150 +268,145 @@ export default function Arbitrage() {
       toast({
         title: 'Scan Failed',
         description: error instanceof Error ? error.message : 'Failed to scan markets',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setIsScanning(false);
     }
   };
-
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
     if (confirmingTrade !== opportunity.id) {
       setConfirmingTrade(opportunity.id);
       return;
     }
-    
     setConfirmingTrade(null);
-    
     if (config.dryRun) {
       toast({
         title: 'Dry Run Mode',
-        description: 'Disable dry run mode in settings to execute real trades.',
+        description: 'Disable dry run mode in settings to execute real trades.'
       });
       return;
     }
-
     if (opportunity.requiredCapital > balance) {
       toast({
         title: 'Insufficient Balance',
         description: `You need M$${opportunity.requiredCapital.toLocaleString()} but only have M$${balance.toLocaleString()}`,
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     setIsExecuting(opportunity.id);
-
     try {
-      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
-        body: { 
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('arbitrage-scan', {
+        body: {
           action: 'execute',
           opportunityId: opportunity.id,
-          markets: opportunity.markets,
+          markets: opportunity.markets
         }
       });
-
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-
-      setOpportunities(prev => prev.map(opp => 
-        opp.id === opportunity.id 
-          ? { ...opp, status: 'completed' as const }
-          : opp
-      ));
-
+      setOpportunities(prev => prev.map(opp => opp.id === opportunity.id ? {
+        ...opp,
+        status: 'completed' as const
+      } : opp));
       setStats(prev => ({
         ...prev,
         tradesExecuted: prev.tradesExecuted + 1,
-        totalProfit: prev.totalProfit + opportunity.expectedProfit,
+        totalProfit: prev.totalProfit + opportunity.expectedProfit
       }));
-
       await fetchBalance();
-
       toast({
         title: 'Trade Executed',
-        description: data.message,
+        description: data.message
       });
     } catch (error) {
       console.error('Execution error:', error);
-      setOpportunities(prev => prev.map(opp => 
-        opp.id === opportunity.id 
-          ? { ...opp, status: 'failed' as const, reason: error instanceof Error ? error.message : 'Unknown error' }
-          : opp
-      ));
+      setOpportunities(prev => prev.map(opp => opp.id === opportunity.id ? {
+        ...opp,
+        status: 'failed' as const,
+        reason: error instanceof Error ? error.message : 'Unknown error'
+      } : opp));
       toast({
         title: 'Execution Failed',
         description: error instanceof Error ? error.message : 'Failed to execute trade',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setIsExecuting(null);
     }
   };
-
   const skipOpportunity = (opportunityId: string, reason: string) => {
-    setOpportunities(prev => prev.map(opp => 
-      opp.id === opportunityId 
-        ? { ...opp, status: 'skipped' as const, reason }
-        : opp
-    ));
+    setOpportunities(prev => prev.map(opp => opp.id === opportunityId ? {
+      ...opp,
+      status: 'skipped' as const,
+      reason
+    } : opp));
   };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
   };
-
   const toggleCategory = (category: string) => {
     setConfig(c => ({
       ...c,
-      focusCategories: c.focusCategories.includes(category)
-        ? c.focusCategories.filter(cat => cat !== category)
-        : [...c.focusCategories, category]
+      focusCategories: c.focusCategories.includes(category) ? c.focusCategories.filter(cat => cat !== category) : [...c.focusCategories, category]
     }));
   };
-
   const getTypeLabel = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
-      case 'mutually_exclusive': return 'Opposite Pair';
-      case 'exhaustive_incomplete': return 'Multi-Choice';
-      case 'semantic_pair': return 'Semantic Match';
-      case 'multi_market': return 'Multi-Market';
+      case 'mutually_exclusive':
+        return 'Opposite Pair';
+      case 'exhaustive_incomplete':
+        return 'Multi-Choice';
+      case 'semantic_pair':
+        return 'Semantic Match';
+      case 'multi_market':
+        return 'Multi-Market';
     }
   };
-
   const getTypeIcon = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
-      case 'mutually_exclusive': return <ArrowUpRight className="w-3 h-3" />;
-      case 'exhaustive_incomplete': return <Activity className="w-3 h-3" />;
-      case 'semantic_pair': return <Target className="w-3 h-3" />;
-      case 'multi_market': return <BarChart3 className="w-3 h-3" />;
+      case 'mutually_exclusive':
+        return <ArrowUpRight className="w-3 h-3" />;
+      case 'exhaustive_incomplete':
+        return <Activity className="w-3 h-3" />;
+      case 'semantic_pair':
+        return <Target className="w-3 h-3" />;
+      case 'multi_market':
+        return <BarChart3 className="w-3 h-3" />;
     }
   };
-
   const getRiskBadge = (risk: ArbitrageOpportunity['riskLevel']) => {
     switch (risk) {
-      case 'low': return <Badge variant="success" className="gap-1"><CheckCircle className="w-3 h-3" />Low Risk</Badge>;
-      case 'medium': return <Badge variant="pending" className="gap-1"><AlertCircle className="w-3 h-3" />Medium</Badge>;
-      case 'high': return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />High Risk</Badge>;
+      case 'low':
+        return <Badge variant="success" className="gap-1"><CheckCircle className="w-3 h-3" />Low Risk</Badge>;
+      case 'medium':
+        return <Badge variant="pending" className="gap-1"><AlertCircle className="w-3 h-3" />Medium</Badge>;
+      case 'high':
+        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />High Risk</Badge>;
     }
   };
-
   const getConfidenceBadge = (confidence?: 'high' | 'medium' | 'low') => {
     switch (confidence) {
-      case 'high': return <Badge variant="success" className="gap-1"><Sparkles className="w-3 h-3" />High Confidence</Badge>;
-      case 'medium': return <Badge variant="pending" className="gap-1"><HelpCircle className="w-3 h-3" />Medium</Badge>;
-      case 'low': return <Badge variant="outline" className="gap-1 text-muted-foreground"><AlertCircle className="w-3 h-3" />Low</Badge>;
-      default: return null;
+      case 'high':
+        return <Badge variant="success" className="gap-1"><Sparkles className="w-3 h-3" />High Confidence</Badge>;
+      case 'medium':
+        return <Badge variant="pending" className="gap-1"><HelpCircle className="w-3 h-3" />Medium</Badge>;
+      case 'low':
+        return <Badge variant="outline" className="gap-1 text-muted-foreground"><AlertCircle className="w-3 h-3" />Low</Badge>;
+      default:
+        return null;
     }
   };
-
   const formatCloseDate = (closeTime?: number) => {
     if (!closeTime) return null;
     const date = new Date(closeTime);
     const now = new Date();
     const daysUntil = Math.ceil((closeTime - now.getTime()) / (1000 * 60 * 60 * 24));
-    
     if (daysUntil <= 7) return <span className="text-destructive">{daysUntil}d</span>;
     if (daysUntil <= 30) return <span className="text-warning">{daysUntil}d</span>;
     return <span>{daysUntil}d</span>;
@@ -439,32 +414,29 @@ export default function Arbitrage() {
 
   // Categorize opportunities
   const pendingOpps = opportunities.filter(o => o.status === 'pending');
-  
+
   // High confidence: structurally high confidence AND (no AI analysis OR AI says valid)
   const highConfidenceOpps = pendingOpps.filter(o => {
     const aiAnalysis = getAnalysis(o.markets[0]?.id, o.markets[1]?.id);
     const aiValid = !config.aiAnalysisEnabled || !aiAnalysis || aiAnalysis.isValidArbitrage;
     return o.confidence === 'high' && aiValid;
   });
-  
+
   // Questionable: medium confidence OR AI uncertain
   const questionableOpps = pendingOpps.filter(o => {
     const aiAnalysis = getAnalysis(o.markets[0]?.id, o.markets[1]?.id);
     const aiUncertain = aiAnalysis && aiAnalysis.confidence < 0.7 && aiAnalysis.confidence > 0.3;
     return (o.confidence === 'medium' || aiUncertain) && !highConfidenceOpps.includes(o);
   });
-  
+
   // Invalid: AI says invalid OR low confidence
   const invalidOpps = pendingOpps.filter(o => {
     const aiAnalysis = getAnalysis(o.markets[0]?.id, o.markets[1]?.id);
     const aiInvalid = aiAnalysis && !aiAnalysis.isValidArbitrage;
     return (o.confidence === 'low' || aiInvalid) && !highConfidenceOpps.includes(o) && !questionableOpps.includes(o);
   });
-  
   const completedOpportunities = opportunities.filter(o => o.status === 'completed' || o.status === 'failed' || o.status === 'skipped');
-
-  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => (
-    <Card key={opp.id} className="bg-secondary/20 border-border/50">
+  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => <Card key={opp.id} className="bg-secondary/20 border-border/50">
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
@@ -479,30 +451,24 @@ export default function Arbitrage() {
                 <Droplets className="w-3 h-3" />
                 Liq: {opp.liquidityScore.toFixed(0)}
               </Badge>
-              {opp.similarityScore && (
-                <Badge variant="secondary" className="gap-1">
+              {opp.similarityScore && <Badge variant="secondary" className="gap-1">
                   <Target className="w-3 h-3" />
                   {(opp.similarityScore * 100).toFixed(0)}% match
-                </Badge>
-              )}
-              {opp.categoryMatch && (
-                <Badge variant="outline" className="gap-1 text-primary">
+                </Badge>}
+              {opp.categoryMatch && <Badge variant="outline" className="gap-1 text-primary">
                   <Filter className="w-3 h-3" />
                   Same Category
-                </Badge>
-              )}
+                </Badge>}
             </div>
             <p className="text-foreground font-medium">{opp.description}</p>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
               <span>Threshold: {(opp.dynamicThreshold * 100).toFixed(2)}%</span>
               <span>•</span>
               <span>Impact: ~{(opp.priceImpactEstimate * 100).toFixed(1)}%</span>
-              {opp.canonicalEvent && (
-                <>
+              {opp.canonicalEvent && <>
                   <span>•</span>
                   <span className="text-primary">Event: {opp.canonicalEvent}</span>
-                </>
-              )}
+                </>}
             </div>
           </div>
           <div className="text-right shrink-0">
@@ -518,17 +484,9 @@ export default function Arbitrage() {
 
         {/* Markets involved */}
         <div className="space-y-2 mb-4">
-          {opp.markets.slice(0, 4).map((market) => (
-            <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
-              <Badge 
-                variant={market.action === 'BUY_YES' ? 'success' : 'destructive'} 
-                className="shrink-0 text-xs"
-              >
-                {market.action === 'BUY_YES' ? (
-                  <><ArrowUpRight className="w-3 h-3 mr-1" />YES</>
-                ) : (
-                  <><ArrowDownRight className="w-3 h-3 mr-1" />NO</>
-                )}
+          {opp.markets.slice(0, 4).map(market => <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
+              <Badge variant={market.action === 'BUY_YES' ? 'success' : 'destructive'} className="shrink-0 text-xs">
+                {market.action === 'BUY_YES' ? <><ArrowUpRight className="w-3 h-3 mr-1" />YES</> : <><ArrowDownRight className="w-3 h-3 mr-1" />NO</>}
               </Badge>
               <div className="flex-1 min-w-0">
                 <p className="text-foreground truncate">{market.question}</p>
@@ -536,124 +494,79 @@ export default function Arbitrage() {
                   <span>P: {(market.probability * 100).toFixed(1)}%</span>
                   {market.liquidity && <span>• Liq: M${market.liquidity.toFixed(0)}</span>}
                   {market.category && <span>• {market.category}</span>}
-                  {market.closeTime && (
-                    <span className="flex items-center gap-1">
+                  {market.closeTime && <span className="flex items-center gap-1">
                       • <Calendar className="w-3 h-3" /> {formatCloseDate(market.closeTime)}
-                    </span>
-                  )}
+                    </span>}
                 </div>
               </div>
-              <a 
-                href={market.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline shrink-0"
-              >
+              <a href={market.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline shrink-0">
                 <ExternalLink className="w-4 h-4" />
               </a>
-            </div>
-          ))}
-          {opp.markets.length > 4 && (
-            <p className="text-xs text-muted-foreground text-center">
+            </div>)}
+          {opp.markets.length > 4 && <p className="text-xs text-muted-foreground text-center">
               +{opp.markets.length - 4} more markets
-            </p>
-          )}
+            </p>}
         </div>
 
         {/* AI Analysis Card */}
-        {config.aiAnalysisEnabled && opp.markets.length >= 2 && (
-          <div className="mb-4">
-            <AIAnalysisCard
-              opportunityId={opp.id}
-              market1={{ id: opp.markets[0].id, question: opp.markets[0].question }}
-              market2={{ id: opp.markets[1].id, question: opp.markets[1].question }}
-              opportunityType={opp.type}
-              expectedProfit={opp.expectedProfit}
-              analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)}
-              explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]}
-              isLoadingExplanation={loadingExplanation === opp.id}
-              onRequestExplanation={async () => {
-                setLoadingExplanation(opp.id);
-                await explainOpportunity({
-                  market1: {
-                    id: opp.markets[0].id,
-                    question: opp.markets[0].question,
-                    probability: opp.markets[0].probability,
-                    liquidity: opp.markets[0].liquidity,
-                  },
-                  market2: {
-                    id: opp.markets[1].id,
-                    question: opp.markets[1].question,
-                    probability: opp.markets[1].probability,
-                    liquidity: opp.markets[1].liquidity,
-                  },
-                  expectedProfit: opp.expectedProfit,
-                  matchReason: opp.matchReason,
-                });
-                setLoadingExplanation(null);
-              }}
-              onSubmitFeedback={async (isValid, reason) => {
-                const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
-                return await submitFeedback(
-                  opp.id,
-                  { id: opp.markets[0].id, question: opp.markets[0].question },
-                  { id: opp.markets[1].id, question: opp.markets[1].question },
-                  opp.type,
-                  opp.expectedProfit,
-                  isValid,
-                  reason,
-                  analysis?.confidence,
-                  analysis?.reason
-                );
-              }}
-            />
-          </div>
-        )}
+        {config.aiAnalysisEnabled && opp.markets.length >= 2 && <div className="mb-4">
+            <AIAnalysisCard opportunityId={opp.id} market1={{
+          id: opp.markets[0].id,
+          question: opp.markets[0].question
+        }} market2={{
+          id: opp.markets[1].id,
+          question: opp.markets[1].question
+        }} opportunityType={opp.type} expectedProfit={opp.expectedProfit} analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)} explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]} isLoadingExplanation={loadingExplanation === opp.id} onRequestExplanation={async () => {
+          setLoadingExplanation(opp.id);
+          await explainOpportunity({
+            market1: {
+              id: opp.markets[0].id,
+              question: opp.markets[0].question,
+              probability: opp.markets[0].probability,
+              liquidity: opp.markets[0].liquidity
+            },
+            market2: {
+              id: opp.markets[1].id,
+              question: opp.markets[1].question,
+              probability: opp.markets[1].probability,
+              liquidity: opp.markets[1].liquidity
+            },
+            expectedProfit: opp.expectedProfit,
+            matchReason: opp.matchReason
+          });
+          setLoadingExplanation(null);
+        }} onSubmitFeedback={async (isValid, reason) => {
+          const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
+          return await submitFeedback(opp.id, {
+            id: opp.markets[0].id,
+            question: opp.markets[0].question
+          }, {
+            id: opp.markets[1].id,
+            question: opp.markets[1].question
+          }, opp.type, opp.expectedProfit, isValid, reason, analysis?.confidence, analysis?.reason);
+        }} />
+          </div>}
 
         {/* Actions */}
         <div className="flex gap-2 justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => skipOpportunity(opp.id, 'Manually skipped')}
-          >
+          <Button variant="outline" size="sm" onClick={() => skipOpportunity(opp.id, 'Manually skipped')}>
             <XCircle className="w-4 h-4 mr-1" />
             Skip
           </Button>
-          <Button
-            size="sm"
-            onClick={() => executeOpportunity(opp)}
-            disabled={isExecuting === opp.id}
-            className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}
-          >
-            {isExecuting === opp.id ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : confirmingTrade === opp.id ? (
-              <AlertTriangle className="w-4 h-4" />
-            ) : config.dryRun ? (
-              <Eye className="w-4 h-4" />
-            ) : (
-              <Zap className="w-4 h-4" />
-            )}
+          <Button size="sm" onClick={() => executeOpportunity(opp)} disabled={isExecuting === opp.id} className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}>
+            {isExecuting === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmingTrade === opp.id ? <AlertTriangle className="w-4 h-4" /> : config.dryRun ? <Eye className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
             {confirmingTrade === opp.id ? 'Confirm?' : config.dryRun ? 'Preview' : 'Execute'}
           </Button>
         </div>
       </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="min-h-screen">
+    </Card>;
+  return <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <img 
-                alt="ManiFed" 
-                className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50"
-                src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png"
-              />
+              <img alt="ManiFed" src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png" className="w-10 h-10 rounded-xl object-cover border-primary/50 border-0" />
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground -mt-0.5">Arbitrage Agent</p>
@@ -795,20 +708,14 @@ export default function Arbitrage() {
                   Configure and run the arbitrage scanner
                 </CardDescription>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowConfig(!showConfig)}
-                className="gap-2"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)} className="gap-2">
                 <Sliders className="w-4 h-4" />
                 {showConfig ? 'Hide' : 'Show'} Settings
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!hasApiKey && (
-              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+            {!hasApiKey && <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4" />
                   API Key Required
@@ -816,12 +723,10 @@ export default function Arbitrage() {
                 <p className="text-sm mt-1">
                   Please <Link to="/settings" className="underline">connect your Manifold account</Link> to use the arbitrage scanner.
                 </p>
-              </div>
-            )}
+              </div>}
 
             {/* Configuration Panel */}
-            {showConfig && (
-              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
+            {showConfig && <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-primary" />
                   Scanner Configuration
@@ -831,36 +736,26 @@ export default function Arbitrage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="minLiquidity">Min Liquidity (M$)</Label>
-                    <Input
-                      id="minLiquidity"
-                      type="number"
-                      value={config.minLiquidity}
-                      onChange={(e) => setConfig(c => ({ ...c, minLiquidity: parseInt(e.target.value) || 0 }))}
-                      className="bg-background"
-                    />
+                    <Input id="minLiquidity" type="number" value={config.minLiquidity} onChange={e => setConfig(c => ({
+                  ...c,
+                  minLiquidity: parseInt(e.target.value) || 0
+                }))} className="bg-background" />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="minVolume">Min Volume (M$)</Label>
-                    <Input
-                      id="minVolume"
-                      type="number"
-                      value={config.minVolume}
-                      onChange={(e) => setConfig(c => ({ ...c, minVolume: parseInt(e.target.value) || 0 }))}
-                      className="bg-background"
-                    />
+                    <Input id="minVolume" type="number" value={config.minVolume} onChange={e => setConfig(c => ({
+                  ...c,
+                  minVolume: parseInt(e.target.value) || 0
+                }))} className="bg-background" />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="baseThreshold">Base Threshold (%)</Label>
-                    <Input
-                      id="baseThreshold"
-                      type="number"
-                      step="0.5"
-                      value={config.baseThreshold}
-                      onChange={(e) => setConfig(c => ({ ...c, baseThreshold: parseFloat(e.target.value) || 2 }))}
-                      className="bg-background"
-                    />
+                    <Input id="baseThreshold" type="number" step="0.5" value={config.baseThreshold} onChange={e => setConfig(c => ({
+                  ...c,
+                  baseThreshold: parseFloat(e.target.value) || 2
+                }))} className="bg-background" />
                   </div>
                 </div>
 
@@ -873,13 +768,10 @@ export default function Arbitrage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="focusThemes">Custom Themes/Entities (comma-separated)</Label>
-                    <Textarea
-                      id="focusThemes"
-                      placeholder="e.g., Trump, AI, Bitcoin, Super Bowl"
-                      value={config.focusThemes}
-                      onChange={(e) => setConfig(c => ({ ...c, focusThemes: e.target.value }))}
-                      className="bg-background h-20"
-                    />
+                    <Textarea id="focusThemes" placeholder="e.g., Trump, AI, Bitcoin, Super Bowl" value={config.focusThemes} onChange={e => setConfig(c => ({
+                  ...c,
+                  focusThemes: e.target.value
+                }))} className="bg-background h-20" />
                     <p className="text-xs text-muted-foreground">
                       Leave empty to scan all markets. Add terms to focus on specific topics.
                     </p>
@@ -888,16 +780,9 @@ export default function Arbitrage() {
                   <div className="space-y-2">
                     <Label>Category Filters</Label>
                     <div className="flex flex-wrap gap-2">
-                      {CATEGORY_OPTIONS.map(cat => (
-                        <Badge
-                          key={cat.value}
-                          variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'}
-                          className="cursor-pointer transition-colors"
-                          onClick={() => toggleCategory(cat.value)}
-                        >
+                      {CATEGORY_OPTIONS.map(cat => <Badge key={cat.value} variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'} className="cursor-pointer transition-colors" onClick={() => toggleCategory(cat.value)}>
                           {cat.label}
-                        </Badge>
-                      ))}
+                        </Badge>)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Click to toggle. No selection = all categories.
@@ -908,29 +793,26 @@ export default function Arbitrage() {
                 {/* Toggles */}
                 <div className="flex flex-wrap gap-6 pt-2">
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="dynamicThreshold"
-                      checked={config.dynamicThresholdEnabled}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, dynamicThresholdEnabled: checked }))}
-                    />
+                    <Switch id="dynamicThreshold" checked={config.dynamicThresholdEnabled} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  dynamicThresholdEnabled: checked
+                }))} />
                     <Label htmlFor="dynamicThreshold" className="text-sm">Dynamic Thresholds</Label>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="semanticMatching"
-                      checked={config.semanticMatchingEnabled}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, semanticMatchingEnabled: checked }))}
-                    />
+                    <Switch id="semanticMatching" checked={config.semanticMatchingEnabled} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  semanticMatchingEnabled: checked
+                }))} />
                     <Label htmlFor="semanticMatching" className="text-sm">Semantic Matching</Label>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="includeAllTypes"
-                      checked={config.includeAllMarketTypes}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, includeAllMarketTypes: checked }))}
-                    />
+                    <Switch id="includeAllTypes" checked={config.includeAllMarketTypes} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  includeAllMarketTypes: checked
+                }))} />
                     <Label htmlFor="includeAllTypes" className="text-sm flex items-center gap-1">
                       <Activity className="w-3 h-3" />
                       All Market Types
@@ -938,11 +820,10 @@ export default function Arbitrage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="prioritizeNearClosing"
-                      checked={config.prioritizeNearClosing}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, prioritizeNearClosing: checked }))}
-                    />
+                    <Switch id="prioritizeNearClosing" checked={config.prioritizeNearClosing} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  prioritizeNearClosing: checked
+                }))} />
                     <Label htmlFor="prioritizeNearClosing" className="text-sm flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       Prioritize Near-Closing
@@ -950,11 +831,10 @@ export default function Arbitrage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="dryRun"
-                      checked={config.dryRun}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, dryRun: checked }))}
-                    />
+                    <Switch id="dryRun" checked={config.dryRun} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  dryRun: checked
+                }))} />
                     <Label htmlFor="dryRun" className="text-sm flex items-center gap-1">
                       <Eye className="w-3 h-3" />
                       Dry Run Mode
@@ -962,64 +842,47 @@ export default function Arbitrage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch
-                      id="aiAnalysis"
-                      checked={config.aiAnalysisEnabled}
-                      onCheckedChange={(checked) => setConfig(c => ({ ...c, aiAnalysisEnabled: checked }))}
-                    />
+                    <Switch id="aiAnalysis" checked={config.aiAnalysisEnabled} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  aiAnalysisEnabled: checked
+                }))} />
                     <Label htmlFor="aiAnalysis" className="text-sm flex items-center gap-1">
                       <Brain className="w-3 h-3" />
                       AI Analysis
                     </Label>
                   </div>
                 </div>
-              </div>
-            )}
+              </div>}
 
             <div className="flex flex-wrap items-center gap-4">
-              <Button 
-                onClick={handleScan}
-                disabled={isScanning || !hasApiKey}
-                className="gap-2"
-                size="lg"
-              >
-                {isScanning ? (
-                  <>
+              <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
+                {isScanning ? <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Scanning All Markets...
-                  </>
-                ) : (
-                  <>
+                  </> : <>
                     <Play className="w-4 h-4" />
                     Start Full Scan
-                  </>
-                )}
+                  </>}
               </Button>
 
-              {config.dryRun && (
-                <Badge variant="outline" className="gap-1">
+              {config.dryRun && <Badge variant="outline" className="gap-1">
                   <Eye className="w-3 h-3" />
                   Dry Run Mode - No Real Trades
-                </Badge>
-              )}
+                </Badge>}
 
-              {stats.lastScanTime && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {stats.lastScanTime && <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   Last scan: {new Date(stats.lastScanTime).toLocaleTimeString()}
-                </div>
-              )}
+                </div>}
             </div>
 
-            {isScanning && (
-              <div className="space-y-2">
+            {isScanning && <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Fetching and analyzing ALL markets with structured metadata extraction...
                 </div>
                 <Progress value={undefined} className="h-2" />
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
 
@@ -1031,36 +894,26 @@ export default function Arbitrage() {
                 <Sparkles className="w-5 h-5 text-success" />
                 High Confidence Opportunities
               </span>
-              {highConfidenceOpps.length > 0 && (
-                <Badge variant="success">{highConfidenceOpps.length} actionable</Badge>
-              )}
+              {highConfidenceOpps.length > 0 && <Badge variant="success">{highConfidenceOpps.length} actionable</Badge>}
             </CardTitle>
             <CardDescription>
               Opportunities with high structural confidence and AI validation
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {highConfidenceOpps.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+            {highConfidenceOpps.length === 0 ? <div className="text-center py-12 text-muted-foreground">
                 <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No high confidence opportunities found.</p>
                 <p className="text-sm mt-1">Run a scan or check the questionable section below.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {highConfidenceOpps.map((opp) => renderOpportunityCard(opp, false))}
-              </div>
-            )}
+              </div> : <div className="space-y-4">
+                {highConfidenceOpps.map(opp => renderOpportunityCard(opp, false))}
+              </div>}
           </CardContent>
         </Card>
 
         {/* Questionable Opportunities (Collapsible) */}
-        {questionableOpps.length > 0 && (
-          <Card className="glass mb-8 border-warning/20">
-            <CardHeader 
-              className="cursor-pointer" 
-              onClick={() => setShowQuestionable(!showQuestionable)}
-            >
+        {questionableOpps.length > 0 && <Card className="glass mb-8 border-warning/20">
+            <CardHeader className="cursor-pointer" onClick={() => setShowQuestionable(!showQuestionable)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-warning">
                   <HelpCircle className="w-5 h-5" />
@@ -1068,34 +921,23 @@ export default function Arbitrage() {
                 </span>
                 <div className="flex items-center gap-2">
                   <Badge variant="pending">{questionableOpps.length} need review</Badge>
-                  {showQuestionable ? (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  )}
+                  {showQuestionable ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                 </div>
               </CardTitle>
               <CardDescription>
                 Medium confidence matches - may be valid but need human verification
               </CardDescription>
             </CardHeader>
-            {showQuestionable && (
-              <CardContent>
+            {showQuestionable && <CardContent>
                 <div className="space-y-4">
-                  {questionableOpps.map((opp) => renderOpportunityCard(opp))}
+                  {questionableOpps.map(opp => renderOpportunityCard(opp))}
                 </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+              </CardContent>}
+          </Card>}
 
         {/* Invalid Opportunities (Collapsed by default) */}
-        {invalidOpps.length > 0 && (
-          <Card className="glass mb-8 border-destructive/20">
-            <CardHeader 
-              className="cursor-pointer" 
-              onClick={() => setShowInvalid(!showInvalid)}
-            >
+        {invalidOpps.length > 0 && <Card className="glass mb-8 border-destructive/20">
+            <CardHeader className="cursor-pointer" onClick={() => setShowInvalid(!showInvalid)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-muted-foreground">
                   <AlertTriangle className="w-5 h-5" />
@@ -1105,54 +947,40 @@ export default function Arbitrage() {
                   <Badge variant="outline" className="text-destructive">
                     {invalidOpps.length} filtered out
                   </Badge>
-                  {showInvalid ? (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  )}
+                  {showInvalid ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                 </div>
               </CardTitle>
               <CardDescription>
                 Low confidence or AI-rejected opportunities (different events, timeframes, or semantics)
               </CardDescription>
             </CardHeader>
-            {showInvalid && (
-              <CardContent>
+            {showInvalid && <CardContent>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {invalidOpps.map((opp) => {
-                    const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
-                    return (
-                      <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                  {invalidOpps.map(opp => {
+              const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
+              return <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-muted-foreground line-through">{opp.description}</p>
                             <div className="mt-1 space-y-1">
-                              {opp.confidence === 'low' && (
-                                <p className="text-xs text-destructive">
+                              {opp.confidence === 'low' && <p className="text-xs text-destructive">
                                   Low structural confidence: {opp.matchReason}
-                                </p>
-                              )}
-                              {analysis && !analysis.isValidArbitrage && (
-                                <p className="text-xs text-destructive">
+                                </p>}
+                              {analysis && !analysis.isValidArbitrage && <p className="text-xs text-destructive">
                                   AI: {analysis.reason} ({(analysis.confidence * 100).toFixed(0)}% confidence)
-                                </p>
-                              )}
+                                </p>}
                             </div>
                           </div>
                           <Badge variant="destructive" className="shrink-0">Invalid</Badge>
                         </div>
-                      </div>
-                    );
-                  })}
+                      </div>;
+            })}
                 </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+              </CardContent>}
+          </Card>}
 
         {/* Completed/History */}
-        {completedOpportunities.length > 0 && (
-          <Card className="glass">
+        {completedOpportunities.length > 0 && <Card className="glass">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
@@ -1161,44 +989,25 @@ export default function Arbitrage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {completedOpportunities.map((opp) => (
-                  <div 
-                    key={opp.id} 
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      opp.status === 'completed' ? 'bg-success/10' :
-                      opp.status === 'failed' ? 'bg-destructive/10' :
-                      'bg-secondary/30'
-                    }`}
-                  >
+                {completedOpportunities.map(opp => <div key={opp.id} className={`flex items-center justify-between p-3 rounded-lg ${opp.status === 'completed' ? 'bg-success/10' : opp.status === 'failed' ? 'bg-destructive/10' : 'bg-secondary/30'}`}>
                     <div className="flex items-center gap-3">
                       {opp.status === 'completed' && <CheckCircle className="w-5 h-5 text-success" />}
                       {opp.status === 'failed' && <XCircle className="w-5 h-5 text-destructive" />}
                       {opp.status === 'skipped' && <AlertCircle className="w-5 h-5 text-muted-foreground" />}
                       <div>
                         <p className="text-sm text-foreground">{opp.description}</p>
-                        {opp.reason && (
-                          <p className="text-xs text-muted-foreground">{opp.reason}</p>
-                        )}
+                        {opp.reason && <p className="text-xs text-muted-foreground">{opp.reason}</p>}
                       </div>
                     </div>
                     <div className="text-right">
-                      {opp.status === 'completed' && (
-                        <span className="text-success font-medium">+M${opp.expectedProfit.toFixed(2)}</span>
-                      )}
-                      {opp.status === 'failed' && (
-                        <span className="text-destructive text-sm">Failed</span>
-                      )}
-                      {opp.status === 'skipped' && (
-                        <span className="text-muted-foreground text-sm">Skipped</span>
-                      )}
+                      {opp.status === 'completed' && <span className="text-success font-medium">+M${opp.expectedProfit.toFixed(2)}</span>}
+                      {opp.status === 'failed' && <span className="text-destructive text-sm">Failed</span>}
+                      {opp.status === 'skipped' && <span className="text-muted-foreground text-sm">Skipped</span>}
                     </div>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
       </main>
-    </div>
-  );
+    </div>;
 }
