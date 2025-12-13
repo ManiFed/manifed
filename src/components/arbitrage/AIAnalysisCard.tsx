@@ -125,21 +125,47 @@ export function AIAnalysisCard({
                 <Info className="w-3 h-3" />
                 Summary
               </p>
-              <p className="text-xs text-muted-foreground">{explanation.summary}</p>
+              <p className="text-xs text-muted-foreground">
+                {typeof explanation.summary === 'string' 
+                  ? explanation.summary 
+                  : JSON.stringify(explanation.summary)}
+              </p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 Risks
               </p>
-              <p className="text-xs text-muted-foreground">{explanation.riskAssessment}</p>
+              <div className="text-xs text-muted-foreground">
+                {typeof explanation.riskAssessment === 'string' 
+                  ? explanation.riskAssessment 
+                  : typeof explanation.riskAssessment === 'object' && explanation.riskAssessment
+                    ? Object.entries(explanation.riskAssessment).map(([key, value]) => (
+                        <p key={key} className="mb-1">
+                          <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>{' '}
+                          {String(value)}
+                        </p>
+                      ))
+                    : String(explanation.riskAssessment)}
+              </div>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-foreground flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
                 Strategy
               </p>
-              <p className="text-xs text-muted-foreground">{explanation.executionStrategy}</p>
+              <div className="text-xs text-muted-foreground">
+                {typeof explanation.executionStrategy === 'string' 
+                  ? explanation.executionStrategy 
+                  : typeof explanation.executionStrategy === 'object' && explanation.executionStrategy
+                    ? Object.entries(explanation.executionStrategy).map(([key, value]) => (
+                        <p key={key} className="mb-1">
+                          <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>{' '}
+                          {String(value)}
+                        </p>
+                      ))
+                    : String(explanation.executionStrategy)}
+              </div>
             </div>
           </div>
         ) : (
