@@ -353,7 +353,23 @@ export default function Arbitrage() {
     }
   };
 
-  const pendingOpportunities = opportunities.filter(o => o.status === 'pending');
+  const [showInvalid, setShowInvalid] = useState(false);
+  
+  // Separate valid vs invalid based on AI analysis
+  const pendingOpportunities = opportunities.filter(o => {
+    if (o.status !== 'pending') return false;
+    if (!config.aiAnalysisEnabled) return true;
+    const analysis = getAnalysis(o.markets[0]?.id, o.markets[1]?.id);
+    return !analysis || analysis.isValidArbitrage;
+  });
+  
+  const invalidOpportunities = opportunities.filter(o => {
+    if (o.status !== 'pending') return false;
+    if (!config.aiAnalysisEnabled) return false;
+    const analysis = getAnalysis(o.markets[0]?.id, o.markets[1]?.id);
+    return analysis && !analysis.isValidArbitrage;
+  });
+  
   const completedOpportunities = opportunities.filter(o => o.status === 'completed' || o.status === 'failed' || o.status === 'skipped');
 
   return (
@@ -889,6 +905,58 @@ export default function Arbitrage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Invalid Opportunities (Collapsed by default) */}
+        {invalidOpportunities.length > 0 && (
+          <Card className="glass mb-8 border-destructive/20">
+            <CardHeader 
+              className="cursor-pointer" 
+              onClick={() => setShowInvalid(!showInvalid)}
+            >
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <AlertTriangle className="w-5 h-5" />
+                  Invalid Opportunities (AI Filtered)
+                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-destructive">
+                    {invalidOpportunities.length} filtered out
+                  </Badge>
+                  <Button variant="ghost" size="sm">
+                    {showInvalid ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+              </CardTitle>
+              <CardDescription>
+                These opportunities were flagged as invalid by AI analysis (different events, timeframes, or semantics)
+              </CardDescription>
+            </CardHeader>
+            {showInvalid && (
+              <CardContent>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {invalidOpportunities.map((opp) => {
+                    const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
+                    return (
+                      <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-muted-foreground line-through">{opp.description}</p>
+                            {analysis && (
+                              <p className="text-xs text-destructive mt-1">
+                                AI: {analysis.reason} ({(analysis.confidence * 100).toFixed(0)}% confidence)
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="destructive" className="shrink-0">Invalid</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Completed/History */}
         {completedOpportunities.length > 0 && (
