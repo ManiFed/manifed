@@ -354,6 +354,15 @@ export default function Hub() {
                       <p className="text-xs text-muted-foreground">Buy verified badges and site themes.</p>
                     </div>
                     
+                    {/* Arbitrage Agent */}
+                    <Link to="/arbitrage" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Arbitrage Agent</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Scan markets for arbitrage opportunities.</p>
+                    </Link>
+                    
                     {/* Leaderboard */}
                     <Link to="/leaderboard" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                       <div className="flex items-center gap-2 mb-1">

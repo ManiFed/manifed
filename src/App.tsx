@@ -21,6 +21,7 @@ import TreasuryNews from "./pages/TreasuryNews";
 import Memecoins from "./pages/Memecoins";
 import Leaderboard from "./pages/Leaderboard";
 import Market from "./pages/Market";
+import Arbitrage from "./pages/Arbitrage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,6 +81,7 @@ const App = () => (
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
+          <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

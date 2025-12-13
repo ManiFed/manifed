@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.purchase-bond-treasury]
 verify_jwt = true
+
+[functions.arbitrage-scan]
+verify_jwt = true
