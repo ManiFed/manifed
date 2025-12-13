@@ -227,13 +227,8 @@ serve(async (req) => {
         console.log(`Debited M$${amount} from user ${user.id} ManiFed balance`);
       }
     } else if (action === "invest") {
-      // ManiFed sends managram to loan borrower
-      if (!recipientUsername) {
-        return new Response(
-          JSON.stringify({ error: "recipientUsername required for invest action" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      // Investment flow: Deduct from investor's ManiFed balance immediately
+      // Funds are NOT sent to borrower until funding period ends (handled by process-repayments)
 
       // Check user's balance first
       const { data: balanceData } = await supabase
@@ -250,12 +245,10 @@ serve(async (req) => {
         );
       }
 
-      result = await sendManagram(
-        MANIFED_API_KEY,
-        recipientUsername,
-        amount,
-        message || `Loan investment from @${userData.username} via ManiFed`
-      );
+      // No managram sent here - funds held until funding period ends
+      // Just mark as successful to proceed with balance deduction
+      result = { txnId: `invest_${Date.now()}` };
+      console.log(`Investment of M$${amount} recorded - funds held until funding period ends`);
 
       if (result.txnId) {
         // Debit user's balance and increase total_invested
