@@ -251,22 +251,27 @@ serve(async (req) => {
       console.log(`Investment of M$${amount} recorded - funds held until funding period ends`);
 
       if (result.txnId) {
-        // Debit user's balance and increase total_invested
+        // Debit user's balance using the secure RPC function
+        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+          p_user_id: user.id,
+          p_amount: amount,
+          p_operation: 'subtract'
+        });
+
+        if (balanceError) {
+          console.error("Error deducting balance for investment:", balanceError);
+          throw balanceError;
+        }
+
+        // Update total_invested separately
         const currentTotalInvested = Number(balanceData?.total_invested) || 0;
-        
-        const { error: updateError } = await supabase
+        await supabase
           .from("user_balances")
           .update({
-            balance: currentBalance - amount,
             total_invested: currentTotalInvested + amount,
             updated_at: new Date().toISOString()
           })
           .eq("user_id", user.id);
-
-        if (updateError) {
-          console.error("Error updating balance after investment:", updateError);
-          throw updateError;
-        }
 
         // Record the investment transaction
         await supabase.from("transactions").insert({
@@ -277,7 +282,7 @@ serve(async (req) => {
           loan_id: loanId
         });
 
-        console.log(`Debited M$${amount} from user ${user.id} for investment`);
+        console.log(`Debited M$${amount} from user ${user.id} for investment via RPC`);
       }
     } else {
       return new Response(
@@ -337,33 +342,19 @@ async function updateUserBalance(
   amount: number,
   operation: "add" | "subtract"
 ): Promise<void> {
-  // Get current balance
-  const { data: balanceData } = await supabase
-    .from("user_balances")
-    .select("balance")
-    .eq("user_id", userId)
-    .single();
+  // Use the centralized modify_user_balance RPC for all balance changes
+  const { error } = await supabase.rpc('modify_user_balance', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_operation: operation
+  });
 
-  if (balanceData) {
-    const currentBalance = Number(balanceData.balance) || 0;
-    const newBalance = operation === "add" 
-      ? currentBalance + amount 
-      : currentBalance - amount;
-
-    await supabase
-      .from("user_balances")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", userId);
-  } else {
-    // Create initial record
-    await supabase
-      .from("user_balances")
-      .insert({ 
-        user_id: userId, 
-        balance: operation === "add" ? amount : 0,
-        total_invested: 0
-      });
+  if (error) {
+    console.error(`Failed to ${operation} balance via RPC:`, error);
+    throw new Error(`Failed to ${operation} balance: ${error.message}`);
   }
+  
+  console.log(`Successfully updated balance for user ${userId}: ${operation} M$${amount}`);
 }
 
 async function getUserIdFromUsername(username: string): Promise<string> {
