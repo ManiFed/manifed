@@ -207,7 +207,7 @@ export default function Landing() {
           <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src={trumpPortrait} alt="ManiFed" className="w-8 h-8 rounded-full" />
+                <img alt="ManiFed" className="w-8 h-8 rounded-full" src="/lovable-uploads/221c5921-d422-4770-8cc9-8ad25e4bcd13.jpg" />
                 <span className="font-semibold text-foreground">ManiFed</span>
                 <span className="text-muted-foreground">- Making Manifold Great Again</span>
               </div>
