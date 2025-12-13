@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
+import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 import { WalletPopover } from '@/components/WalletPopover';
+import { AIAnalysisCard } from '@/components/arbitrage/AIAnalysisCard';
 import { toast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
@@ -30,11 +32,12 @@ import {
   Eye,
   Sliders,
   AlertCircle,
-  TrendingDown,
   Activity,
   Droplets,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 
 interface ArbitrageOpportunity {
@@ -62,6 +65,7 @@ interface ArbitrageOpportunity {
   liquidityScore: number;
   similarityScore?: number;
   priceImpactEstimate: number;
+  matchReason?: string;
 }
 
 interface ScanStats {
@@ -82,11 +86,22 @@ interface ScanConfig {
   dryRun: boolean;
   fullScan: boolean;
   maxMarkets: number;
+  aiAnalysisEnabled: boolean;
 }
 
 export default function Arbitrage() {
   const { balance, fetchBalance } = useUserBalance();
+  const { 
+    isAnalyzing, 
+    analyzePairs, 
+    explainOpportunity, 
+    submitFeedback, 
+    getAnalysis, 
+    explanations,
+    clearAnalysis 
+  } = useAIArbitrage();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [loadingExplanation, setLoadingExplanation] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [stats, setStats] = useState<ScanStats>({
@@ -109,6 +124,7 @@ export default function Arbitrage() {
     dryRun: true,
     fullScan: false,
     maxMarkets: 2000,
+    aiAnalysisEnabled: true,
   });
 
   useEffect(() => {
@@ -140,6 +156,7 @@ export default function Arbitrage() {
 
     setIsScanning(true);
     setOpportunities([]);
+    clearAnalysis();
 
     try {
       const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
@@ -161,20 +178,55 @@ export default function Arbitrage() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      setOpportunities(data.opportunities || []);
+      const opportunities = data.opportunities || [];
+      setOpportunities(opportunities);
       setStats({
         marketsScanned: data.marketsScanned || 0,
         tradeableMarkets: data.tradeableMarkets || 0,
-        opportunitiesFound: data.opportunities?.length || 0,
+        opportunitiesFound: opportunities.length,
         tradesExecuted: stats.tradesExecuted,
         totalProfit: stats.totalProfit,
         lastScanTime: new Date().toISOString(),
       });
 
-      toast({
-        title: 'Scan Complete',
-        description: `Found ${data.opportunities?.length || 0} opportunities across ${data.marketsScanned || 0} markets.`,
-      });
+      // Run AI analysis on found opportunities if enabled
+      if (config.aiAnalysisEnabled && opportunities.length > 0) {
+        toast({
+          title: 'Scan Complete',
+          description: `Found ${opportunities.length} opportunities. Running AI analysis...`,
+        });
+
+        const pairs = opportunities
+          .filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2)
+          .map((opp: ArbitrageOpportunity) => ({
+            market1: {
+              id: opp.markets[0].id,
+              question: opp.markets[0].question,
+              probability: opp.markets[0].probability,
+              liquidity: opp.markets[0].liquidity,
+            },
+            market2: {
+              id: opp.markets[1].id,
+              question: opp.markets[1].question,
+              probability: opp.markets[1].probability,
+              liquidity: opp.markets[1].liquidity,
+            },
+            expectedProfit: opp.expectedProfit,
+            matchReason: opp.matchReason,
+          }));
+
+        await analyzePairs(pairs);
+
+        toast({
+          title: 'AI Analysis Complete',
+          description: `Analyzed ${pairs.length} opportunities with AI semantic matching.`,
+        });
+      } else {
+        toast({
+          title: 'Scan Complete',
+          description: `Found ${opportunities.length} opportunities across ${data.marketsScanned || 0} markets.`,
+        });
+      }
     } catch (error) {
       console.error('Scan error:', error);
       toast({
@@ -553,6 +605,18 @@ export default function Arbitrage() {
                       Dry Run Mode
                     </Label>
                   </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="aiAnalysis"
+                      checked={config.aiAnalysisEnabled}
+                      onCheckedChange={(checked) => setConfig(c => ({ ...c, aiAnalysisEnabled: checked }))}
+                    />
+                    <Label htmlFor="aiAnalysis" className="text-sm flex items-center gap-1">
+                      <Brain className="w-3 h-3" />
+                      AI Analysis
+                    </Label>
+                  </div>
                 </div>
                 
                 {!config.fullScan && (
@@ -741,6 +805,56 @@ export default function Arbitrage() {
                           </p>
                         )}
                       </div>
+
+                      {/* AI Analysis Card */}
+                      {config.aiAnalysisEnabled && opp.markets.length >= 2 && (
+                        <div className="mb-4">
+                          <AIAnalysisCard
+                            opportunityId={opp.id}
+                            market1={{ id: opp.markets[0].id, question: opp.markets[0].question }}
+                            market2={{ id: opp.markets[1].id, question: opp.markets[1].question }}
+                            opportunityType={opp.type}
+                            expectedProfit={opp.expectedProfit}
+                            analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)}
+                            explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]}
+                            isLoadingExplanation={loadingExplanation === opp.id}
+                            onRequestExplanation={async () => {
+                              setLoadingExplanation(opp.id);
+                              await explainOpportunity({
+                                market1: {
+                                  id: opp.markets[0].id,
+                                  question: opp.markets[0].question,
+                                  probability: opp.markets[0].probability,
+                                  liquidity: opp.markets[0].liquidity,
+                                },
+                                market2: {
+                                  id: opp.markets[1].id,
+                                  question: opp.markets[1].question,
+                                  probability: opp.markets[1].probability,
+                                  liquidity: opp.markets[1].liquidity,
+                                },
+                                expectedProfit: opp.expectedProfit,
+                                matchReason: opp.matchReason,
+                              });
+                              setLoadingExplanation(null);
+                            }}
+                            onSubmitFeedback={async (isValid, reason) => {
+                              const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
+                              return await submitFeedback(
+                                opp.id,
+                                { id: opp.markets[0].id, question: opp.markets[0].question },
+                                { id: opp.markets[1].id, question: opp.markets[1].question },
+                                opp.type,
+                                opp.expectedProfit,
+                                isValid,
+                                reason,
+                                analysis?.confidence,
+                                analysis?.reason
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <div className="flex gap-2 justify-end">

@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      arbitrage_feedback: {
+        Row: {
+          actual_outcome: string | null
+          actual_profit: number | null
+          ai_analysis: string | null
+          ai_confidence_score: number | null
+          created_at: string
+          expected_profit: number
+          feedback_reason: string | null
+          id: string
+          is_valid_opportunity: boolean
+          market_1_id: string
+          market_1_question: string
+          market_2_id: string
+          market_2_question: string
+          opportunity_id: string
+          opportunity_type: string
+          user_id: string
+        }
+        Insert: {
+          actual_outcome?: string | null
+          actual_profit?: number | null
+          ai_analysis?: string | null
+          ai_confidence_score?: number | null
+          created_at?: string
+          expected_profit: number
+          feedback_reason?: string | null
+          id?: string
+          is_valid_opportunity: boolean
+          market_1_id: string
+          market_1_question: string
+          market_2_id: string
+          market_2_question: string
+          opportunity_id: string
+          opportunity_type: string
+          user_id: string
+        }
+        Update: {
+          actual_outcome?: string | null
+          actual_profit?: number | null
+          ai_analysis?: string | null
+          ai_confidence_score?: number | null
+          created_at?: string
+          expected_profit?: number
+          feedback_reason?: string | null
+          id?: string
+          is_valid_opportunity?: boolean
+          market_1_id?: string
+          market_1_question?: string
+          market_2_id?: string
+          market_2_question?: string
+          opportunity_id?: string
+          opportunity_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bond_listings: {
         Row: {
           asking_price: number
