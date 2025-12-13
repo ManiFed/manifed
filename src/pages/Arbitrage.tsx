@@ -80,6 +80,8 @@ interface ScanConfig {
   dynamicThresholdEnabled: boolean;
   semanticMatchingEnabled: boolean;
   dryRun: boolean;
+  fullScan: boolean;
+  maxMarkets: number;
 }
 
 export default function Arbitrage() {
@@ -97,6 +99,7 @@ export default function Arbitrage() {
   });
   const [isExecuting, setIsExecuting] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [confirmingTrade, setConfirmingTrade] = useState<string | null>(null);
   const [config, setConfig] = useState<ScanConfig>({
     minLiquidity: 50,
     minVolume: 10,
@@ -104,6 +107,8 @@ export default function Arbitrage() {
     dynamicThresholdEnabled: true,
     semanticMatchingEnabled: true,
     dryRun: true,
+    fullScan: false,
+    maxMarkets: 2000,
   });
 
   useEffect(() => {
@@ -147,6 +152,8 @@ export default function Arbitrage() {
             dynamicThresholdEnabled: config.dynamicThresholdEnabled,
             semanticMatchingEnabled: config.semanticMatchingEnabled,
             dryRun: config.dryRun,
+            fullScan: config.fullScan,
+            maxMarkets: config.maxMarkets,
           }
         }
       });
@@ -181,6 +188,14 @@ export default function Arbitrage() {
   };
 
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
+    // Always require confirmation first
+    if (confirmingTrade !== opportunity.id) {
+      setConfirmingTrade(opportunity.id);
+      return;
+    }
+    
+    setConfirmingTrade(null);
+    
     if (config.dryRun) {
       toast({
         title: 'Dry Run Mode',
@@ -517,6 +532,18 @@ export default function Arbitrage() {
                   
                   <div className="flex items-center gap-2">
                     <Switch
+                      id="fullScan"
+                      checked={config.fullScan}
+                      onCheckedChange={(checked) => setConfig(c => ({ ...c, fullScan: checked }))}
+                    />
+                    <Label htmlFor="fullScan" className="text-sm flex items-center gap-1">
+                      <Activity className="w-3 h-3" />
+                      Full Scan (All Markets)
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Switch
                       id="dryRun"
                       checked={config.dryRun}
                       onCheckedChange={(checked) => setConfig(c => ({ ...c, dryRun: checked }))}
@@ -527,6 +554,25 @@ export default function Arbitrage() {
                     </Label>
                   </div>
                 </div>
+                
+                {!config.fullScan && (
+                  <div className="space-y-2 pt-2">
+                    <Label htmlFor="maxMarkets">Max Markets to Scan</Label>
+                    <Input
+                      id="maxMarkets"
+                      type="number"
+                      value={config.maxMarkets}
+                      onChange={(e) => setConfig(c => ({ ...c, maxMarkets: parseInt(e.target.value) || 2000 }))}
+                      className="bg-background w-32"
+                      min={100}
+                      max={10000}
+                      step={500}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Higher = more opportunities found, but slower scan
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
