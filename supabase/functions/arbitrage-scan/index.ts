@@ -193,12 +193,15 @@ serve(async (req) => {
       console.log("Starting arbitrage scan for user:", user.id);
 
       // Fetch active markets from Manifold API
+      // Using the correct v0 API endpoint with valid parameters
       const marketsResponse = await fetch(
-        'https://api.manifold.markets/v0/markets?limit=500&sort=liquidity'
+        'https://api.manifold.markets/v0/search-markets?limit=200&filter=open'
       );
 
       if (!marketsResponse.ok) {
-        throw new Error(`Failed to fetch markets: ${marketsResponse.statusText}`);
+        const errorText = await marketsResponse.text();
+        console.error("Manifold API error:", marketsResponse.status, errorText);
+        throw new Error(`Failed to fetch markets: ${marketsResponse.status} - ${errorText}`);
       }
 
       const allMarkets: ManifoldMarket[] = await marketsResponse.json();
