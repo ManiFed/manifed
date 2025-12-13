@@ -12,7 +12,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
-              <img alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" src="/lovable-uploads/2f4b846c-059e-4a08-a289-b1522b47cb1d.png" />
+              <img alt="ManiFed" src="/lovable-uploads/2f4b846c-059e-4a08-a289-b1522b47cb1d.png" className="w-10 h-10 rounded-xl object-cover border-primary/50 border-0" />
               <div>
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground">Making Manifold Great Again</p>
