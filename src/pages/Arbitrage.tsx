@@ -180,7 +180,7 @@ export default function Arbitrage() {
 
   useEffect(() => {
     checkApiKey();
-    checkActiveScan();
+    checkActiveQueueStatus();
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
@@ -195,8 +195,8 @@ export default function Arbitrage() {
     setHasApiKey(!!data?.manifold_api_key);
   };
 
-  const checkActiveScan = async () => {
-    // Check if there's an active scan running
+  const checkActiveQueueStatus = async () => {
+    // Only check if there's a queue - don't auto-resume scans
     const { data: activeScan } = await supabase
       .from('arbitrage_scan_locks')
       .select('*')
@@ -205,14 +205,8 @@ export default function Arbitrage() {
 
     if (activeScan) {
       const { data: { user } } = await supabase.auth.getUser();
-      if (activeScan.user_id === user?.id) {
-        // Resume progress tracking for own scan
-        setIsScanning(true);
-        scanLockIdRef.current = activeScan.id;
-        setScanProgress(activeScan.progress || 0);
-        startProgressPolling(activeScan.id);
-      } else {
-        // Another user is scanning
+      if (activeScan.user_id !== user?.id) {
+        // Another user is scanning - just show queue status, don't auto-start
         setQueuePosition(1);
       }
     }
@@ -236,12 +230,14 @@ export default function Arbitrage() {
           setScanStatus(`Scanned ${data.markets_scanned.toLocaleString()} markets...`);
         }
         if (data.status === 'completed' || data.status === 'failed') {
+          setScanProgress(100);
           if (progressIntervalRef.current) {
             clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
           }
         }
       }
-    }, 500);
+    }, 1000);
   };
 
   const handleScan = async () => {
@@ -383,12 +379,16 @@ export default function Arbitrage() {
         .single();
 
       if (!activeScan) {
-        // No active scan, we can proceed
+        // No active scan, notify user they can scan now
         clearInterval(pollInterval);
         setQueuePosition(null);
-        handleScan();
+        setIsScanning(false);
+        toast({
+          title: 'Queue Cleared',
+          description: 'You can now start your scan.',
+        });
       }
-    }, 2000);
+    }, 3000);
   };
 
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
