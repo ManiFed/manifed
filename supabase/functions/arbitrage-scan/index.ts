@@ -856,6 +856,13 @@ serve(async (req) => {
         const allMarkets = await fetchAllMarkets(config, supabaseService, historyId);
         console.log(`Fetched ${allMarkets.length} total markets`);
 
+        // Shuffle markets to randomize scan order each time
+        for (let i = allMarkets.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allMarkets[i], allMarkets[j]] = [allMarkets[j], allMarkets[i]];
+        }
+        console.log(`Shuffled ${allMarkets.length} markets for randomized scanning`);
+
         // Extract metadata for all markets
         const metadataMap = new Map<string, MarketMetadata>();
         for (const market of allMarkets) {
