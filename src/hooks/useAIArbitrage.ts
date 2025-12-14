@@ -103,7 +103,7 @@ export function useAIArbitrage() {
       console.error('AI explanation error:', error);
       toast({
         title: 'AI Explanation Failed',
-        description: error instanceof Error ? error.message : 'The WOKE RADICAL LEFT has broken the big beautiful ManiFed AI so try again later,
+        description: error instanceof Error ? error.message : 'The WOKE RADICAL LEFT has broken the big beautiful ManiFed AI so try again later',
         variant: 'destructive',
       });
       return null;
