@@ -698,7 +698,7 @@ function findMultiMarketArbitrage(
 async function fetchAllMarkets(
   config: ScanConfig,
   supabase: any,
-  lockId: string
+  historyId: string
 ): Promise<ManifoldMarket[]> {
   const allMarkets: ManifoldMarket[] = [];
   const batchSize = 1000;
@@ -752,16 +752,6 @@ async function fetchAllMarkets(
         
         sortFetched += newCount;
         offset += batchSize;
-        
-        // Update progress in database
-        const progress = Math.min(90, Math.floor((totalApiCalls / 40) * 100)); // Estimate ~40 calls for full scan
-        await supabase
-          .from('arbitrage_scan_locks')
-          .update({ 
-            progress,
-            markets_scanned: allMarkets.length 
-          })
-          .eq('id', lockId);
         
         console.log(`[${sortOrder}] Fetched ${allMarkets.length} unique markets (${newCount} new this batch)`);
         
@@ -834,69 +824,32 @@ serve(async (req) => {
     if (action === 'scan') {
       console.log("Starting comprehensive arbitrage scan for user:", user.id);
 
-      // Check for existing active scan
-      const { data: activeScan } = await supabaseService
-        .from('arbitrage_scan_locks')
-        .select('*')
-        .eq('status', 'scanning')
-        .single();
-
-      if (activeScan && activeScan.user_id !== user.id) {
-        // Another user is scanning, queue this request
-        console.log("Another scan is active, queuing request");
-        return new Response(
-          JSON.stringify({ 
-            queued: true, 
-            queuePosition: 1,
-            message: "Another scan is in progress. You have been added to the queue." 
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Clean up old completed scans (older than 1 hour)
-      await supabaseService
-        .from('arbitrage_scan_locks')
-        .delete()
-        .neq('status', 'scanning')
-        .lt('completed_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
-
-      // Create scan lock
-      const { data: newLock, error: lockError } = await supabaseService
-        .from('arbitrage_scan_locks')
+      // Create scan history entry
+      const { data: historyEntry, error: historyError } = await supabaseService
+        .from('arbitrage_scan_history')
         .insert({
           user_id: user.id,
-          status: 'scanning',
-          progress: 0,
-          markets_scanned: 0,
+          status: 'running',
+          scan_config: userConfig,
         })
         .select()
         .single();
 
-      if (lockError) {
-        if (lockError.code === '23505') { // Unique constraint violation
-          return new Response(
-            JSON.stringify({ 
-              queued: true, 
-              queuePosition: 1,
-              message: "Another scan just started. Please wait." 
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        throw lockError;
+      if (historyError) {
+        console.error("Failed to create scan history:", historyError);
+        throw historyError;
       }
 
-      const lockId = newLock.id;
+      const historyId = historyEntry.id;
 
       try {
         const config: ScanConfig = {
           minLiquidity: userConfig?.minLiquidity ?? 50,
           minVolume: userConfig?.minVolume ?? 10,
           baseThreshold: userConfig?.baseThreshold ?? 0.02,
-          dynamicThresholdEnabled: true, // Always enabled
-          semanticMatchingEnabled: true, // Always enabled
-          dryRun: false, // Never dry run
+          dynamicThresholdEnabled: true,
+          semanticMatchingEnabled: true,
+          dryRun: false,
           fullScan: userConfig?.fullScan ?? true,
           maxMarkets: userConfig?.maxMarkets ?? 50000,
           includeAllMarketTypes: userConfig?.includeAllMarketTypes ?? true,
@@ -907,15 +860,9 @@ serve(async (req) => {
 
         console.log("Scan config:", config);
 
-        // Fetch ALL markets with progress updates
-        const allMarkets = await fetchAllMarkets(config, supabaseService, lockId);
+        // Fetch ALL markets
+        const allMarkets = await fetchAllMarkets(config, supabaseService, historyId);
         console.log(`Fetched ${allMarkets.length} total markets`);
-
-        // Update progress
-        await supabaseService
-          .from('arbitrage_scan_locks')
-          .update({ progress: 92, markets_scanned: allMarkets.length })
-          .eq('id', lockId);
 
         // Extract metadata for all markets
         const metadataMap = new Map<string, MarketMetadata>();
@@ -942,12 +889,6 @@ serve(async (req) => {
           (m.volume || 0) >= config.minVolume
         );
         console.log(`${filteredMarkets.length} markets meeting liquidity/volume requirements`);
-
-        // Update progress
-        await supabaseService
-          .from('arbitrage_scan_locks')
-          .update({ progress: 95 })
-          .eq('id', lockId);
 
         // Find opportunities
         const exhaustiveSetOpps = findExhaustiveSetArbitrage(filteredMarkets, metadataMap, config);
@@ -989,20 +930,38 @@ serve(async (req) => {
 
         console.log(`Returning ${opportunities.length} opportunities (${highConfidence.length} high, ${mediumConfidence.length} medium, ${lowConfidence.length} low confidence)`);
 
-        // Mark scan as completed
+        // Update scan history with results
         await supabaseService
-          .from('arbitrage_scan_locks')
+          .from('arbitrage_scan_history')
           .update({ 
-            status: 'completed', 
-            progress: 100,
-            completed_at: new Date().toISOString() 
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            markets_scanned: allMarkets.length,
+            tradeable_markets: tradeableMarkets.length,
+            opportunities_found: opportunities.length,
+            high_confidence: highConfidence.length,
+            medium_confidence: mediumConfidence.length,
+            low_confidence: lowConfidence.length,
           })
-          .eq('id', lockId);
+          .eq('id', historyId);
+
+        // Create notification for high-confidence opportunities
+        if (highConfidence.length > 0) {
+          await supabaseService
+            .from('arbitrage_notifications')
+            .insert({
+              user_id: user.id,
+              type: 'opportunity_found',
+              title: 'High-Confidence Opportunities Found',
+              message: `Found ${highConfidence.length} high-confidence arbitrage opportunities from your scan.`,
+              data: { historyId, count: highConfidence.length },
+            });
+        }
 
         return new Response(
           JSON.stringify({
             success: true,
-            lockId,
+            historyId,
             marketsScanned: allMarkets.length,
             tradeableMarkets: tradeableMarkets.length,
             filteredMarkets: filteredMarkets.length,
@@ -1020,12 +979,12 @@ serve(async (req) => {
       } catch (scanError) {
         // Mark scan as failed
         await supabaseService
-          .from('arbitrage_scan_locks')
+          .from('arbitrage_scan_history')
           .update({ 
-            status: 'failed', 
-            completed_at: new Date().toISOString() 
+            status: 'failed',
+            completed_at: new Date().toISOString(),
           })
-          .eq('id', lockId);
+          .eq('id', historyId);
         throw scanError;
       }
     }

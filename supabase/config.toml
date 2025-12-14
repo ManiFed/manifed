@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.ai-arbitrage]
 verify_jwt = true
+
+[functions.arbitrage-notifications]
+verify_jwt = true
