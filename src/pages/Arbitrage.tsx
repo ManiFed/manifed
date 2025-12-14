@@ -140,7 +140,6 @@ export default function Arbitrage() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState<string>('');
-  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [stats, setStats] = useState<ScanStats>({
     marketsScanned: 0,
@@ -171,8 +170,7 @@ export default function Arbitrage() {
     focusCategories: [],
     prioritizeNearClosing: false
   });
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const scanLockIdRef = useRef<string | null>(null);
+  const scanHistoryIdRef = useRef<string | null>(null);
 
   // Collapsible sections
   const [showQuestionable, setShowQuestionable] = useState(false);
@@ -180,12 +178,6 @@ export default function Arbitrage() {
 
   useEffect(() => {
     checkApiKey();
-    checkActiveQueueStatus();
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-    };
   }, []);
 
   const checkApiKey = async () => {
@@ -193,51 +185,6 @@ export default function Arbitrage() {
     if (!user) return;
     const { data } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
-  };
-
-  const checkActiveQueueStatus = async () => {
-    // Only check if there's a queue - don't auto-resume scans
-    const { data: activeScan } = await supabase
-      .from('arbitrage_scan_locks')
-      .select('*')
-      .eq('status', 'scanning')
-      .single();
-
-    if (activeScan) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (activeScan.user_id !== user?.id) {
-        // Another user is scanning - just show queue status, don't auto-start
-        setQueuePosition(1);
-      }
-    }
-  };
-
-  const startProgressPolling = (lockId: string) => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-
-    progressIntervalRef.current = setInterval(async () => {
-      const { data } = await supabase
-        .from('arbitrage_scan_locks')
-        .select('progress, markets_scanned, status')
-        .eq('id', lockId)
-        .single();
-
-      if (data) {
-        setScanProgress(data.progress || 0);
-        if (data.markets_scanned) {
-          setScanStatus(`Scanned ${data.markets_scanned.toLocaleString()} markets...`);
-        }
-        if (data.status === 'completed' || data.status === 'failed') {
-          setScanProgress(100);
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-          }
-        }
-      }
-    }, 1000);
   };
 
   const handleScan = async () => {
@@ -255,7 +202,6 @@ export default function Arbitrage() {
     setScanStatus('Initializing scan...');
     setOpportunities([]);
     clearAnalysis();
-    setQueuePosition(null);
 
     try {
       const focusThemesArray = config.focusThemes.split(',').map(t => t.trim()).filter(t => t.length > 0);
@@ -280,24 +226,11 @@ export default function Arbitrage() {
       });
 
       if (error) throw error;
-      
-      if (data.queued) {
-        setQueuePosition(data.queuePosition || 1);
-        toast({
-          title: 'Added to Queue',
-          description: `Another scan is in progress. You are #${data.queuePosition} in line.`
-        });
-        // Poll for when it's our turn
-        pollQueuePosition();
-        return;
-      }
-
-      if (data.lockId) {
-        scanLockIdRef.current = data.lockId;
-        startProgressPolling(data.lockId);
-      }
-
       if (data.error) throw new Error(data.error);
+
+      if (data.historyId) {
+        scanHistoryIdRef.current = data.historyId;
+      }
 
       setScanProgress(100);
       setScanStatus('Scan complete!');
@@ -364,31 +297,7 @@ export default function Arbitrage() {
       setIsScanning(false);
       setScanProgress(0);
       setScanStatus('');
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
     }
-  };
-
-  const pollQueuePosition = async () => {
-    const pollInterval = setInterval(async () => {
-      const { data: activeScan } = await supabase
-        .from('arbitrage_scan_locks')
-        .select('*')
-        .eq('status', 'scanning')
-        .single();
-
-      if (!activeScan) {
-        // No active scan, notify user they can scan now
-        clearInterval(pollInterval);
-        setQueuePosition(null);
-        setIsScanning(false);
-        toast({
-          title: 'Queue Cleared',
-          description: 'You can now start your scan.',
-        });
-      }
-    }, 3000);
   };
 
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
@@ -1021,16 +930,11 @@ export default function Arbitrage() {
             )}
 
             <div className="flex flex-wrap items-center gap-4">
-              <Button onClick={handleScan} disabled={isScanning || !hasApiKey || queuePosition !== null} className="gap-2" size="lg">
+              <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
                 {isScanning ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Scanning All Markets...
-                  </>
-                ) : queuePosition !== null ? (
-                  <>
-                    <Users className="w-4 h-4" />
-                    In Queue (#{queuePosition})
                   </>
                 ) : (
                   <>
@@ -1039,13 +943,6 @@ export default function Arbitrage() {
                   </>
                 )}
               </Button>
-
-              {queuePosition !== null && (
-                <Badge variant="pending" className="gap-1">
-                  <Users className="w-3 h-3" />
-                  Waiting in queue - position #{queuePosition}
-                </Badge>
-              )}
 
               {stats.lastScanTime && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

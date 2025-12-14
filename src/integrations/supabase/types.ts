@@ -71,35 +71,170 @@ export type Database = {
         }
         Relationships: []
       }
-      arbitrage_scan_locks: {
+      arbitrage_notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      arbitrage_scan_history: {
         Row: {
           completed_at: string | null
           created_at: string
+          high_confidence: number | null
           id: string
+          low_confidence: number | null
           markets_scanned: number | null
-          progress: number | null
+          medium_confidence: number | null
+          opportunities_found: number | null
+          scan_config: Json | null
           started_at: string
           status: string
+          tradeable_markets: number | null
           user_id: string
         }
         Insert: {
           completed_at?: string | null
           created_at?: string
+          high_confidence?: number | null
           id?: string
+          low_confidence?: number | null
           markets_scanned?: number | null
-          progress?: number | null
+          medium_confidence?: number | null
+          opportunities_found?: number | null
+          scan_config?: Json | null
           started_at?: string
           status?: string
+          tradeable_markets?: number | null
           user_id: string
         }
         Update: {
           completed_at?: string | null
           created_at?: string
+          high_confidence?: number | null
           id?: string
+          low_confidence?: number | null
           markets_scanned?: number | null
-          progress?: number | null
+          medium_confidence?: number | null
+          opportunities_found?: number | null
+          scan_config?: Json | null
           started_at?: string
           status?: string
+          tradeable_markets?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      arbitrage_scan_schedules: {
+        Row: {
+          created_at: string
+          cron_expression: string
+          email_on_completion: boolean | null
+          email_on_opportunities: boolean | null
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          min_opportunity_threshold: number | null
+          next_run_at: string | null
+          scan_config: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cron_expression?: string
+          email_on_completion?: boolean | null
+          email_on_opportunities?: boolean | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          min_opportunity_threshold?: number | null
+          next_run_at?: string | null
+          scan_config?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cron_expression?: string
+          email_on_completion?: boolean | null
+          email_on_opportunities?: boolean | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          min_opportunity_threshold?: number | null
+          next_run_at?: string | null
+          scan_config?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      arbitrage_watchlist: {
+        Row: {
+          added_at: string
+          alert_threshold: number | null
+          current_probability: number | null
+          id: string
+          initial_probability: number | null
+          liquidity: number | null
+          market_id: string
+          market_question: string
+          market_url: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          alert_threshold?: number | null
+          current_probability?: number | null
+          id?: string
+          initial_probability?: number | null
+          liquidity?: number | null
+          market_id: string
+          market_question: string
+          market_url: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          alert_threshold?: number | null
+          current_probability?: number | null
+          id?: string
+          initial_probability?: number | null
+          liquidity?: number | null
+          market_id?: string
+          market_question?: string
+          market_url?: string
+          notes?: string | null
           user_id?: string
         }
         Relationships: []
