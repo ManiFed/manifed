@@ -14,6 +14,7 @@ import { useUserBalance } from '@/hooks/useUserBalance';
 import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 import { WalletPopover } from '@/components/WalletPopover';
 import { AIAnalysisCard } from '@/components/arbitrage/AIAnalysisCard';
+import { ScheduledScanConfig } from '@/components/arbitrage/ScheduledScanConfig';
 import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle, Info, Users } from 'lucide-react';
 
@@ -966,6 +967,11 @@ export default function Arbitrage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Scheduled Scans */}
+        <div className="mb-8">
+          <ScheduledScanConfig />
+        </div>
 
         {/* High Confidence Opportunities */}
         <Card className="glass mb-8">
