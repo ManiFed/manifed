@@ -35,7 +35,7 @@ interface MarketMetadata {
   category: string;
   categoryTags: string[];
   closeDate: number | null;
-  closeDateScore: number; // 0-100, higher = closing sooner
+  closeDateScore: number;
   liquidityScore: number;
   activityScore: number;
 }
@@ -89,13 +89,15 @@ interface ScanConfig {
   lastScanCursor?: string;
 }
 
+// Rate limit: 350 requests per minute = ~171ms between requests
+const API_DELAY_MS = 175;
+
 // ============= STRUCTURED METADATA EXTRACTION =============
 
 function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
   const lowerQ = market.question.toLowerCase();
   const slugs = market.groupSlugs || [];
   
-  // Extract subject (names, entities)
   const subjectPatterns = [
     /\b(trump|biden|harris|vance|desantis|haley|pence|obama|newsom|sanders|musk|bezos|zuckerberg|altman|pichai|nadella|putin|zelensky|xi|modi|macron|scholz|starmer|sunak)\b/i,
     /\b(openai|google|microsoft|meta|apple|amazon|tesla|nvidia|spacex|anthropic)\b/i,
@@ -112,7 +114,6 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
     }
   }
   
-  // Extract predicate (what will happen)
   const predicateCategories: Record<string, RegExp> = {
     'win_election': /\b(win|wins|winning|won|victory|elected|become president|next president)\b.*\b(election|president|presidency|governor|senate|congress|primary|nomination)\b/i,
     'nomination': /\b(nominate|nominated|nomination|nominee|select|selected|endorse|endorsed)\b/i,
@@ -132,21 +133,17 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
     }
   }
   
-  // Extract year
   const yearMatch = lowerQ.match(/\b(202\d)\b/);
   const year = yearMatch ? yearMatch[1] : null;
   
-  // Extract time window
   let timeWindow: { start?: number; end?: number } | null = null;
   const byEndMatch = lowerQ.match(/by\s+(end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})?/i);
   const beforeMatch = lowerQ.match(/before\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d+)?/i);
   
   if (byEndMatch || beforeMatch) {
-    // Has time constraint
     timeWindow = { end: market.closeTime };
   }
   
-  // Determine category from slugs and keywords
   const categoryMap: Record<string, { keywords: RegExp; slugPatterns: RegExp }> = {
     'politics_us': { 
       keywords: /president|congress|senate|governor|election|democrat|republican|primary|ballot|vote|impeach/i,
@@ -196,23 +193,21 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
     }
   }
   
-  // Add slug-based tags
   for (const slug of slugs) {
     if (slug && !categoryTags.includes(slug)) {
       categoryTags.push(slug);
     }
   }
   
-  // Calculate close date score (0-100, higher = closing sooner)
   let closeDateScore = 0;
   const closeDate = market.closeTime || null;
   if (closeDate) {
     const now = Date.now();
     const daysUntilClose = (closeDate - now) / (1000 * 60 * 60 * 24);
     if (daysUntilClose <= 0) {
-      closeDateScore = 0; // Already closed
+      closeDateScore = 0;
     } else if (daysUntilClose <= 7) {
-      closeDateScore = 100; // Very near
+      closeDateScore = 100;
     } else if (daysUntilClose <= 30) {
       closeDateScore = 80;
     } else if (daysUntilClose <= 90) {
@@ -226,7 +221,6 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
     }
   }
   
-  // Calculate liquidity score
   const liquidity = market.totalLiquidity || 0;
   const volume = market.volume || 0;
   const bettors = market.uniqueBettorCount || 0;
@@ -236,7 +230,6 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
     Math.min(bettors, 100) * 0.3
   ));
   
-  // Calculate activity score (recent activity)
   const volume24h = market.volume24Hours || 0;
   const activityScore = Math.min(100, Math.log10(volume24h + 1) * 40);
   
@@ -259,36 +252,29 @@ function extractMarketMetadata(market: ManifoldMarket): MarketMetadata {
 function getStructuredBuckets(market: ManifoldMarket, metadata: MarketMetadata): string[] {
   const buckets: string[] = [];
   
-  // Primary bucket: category
   buckets.push(`cat_${metadata.category}`);
   
-  // Subject bucket if available
   if (metadata.subject) {
     buckets.push(`subj_${metadata.subject}`);
   }
   
-  // Predicate bucket if available
   if (metadata.predicate) {
     buckets.push(`pred_${metadata.predicate}`);
   }
   
-  // Year bucket
   if (metadata.year) {
     buckets.push(`year_${metadata.year}`);
   }
   
-  // Composite bucket: subject + predicate + year (most specific)
   if (metadata.subject && metadata.predicate) {
     const composite = `${metadata.subject}_${metadata.predicate}${metadata.year ? '_' + metadata.year : ''}`;
     buckets.push(`event_${composite}`);
   }
   
-  // Add category tags as buckets
   for (const tag of metadata.categoryTags.slice(0, 3)) {
     buckets.push(`tag_${tag}`);
   }
   
-  // Close time bucket (for finding related markets closing together)
   if (metadata.closeDate) {
     const closeMonth = new Date(metadata.closeDate);
     const monthKey = `${closeMonth.getFullYear()}_${String(closeMonth.getMonth() + 1).padStart(2, '0')}`;
@@ -320,7 +306,6 @@ function isTradeable(market: ManifoldMarket): boolean {
 }
 
 function matchesFocusFilters(market: ManifoldMarket, metadata: MarketMetadata, config: ScanConfig): boolean {
-  // If no focus filters, include all
   if (config.focusThemes.length === 0 && config.focusCategories.length === 0) {
     return true;
   }
@@ -328,7 +313,6 @@ function matchesFocusFilters(market: ManifoldMarket, metadata: MarketMetadata, c
   const lowerQ = market.question.toLowerCase();
   const desc = (market.textDescription || '').toLowerCase();
   
-  // Check theme matches
   for (const theme of config.focusThemes) {
     const themeLower = theme.toLowerCase();
     if (lowerQ.includes(themeLower) || desc.includes(themeLower)) {
@@ -339,7 +323,6 @@ function matchesFocusFilters(market: ManifoldMarket, metadata: MarketMetadata, c
     }
   }
   
-  // Check category matches
   for (const cat of config.focusCategories) {
     if (metadata.category === cat || metadata.categoryTags.includes(cat)) {
       return true;
@@ -402,46 +385,38 @@ function calculateMatchConfidence(
   let score = 0;
   const reasons: string[] = [];
   
-  // Same subject = +30
   if (meta1.subject && meta1.subject === meta2.subject) {
     score += 30;
     reasons.push(`same subject: ${meta1.subject}`);
   }
   
-  // Same predicate = +30
   if (meta1.predicate && meta1.predicate === meta2.predicate) {
     score += 30;
     reasons.push(`same action: ${meta1.predicate}`);
   } else if (meta1.predicate && meta2.predicate) {
-    // Different predicates = significant penalty
     score -= 20;
     reasons.push(`different actions: ${meta1.predicate} vs ${meta2.predicate}`);
   }
   
-  // Same year = +15
   if (meta1.year && meta1.year === meta2.year) {
     score += 15;
     reasons.push(`same year: ${meta1.year}`);
   } else if (meta1.year && meta2.year && meta1.year !== meta2.year) {
-    // Different years = major penalty
     score -= 30;
     reasons.push(`different years: ${meta1.year} vs ${meta2.year}`);
   }
   
-  // Same category = +10
   if (meta1.category === meta2.category && meta1.category !== 'general') {
     score += 10;
     reasons.push(`same category: ${meta1.category}`);
   }
   
-  // Overlapping category tags = +5 per overlap
   const tagOverlap = meta1.categoryTags.filter(t => meta2.categoryTags.includes(t)).length;
   if (tagOverlap > 0) {
     score += Math.min(15, tagOverlap * 5);
     reasons.push(`${tagOverlap} shared tags`);
   }
   
-  // Token overlap check
   const tokens1 = new Set(m1.question.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2));
   const tokens2 = new Set(m2.question.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2));
   const intersection = [...tokens1].filter(t => tokens2.has(t)).length;
@@ -456,7 +431,6 @@ function calculateMatchConfidence(
     reasons.push(`moderate word overlap: ${(tokenOverlap * 100).toFixed(0)}%`);
   }
   
-  // Normalize score to 0-100
   score = Math.max(0, Math.min(100, score));
   
   const confidence: 'high' | 'medium' | 'low' = 
@@ -483,7 +457,6 @@ function findSemanticPairArbitrage(
   
   console.log(`Analyzing ${markets.length} eligible markets for semantic pairs`);
   
-  // Step 1: Bucket markets using structured metadata
   const bucketedMarkets: Record<string, ManifoldMarket[]> = {};
   
   for (const market of markets) {
@@ -499,121 +472,83 @@ function findSemanticPairArbitrage(
   
   console.log(`Created ${Object.keys(bucketedMarkets).length} structured buckets`);
   
-  // Sort buckets by priority (event_ buckets first, then subject_, etc.)
-  const sortedBuckets = Object.entries(bucketedMarkets)
-    .sort((a, b) => {
-      // Prioritize composite event buckets
-      if (a[0].startsWith('event_') && !b[0].startsWith('event_')) return -1;
-      if (!a[0].startsWith('event_') && b[0].startsWith('event_')) return 1;
-      // Then subject buckets
-      if (a[0].startsWith('subj_') && !b[0].startsWith('subj_')) return -1;
-      if (!a[0].startsWith('subj_') && b[0].startsWith('subj_')) return 1;
-      // Then by size (smaller = more focused)
-      return a[1].length - b[1].length;
-    });
-  
-  // Step 2: Compare within buckets
-  for (const [bucket, bucketMarkets] of sortedBuckets) {
-    if (bucketMarkets.length < 2 || bucketMarkets.length > 150) continue;
+  for (const [bucket, bucketMarkets] of Object.entries(bucketedMarkets)) {
+    if (bucketMarkets.length < 2 || bucketMarkets.length > 100) continue;
     
-    // Sort by liquidity within bucket
-    const sorted = [...bucketMarkets].sort((a, b) => 
-      (b.totalLiquidity || 0) - (a.totalLiquidity || 0)
-    );
-    
-    // Shuffle top portion for variety
-    const topN = Math.min(50, sorted.length);
-    const top = shuffleArray(sorted.slice(0, topN));
-    const rest = sorted.slice(topN);
-    const shuffled = [...top, ...rest];
-    
-    for (let i = 0; i < shuffled.length; i++) {
-      for (let j = i + 1; j < Math.min(shuffled.length, i + 40); j++) {
-        const m1 = shuffled[i];
-        const m2 = shuffled[j];
+    for (let i = 0; i < bucketMarkets.length; i++) {
+      for (let j = i + 1; j < bucketMarkets.length; j++) {
+        const m1 = bucketMarkets[i];
+        const m2 = bucketMarkets[j];
         
-        const pairKey = [m1.id, m2.id].sort().join(':');
+        const pairKey = [m1.id, m2.id].sort().join('_');
         if (processedPairs.has(pairKey)) continue;
         processedPairs.add(pairKey);
         
-        const meta1 = metadataMap.get(m1.id);
-        const meta2 = metadataMap.get(m2.id);
-        if (!meta1 || !meta2) continue;
-        
-        // Calculate structured match confidence
-        const matchResult = calculateMatchConfidence(m1, m2, meta1, meta2);
-        
-        // Skip low confidence matches unless they have very different probabilities
-        if (matchResult.confidence === 'low') continue;
+        const meta1 = metadataMap.get(m1.id)!;
+        const meta2 = metadataMap.get(m2.id)!;
         
         const p1 = m1.probability || 0.5;
         const p2 = m2.probability || 0.5;
         
         const threshold = calculateDynamicThreshold(m1, m2, config);
+        const sumProb = p1 + p2;
         
-        // For equivalent questions: arbitrage if buying YES in one + NO in other < 1
-        const yesNo = p1 + (1 - p2);
-        const noYes = (1 - p1) + p2;
-        const minCost = Math.min(yesNo, noYes);
-        
-        // Adjust threshold based on confidence
-        const confidenceMultiplier = 
-          matchResult.confidence === 'high' ? 1.0 :
-          matchResult.confidence === 'medium' ? 1.5 :
-          2.0;
-        
-        const adjustedThreshold = threshold * confidenceMultiplier;
-        
-        if (minCost < 1 - adjustedThreshold) {
-          const profitMargin = (1 - minCost) * 100;
-          const priceImpact = estimatePriceImpact(m1, 50) + estimatePriceImpact(m2, 50);
+        if (sumProb < 1 - threshold || sumProb > 1 + threshold) {
+          const { confidence, score, reason } = calculateMatchConfidence(m1, m2, meta1, meta2);
           
+          if (confidence === 'low' && score < 30) continue;
+          
+          const deviation = Math.abs(sumProb - 1);
+          const priceImpact = Math.max(
+            estimatePriceImpact(m1, 50),
+            estimatePriceImpact(m2, 50)
+          );
+          
+          const avgLiquidity = ((m1.totalLiquidity || 0) + (m2.totalLiquidity || 0)) / 2;
           const canonicalEvent = getCanonicalEventKey(meta1) || getCanonicalEventKey(meta2);
-          const categoryMatch = meta1.category === meta2.category && meta1.category !== 'general';
-          const avgCloseScore = (meta1.closeDateScore + meta2.closeDateScore) / 2;
           
           opportunities.push({
-            id: `sp_${m1.id}_${m2.id}`,
+            id: `sem_${m1.id}_${m2.id}`,
             type: 'semantic_pair',
             markets: [
-              { 
-                id: m1.id, 
-                question: m1.question, 
-                probability: p1, 
-                url: m1.url, 
-                liquidity: m1.totalLiquidity, 
-                volume: m1.volume, 
-                action: yesNo < noYes ? 'BUY_YES' : 'BUY_NO',
+              {
+                id: m1.id,
+                question: m1.question,
+                probability: p1,
+                url: `https://manifold.markets/${m1.creatorUsername}/${m1.id}`,
+                liquidity: m1.totalLiquidity,
+                volume: m1.volume,
+                action: sumProb > 1 ? 'BUY_NO' : 'BUY_YES',
                 closeTime: m1.closeTime,
                 category: meta1.category,
               },
-              { 
-                id: m2.id, 
-                question: m2.question, 
-                probability: p2, 
-                url: m2.url, 
-                liquidity: m2.totalLiquidity, 
-                volume: m2.volume, 
-                action: yesNo < noYes ? 'BUY_NO' : 'BUY_YES',
+              {
+                id: m2.id,
+                question: m2.question,
+                probability: p2,
+                url: `https://manifold.markets/${m2.creatorUsername}/${m2.id}`,
+                liquidity: m2.totalLiquidity,
+                volume: m2.volume,
+                action: sumProb > 1 ? 'BUY_NO' : 'BUY_YES',
                 closeTime: m2.closeTime,
                 category: meta2.category,
               },
             ],
-            expectedProfit: profitMargin * (1 - priceImpact),
-            maxLoss: 0,
-            expectedVariance: profitMargin * priceImpact,
+            expectedProfit: deviation * 100 * (1 - priceImpact),
+            maxLoss: deviation * 100 * priceImpact,
+            expectedVariance: deviation * 50,
             requiredCapital: 100,
-            riskLevel: profitMargin > 10 ? 'low' : profitMargin > 5 ? 'medium' : 'high',
-            description: `${matchResult.confidence.toUpperCase()} match: ${matchResult.reason} | ${(profitMargin).toFixed(1)}% spread`,
+            riskLevel: confidence === 'high' ? 'low' : confidence === 'medium' ? 'medium' : 'high',
+            description: `Semantic pair: "${m1.question.slice(0, 50)}..." vs "${m2.question.slice(0, 50)}..."`,
             status: 'pending',
             dynamicThreshold: threshold,
-            liquidityScore: (meta1.liquidityScore + meta2.liquidityScore) / 2,
-            similarityScore: matchResult.score / 100,
+            liquidityScore: avgLiquidity > 500 ? 80 : avgLiquidity > 100 ? 50 : 20,
+            similarityScore: score / 100,
             priceImpactEstimate: priceImpact,
-            matchReason: matchResult.reason,
-            confidence: matchResult.confidence,
-            closeDateScore: avgCloseScore,
-            categoryMatch,
+            matchReason: reason,
+            confidence,
+            closeDateScore: Math.max(meta1.closeDateScore, meta2.closeDateScore),
+            categoryMatch: meta1.category === meta2.category,
             canonicalEvent: canonicalEvent || undefined,
           });
         }
@@ -625,119 +560,104 @@ function findSemanticPairArbitrage(
 }
 
 function findExhaustiveSetArbitrage(
-  markets: ManifoldMarket[], 
+  markets: ManifoldMarket[],
   metadataMap: Map<string, MarketMetadata>,
   config: ScanConfig
 ): ArbitrageOpportunity[] {
   const opportunities: ArbitrageOpportunity[] = [];
-
-  // Include MULTIPLE_CHOICE markets
+  
   const multiChoiceMarkets = markets.filter(m => 
-    m.outcomeType === 'MULTIPLE_CHOICE' && m.answers && m.answers.length >= 2
+    m.outcomeType === 'MULTIPLE_CHOICE' && m.answers && m.answers.length > 1
   );
-
+  
   console.log(`Found ${multiChoiceMarkets.length} multiple choice markets`);
-
-  // Sort by liquidity and activity
-  const sorted = multiChoiceMarkets.sort((a, b) => {
-    const scoreA = (a.totalLiquidity || 0) + (a.volume24Hours || 0) * 2;
-    const scoreB = (b.totalLiquidity || 0) + (b.volume24Hours || 0) * 2;
-    return scoreB - scoreA;
-  });
-
-  for (const market of sorted) {
-    if ((market.totalLiquidity || 0) < config.minLiquidity) continue;
+  
+  for (const market of multiChoiceMarkets) {
+    if (!market.answers) continue;
     
-    const metadata = metadataMap.get(market.id);
-    if (!metadata) continue;
-
-    const totalProb = market.answers!.reduce((sum, a) => sum + a.probability, 0);
+    const totalProb = market.answers.reduce((sum, a) => sum + (a.probability || 0), 0);
     const threshold = calculateDynamicThreshold(market, undefined, config);
     
-    if (Math.abs(totalProb - 1) > threshold) {
+    if (totalProb < 1 - threshold || totalProb > 1 + threshold) {
       const deviation = Math.abs(totalProb - 1);
-      const profitMargin = deviation * 100;
       const priceImpact = estimatePriceImpact(market, 50);
-      
-      const marketDetails = market.answers!.map(a => ({
-        id: `${market.id}_${a.id}`,
-        question: `${market.question} → ${a.text}`,
-        probability: a.probability,
-        url: market.url,
-        liquidity: market.totalLiquidity,
-        volume: market.volume,
-        action: (totalProb > 1 ? 'BUY_NO' : 'BUY_YES') as 'BUY_YES' | 'BUY_NO',
-        closeTime: market.closeTime,
-        category: metadata.category,
-      }));
+      const metadata = metadataMap.get(market.id);
       
       opportunities.push({
-        id: `es_${market.id}`,
+        id: `exh_${market.id}`,
         type: 'exhaustive_incomplete',
-        markets: marketDetails,
-        expectedProfit: profitMargin * (1 - priceImpact),
-        maxLoss: 0,
-        expectedVariance: profitMargin * priceImpact,
+        markets: market.answers.map(a => ({
+          id: `${market.id}_${a.id}`,
+          question: `${market.question} - ${a.text}`,
+          probability: a.probability,
+          url: `https://manifold.markets/${market.creatorUsername}/${market.id}`,
+          liquidity: market.totalLiquidity,
+          volume: market.volume,
+          action: (totalProb > 1 ? 'BUY_NO' : 'BUY_YES') as 'BUY_YES' | 'BUY_NO',
+          closeTime: market.closeTime,
+          category: metadata?.category,
+        })),
+        expectedProfit: deviation * 100 * (1 - priceImpact),
+        maxLoss: deviation * 100 * priceImpact,
+        expectedVariance: deviation * 50,
         requiredCapital: 100,
-        riskLevel: profitMargin > 10 ? 'low' : profitMargin > 5 ? 'medium' : 'high',
-        description: totalProb < 1 
-          ? `Exhaustive set sums to ${(totalProb * 100).toFixed(1)}% (<100%)`
-          : `Exhaustive set sums to ${(totalProb * 100).toFixed(1)}% (>100%)`,
+        riskLevel: deviation > 0.1 ? 'low' : deviation > 0.05 ? 'medium' : 'high',
+        description: `Multi-choice "${market.question.slice(0, 60)}..." sums to ${(totalProb * 100).toFixed(1)}%`,
         status: 'pending',
         dynamicThreshold: threshold,
-        liquidityScore: metadata.liquidityScore,
+        liquidityScore: (market.totalLiquidity || 0) > 500 ? 80 : (market.totalLiquidity || 0) > 100 ? 50 : 20,
         priceImpactEstimate: priceImpact,
         confidence: deviation > 0.1 ? 'high' : deviation > 0.05 ? 'medium' : 'low',
-        closeDateScore: metadata.closeDateScore,
-        categoryMatch: true,
+        closeDateScore: metadata?.closeDateScore,
+        canonicalEvent: metadata ? (getCanonicalEventKey(metadata) || undefined) : undefined,
       });
     }
   }
-
+  
   return opportunities;
 }
 
 function findMultiMarketArbitrage(
-  markets: ManifoldMarket[], 
+  markets: ManifoldMarket[],
   metadataMap: Map<string, MarketMetadata>,
   config: ScanConfig
 ): ArbitrageOpportunity[] {
   const opportunities: ArbitrageOpportunity[] = [];
   
-  // Group markets by canonical event key
-  const groupedMarkets: Record<string, ManifoldMarket[]> = {};
+  const eventGroups: Record<string, ManifoldMarket[]> = {};
   
   for (const market of markets) {
-    if (market.outcomeType !== 'BINARY') continue;
-    
     const metadata = metadataMap.get(market.id);
     if (!metadata) continue;
     
     const eventKey = getCanonicalEventKey(metadata);
-    if (!eventKey) continue;
-    
-    if (!groupedMarkets[eventKey]) groupedMarkets[eventKey] = [];
-    groupedMarkets[eventKey].push(market);
+    if (eventKey) {
+      if (!eventGroups[eventKey]) eventGroups[eventKey] = [];
+      eventGroups[eventKey].push(market);
+    }
   }
   
-  for (const [groupKey, groupMarkets] of Object.entries(groupedMarkets)) {
-    if (groupMarkets.length < 2 || groupMarkets.length > 20) continue;
+  console.log(`Found ${Object.keys(eventGroups).length} canonical event groups`);
+  
+  for (const [groupKey, groupMarkets] of Object.entries(eventGroups)) {
+    if (groupMarkets.length < 3 || groupMarkets.length > 20) continue;
     
-    // Calculate total probability
     const totalProb = groupMarkets.reduce((sum, m) => sum + (m.probability || 0.5), 0);
-    const threshold = 0.03 * Math.sqrt(groupMarkets.length); // Scale sublinearly
+    const threshold = calculateDynamicThreshold(groupMarkets[0], undefined, config);
     
-    // Check if probabilities are inconsistent
-    if (Math.abs(totalProb - 1) > threshold) {
+    if (totalProb < 1 - threshold || totalProb > 1 + threshold) {
       const deviation = Math.abs(totalProb - 1);
-      const profitMargin = deviation * 100;
-      const avgLiquidity = groupMarkets.reduce((sum, m) => sum + (m.totalLiquidity || 0), 0) / groupMarkets.length;
-      const priceImpact = groupMarkets.reduce((sum, m) => sum + estimatePriceImpact(m, 50 / groupMarkets.length), 0);
+      const priceImpact = groupMarkets.reduce((max, m) => 
+        Math.max(max, estimatePriceImpact(m, 50)), 0
+      );
+      const avgLiquidity = groupMarkets.reduce((sum, m) => 
+        sum + (m.totalLiquidity || 0), 0
+      ) / groupMarkets.length;
       
       const firstMeta = metadataMap.get(groupMarkets[0].id);
       
       opportunities.push({
-        id: `mm_${groupKey}_${groupMarkets[0].id}`,
+        id: `multi_${groupKey}_${Date.now()}`,
         type: 'multi_market',
         markets: groupMarkets.map(m => {
           const meta = metadataMap.get(m.id);
@@ -745,7 +665,7 @@ function findMultiMarketArbitrage(
             id: m.id,
             question: m.question,
             probability: m.probability || 0.5,
-            url: m.url,
+            url: `https://manifold.markets/${m.creatorUsername}/${m.id}`,
             liquidity: m.totalLiquidity,
             volume: m.volume,
             action: (totalProb > 1 ? 'BUY_NO' : 'BUY_YES') as 'BUY_YES' | 'BUY_NO',
@@ -753,9 +673,9 @@ function findMultiMarketArbitrage(
             category: meta?.category,
           };
         }),
-        expectedProfit: profitMargin * (1 - priceImpact),
-        maxLoss: profitMargin * 0.1,
-        expectedVariance: profitMargin * priceImpact * 1.5,
+        expectedProfit: deviation * 100 * (1 - priceImpact),
+        maxLoss: deviation * 100 * priceImpact,
+        expectedVariance: deviation * 50 * 1.5,
         requiredCapital: 100 * groupMarkets.length,
         riskLevel: deviation > 0.15 ? 'low' : deviation > 0.08 ? 'medium' : 'high',
         description: `Multi-market "${groupKey}" (${groupMarkets.length} markets) sums to ${(totalProb * 100).toFixed(1)}%`,
@@ -773,9 +693,13 @@ function findMultiMarketArbitrage(
   return opportunities;
 }
 
-// ============= MARKET FETCHING (FULL PAGINATION) =============
+// ============= MARKET FETCHING (FULL PAGINATION - OPTIMIZED) =============
 
-async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
+async function fetchAllMarkets(
+  config: ScanConfig,
+  supabase: any,
+  lockId: string
+): Promise<ManifoldMarket[]> {
   const allMarkets: ManifoldMarket[] = [];
   const batchSize = 1000;
   let offset = 0;
@@ -783,12 +707,11 @@ async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
   const maxEmpty = 5;
   const seenIds = new Set<string>();
   
-  // Use cursor-based pagination with various sort orders
   const sortOptions = ['liquidity', 'newest', 'score', '24-hour-vol'];
+  let totalApiCalls = 0;
   
-  console.log(`Starting FULL market fetch (no caps, all market types)...`);
+  console.log(`Starting FULL market fetch (optimized for 350 req/min)...`);
   
-  // Fetch from multiple sort orders to get broader coverage
   for (const sortOrder of sortOptions) {
     offset = 0;
     consecutiveEmpty = 0;
@@ -797,11 +720,11 @@ async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
     console.log(`Fetching with sort: ${sortOrder}...`);
     
     while (consecutiveEmpty < maxEmpty) {
-      // Include all market types: binary, multiple choice, numeric, etc.
       const url = `https://api.manifold.markets/v0/search-markets?limit=${batchSize}&offset=${offset}&filter=open&sort=${sortOrder}`;
       
       try {
         const response = await fetch(url);
+        totalApiCalls++;
         
         if (!response.ok) {
           console.error(`API error: ${response.status}`);
@@ -818,7 +741,6 @@ async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
         
         consecutiveEmpty = 0;
         
-        // Deduplicate
         let newCount = 0;
         for (const market of markets) {
           if (!seenIds.has(market.id)) {
@@ -831,22 +753,30 @@ async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
         sortFetched += newCount;
         offset += batchSize;
         
+        // Update progress in database
+        const progress = Math.min(90, Math.floor((totalApiCalls / 40) * 100)); // Estimate ~40 calls for full scan
+        await supabase
+          .from('arbitrage_scan_locks')
+          .update({ 
+            progress,
+            markets_scanned: allMarkets.length 
+          })
+          .eq('id', lockId);
+        
         console.log(`[${sortOrder}] Fetched ${allMarkets.length} unique markets (${newCount} new this batch)`);
         
-        // If getting mostly duplicates, move to next sort order
         if (newCount < batchSize * 0.1 && offset > batchSize * 3) {
           console.log(`[${sortOrder}] Diminishing returns, moving to next sort order`);
           break;
         }
         
-        // Stop if we hit the API limit or have enough
         if (markets.length < batchSize * 0.3) {
           console.log(`[${sortOrder}] Partial batch received, likely near end`);
           break;
         }
         
-        // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Rate limiting - 350 req/min = ~171ms between requests
+        await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
         
       } catch (error) {
         console.error('Fetch error:', error);
@@ -857,22 +787,11 @@ async function fetchAllMarkets(config: ScanConfig): Promise<ManifoldMarket[]> {
     console.log(`[${sortOrder}] Total from this sort: ${sortFetched}`);
     
     // Small delay between sort orders
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
   }
   
-  console.log(`Finished fetching ${allMarkets.length} total unique markets`);
+  console.log(`Finished fetching ${allMarkets.length} total unique markets in ${totalApiCalls} API calls`);
   return allMarkets;
-}
-
-// ============= UTILS =============
-
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }
 
 // ============= MAIN HANDLER =============
@@ -897,6 +816,11 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
@@ -910,126 +834,204 @@ serve(async (req) => {
     if (action === 'scan') {
       console.log("Starting comprehensive arbitrage scan for user:", user.id);
 
-      const config: ScanConfig = {
-        minLiquidity: userConfig?.minLiquidity ?? 50,
-        minVolume: userConfig?.minVolume ?? 10,
-        baseThreshold: userConfig?.baseThreshold ?? 0.02,
-        dynamicThresholdEnabled: userConfig?.dynamicThresholdEnabled ?? true,
-        semanticMatchingEnabled: userConfig?.semanticMatchingEnabled ?? true,
-        dryRun: userConfig?.dryRun ?? true,
-        fullScan: userConfig?.fullScan ?? true, // Default to full scan now
-        maxMarkets: userConfig?.maxMarkets ?? 50000, // Effectively unlimited
-        includeAllMarketTypes: userConfig?.includeAllMarketTypes ?? true,
-        focusThemes: userConfig?.focusThemes ?? [],
-        focusCategories: userConfig?.focusCategories ?? [],
-        prioritizeNearClosing: userConfig?.prioritizeNearClosing ?? false,
-      };
+      // Check for existing active scan
+      const { data: activeScan } = await supabaseService
+        .from('arbitrage_scan_locks')
+        .select('*')
+        .eq('status', 'scanning')
+        .single();
 
-      console.log("Scan config:", config);
-
-      // Fetch ALL markets (no artificial cap)
-      const allMarkets = await fetchAllMarkets(config);
-      console.log(`Fetched ${allMarkets.length} total markets`);
-
-      // Extract metadata for all markets
-      const metadataMap = new Map<string, MarketMetadata>();
-      for (const market of allMarkets) {
-        metadataMap.set(market.id, extractMarketMetadata(market));
-      }
-      
-      // Filter tradeable markets
-      let tradeableMarkets = allMarkets.filter(m => isTradeable(m) && hasObjectiveResolution(m));
-      console.log(`${tradeableMarkets.length} tradeable markets with objective resolution`);
-      
-      // Apply focus filters if specified
-      if (config.focusThemes.length > 0 || config.focusCategories.length > 0) {
-        tradeableMarkets = tradeableMarkets.filter(m => {
-          const metadata = metadataMap.get(m.id);
-          return metadata && matchesFocusFilters(m, metadata, config);
-        });
-        console.log(`${tradeableMarkets.length} markets after focus filter`);
-      }
-      
-      // Apply minimum filters
-      const filteredMarkets = tradeableMarkets.filter(m => 
-        (m.totalLiquidity || 0) >= config.minLiquidity &&
-        (m.volume || 0) >= config.minVolume
-      );
-      console.log(`${filteredMarkets.length} markets meeting liquidity/volume requirements`);
-
-      // Find opportunities
-      const exhaustiveSetOpps = findExhaustiveSetArbitrage(filteredMarkets, metadataMap, config);
-      console.log(`Found ${exhaustiveSetOpps.length} exhaustive set opportunities`);
-      
-      const multiMarketOpps = findMultiMarketArbitrage(filteredMarkets, metadataMap, config);
-      console.log(`Found ${multiMarketOpps.length} multi-market opportunities`);
-      
-      let semanticPairOpps: ArbitrageOpportunity[] = [];
-      if (config.semanticMatchingEnabled) {
-        semanticPairOpps = findSemanticPairArbitrage(filteredMarkets, metadataMap, config);
-        console.log(`Found ${semanticPairOpps.length} semantic pair opportunities`);
+      if (activeScan && activeScan.user_id !== user.id) {
+        // Another user is scanning, queue this request
+        console.log("Another scan is active, queuing request");
+        return new Response(
+          JSON.stringify({ 
+            queued: true, 
+            queuePosition: 1,
+            message: "Another scan is in progress. You have been added to the queue." 
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
-      const allOpportunities = [...exhaustiveSetOpps, ...multiMarketOpps, ...semanticPairOpps];
-      
-      // Score and sort opportunities
-      const scoredOpportunities = allOpportunities.map(opp => {
-        let score = (opp.expectedProfit - opp.maxLoss) / (opp.expectedVariance + 1) * opp.liquidityScore / 100;
-        
-        // Boost high confidence matches
-        if (opp.confidence === 'high') score *= 1.5;
-        else if (opp.confidence === 'medium') score *= 1.0;
-        else score *= 0.5;
-        
-        // Boost if prioritizing near-closing
-        if (config.prioritizeNearClosing && opp.closeDateScore) {
-          score *= 1 + (opp.closeDateScore / 200);
+      // Clean up old completed scans (older than 1 hour)
+      await supabaseService
+        .from('arbitrage_scan_locks')
+        .delete()
+        .neq('status', 'scanning')
+        .lt('completed_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+      // Create scan lock
+      const { data: newLock, error: lockError } = await supabaseService
+        .from('arbitrage_scan_locks')
+        .insert({
+          user_id: user.id,
+          status: 'scanning',
+          progress: 0,
+          markets_scanned: 0,
+        })
+        .select()
+        .single();
+
+      if (lockError) {
+        if (lockError.code === '23505') { // Unique constraint violation
+          return new Response(
+            JSON.stringify({ 
+              queued: true, 
+              queuePosition: 1,
+              message: "Another scan just started. Please wait." 
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw lockError;
+      }
+
+      const lockId = newLock.id;
+
+      try {
+        const config: ScanConfig = {
+          minLiquidity: userConfig?.minLiquidity ?? 50,
+          minVolume: userConfig?.minVolume ?? 10,
+          baseThreshold: userConfig?.baseThreshold ?? 0.02,
+          dynamicThresholdEnabled: true, // Always enabled
+          semanticMatchingEnabled: true, // Always enabled
+          dryRun: false, // Never dry run
+          fullScan: userConfig?.fullScan ?? true,
+          maxMarkets: userConfig?.maxMarkets ?? 50000,
+          includeAllMarketTypes: userConfig?.includeAllMarketTypes ?? true,
+          focusThemes: userConfig?.focusThemes ?? [],
+          focusCategories: userConfig?.focusCategories ?? [],
+          prioritizeNearClosing: userConfig?.prioritizeNearClosing ?? false,
+        };
+
+        console.log("Scan config:", config);
+
+        // Fetch ALL markets with progress updates
+        const allMarkets = await fetchAllMarkets(config, supabaseService, lockId);
+        console.log(`Fetched ${allMarkets.length} total markets`);
+
+        // Update progress
+        await supabaseService
+          .from('arbitrage_scan_locks')
+          .update({ progress: 92, markets_scanned: allMarkets.length })
+          .eq('id', lockId);
+
+        // Extract metadata for all markets
+        const metadataMap = new Map<string, MarketMetadata>();
+        for (const market of allMarkets) {
+          metadataMap.set(market.id, extractMarketMetadata(market));
         }
         
-        // Boost category matches
-        if (opp.categoryMatch) score *= 1.1;
+        // Filter tradeable markets
+        let tradeableMarkets = allMarkets.filter(m => isTradeable(m) && hasObjectiveResolution(m));
+        console.log(`${tradeableMarkets.length} tradeable markets with objective resolution`);
         
-        return { ...opp, score };
-      });
-      
-      // Sort by score and limit output
-      const opportunities = scoredOpportunities
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 150)
-        .map(({ score, ...opp }) => opp);
+        // Apply focus filters if specified
+        if (config.focusThemes.length > 0 || config.focusCategories.length > 0) {
+          tradeableMarkets = tradeableMarkets.filter(m => {
+            const metadata = metadataMap.get(m.id);
+            return metadata && matchesFocusFilters(m, metadata, config);
+          });
+          console.log(`${tradeableMarkets.length} markets after focus filter`);
+        }
+        
+        // Apply minimum filters
+        const filteredMarkets = tradeableMarkets.filter(m => 
+          (m.totalLiquidity || 0) >= config.minLiquidity &&
+          (m.volume || 0) >= config.minVolume
+        );
+        console.log(`${filteredMarkets.length} markets meeting liquidity/volume requirements`);
 
-      // Separate by confidence for frontend
-      const highConfidence = opportunities.filter(o => o.confidence === 'high');
-      const mediumConfidence = opportunities.filter(o => o.confidence === 'medium');
-      const lowConfidence = opportunities.filter(o => o.confidence === 'low');
+        // Update progress
+        await supabaseService
+          .from('arbitrage_scan_locks')
+          .update({ progress: 95 })
+          .eq('id', lockId);
 
-      console.log(`Returning ${opportunities.length} opportunities (${highConfidence.length} high, ${mediumConfidence.length} medium, ${lowConfidence.length} low confidence)`);
+        // Find opportunities
+        const exhaustiveSetOpps = findExhaustiveSetArbitrage(filteredMarkets, metadataMap, config);
+        console.log(`Found ${exhaustiveSetOpps.length} exhaustive set opportunities`);
+        
+        const multiMarketOpps = findMultiMarketArbitrage(filteredMarkets, metadataMap, config);
+        console.log(`Found ${multiMarketOpps.length} multi-market opportunities`);
+        
+        const semanticPairOpps = findSemanticPairArbitrage(filteredMarkets, metadataMap, config);
+        console.log(`Found ${semanticPairOpps.length} semantic pair opportunities`);
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          marketsScanned: allMarkets.length,
-          tradeableMarkets: tradeableMarkets.length,
-          filteredMarkets: filteredMarkets.length,
-          opportunities,
-          opportunitiesByConfidence: {
-            high: highConfidence.length,
-            medium: mediumConfidence.length,
-            low: lowConfidence.length,
-          },
-          scanConfig: config,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+        const allOpportunities = [...exhaustiveSetOpps, ...multiMarketOpps, ...semanticPairOpps];
+        
+        // Score and sort opportunities
+        const scoredOpportunities = allOpportunities.map(opp => {
+          let score = (opp.expectedProfit - opp.maxLoss) / (opp.expectedVariance + 1) * opp.liquidityScore / 100;
+          
+          if (opp.confidence === 'high') score *= 1.5;
+          else if (opp.confidence === 'medium') score *= 1.0;
+          else score *= 0.5;
+          
+          if (config.prioritizeNearClosing && opp.closeDateScore) {
+            score *= 1 + (opp.closeDateScore / 200);
+          }
+          
+          if (opp.categoryMatch) score *= 1.1;
+          
+          return { ...opp, score };
+        });
+        
+        const opportunities = scoredOpportunities
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 150)
+          .map(({ score, ...opp }) => opp);
+
+        const highConfidence = opportunities.filter(o => o.confidence === 'high');
+        const mediumConfidence = opportunities.filter(o => o.confidence === 'medium');
+        const lowConfidence = opportunities.filter(o => o.confidence === 'low');
+
+        console.log(`Returning ${opportunities.length} opportunities (${highConfidence.length} high, ${mediumConfidence.length} medium, ${lowConfidence.length} low confidence)`);
+
+        // Mark scan as completed
+        await supabaseService
+          .from('arbitrage_scan_locks')
+          .update({ 
+            status: 'completed', 
+            progress: 100,
+            completed_at: new Date().toISOString() 
+          })
+          .eq('id', lockId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            lockId,
+            marketsScanned: allMarkets.length,
+            tradeableMarkets: tradeableMarkets.length,
+            filteredMarkets: filteredMarkets.length,
+            opportunities,
+            opportunitiesByConfidence: {
+              high: highConfidence.length,
+              medium: mediumConfidence.length,
+              low: lowConfidence.length,
+            },
+            scanConfig: config,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+
+      } catch (scanError) {
+        // Mark scan as failed
+        await supabaseService
+          .from('arbitrage_scan_locks')
+          .update({ 
+            status: 'failed', 
+            completed_at: new Date().toISOString() 
+          })
+          .eq('id', lockId);
+        throw scanError;
+      }
     }
 
     if (action === 'execute') {
       console.log("Executing arbitrage opportunity:", opportunityId);
-
-      const supabaseService = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
 
       const { data: settings } = await supabaseService
         .from('user_manifold_settings')
@@ -1046,7 +1048,6 @@ serve(async (req) => {
 
       let apiKey: string;
       
-      // Check if API key is encrypted (contains ':' separator) or legacy plaintext
       if (settings.manifold_api_key.includes(':')) {
         const encryptionKey = Deno.env.get("API_ENCRYPTION_KEY");
         if (!encryptionKey) {
@@ -1074,15 +1075,12 @@ serve(async (req) => {
 
         apiKey = new TextDecoder().decode(decrypted);
       } else {
-        // Legacy plaintext API key
         console.log("Using legacy plaintext API key");
         apiKey = settings.manifold_api_key;
       }
 
-      // Execute trades for each market
       const results = [];
       for (const market of markets) {
-        // Fetch current market state
         const marketResponse = await fetch(`https://api.manifold.markets/v0/market/${market.id}`);
         if (!marketResponse.ok) {
           results.push({ market: market.id, success: false, error: 'Failed to fetch market' });
@@ -1092,14 +1090,12 @@ serve(async (req) => {
         const currentMarket = await marketResponse.json();
         const currentProb = currentMarket.probability;
         
-        // Check slippage
         const slippage = Math.abs(currentProb - market.probability);
         if (slippage > 0.05) {
           results.push({ market: market.id, success: false, error: `Slippage too high: ${(slippage * 100).toFixed(1)}%` });
           continue;
         }
         
-        // Place bet
         const outcome = market.action === 'BUY_YES' ? 'YES' : 'NO';
         const betAmount = market.optimalBet || 50;
         const limitProb = market.action === 'BUY_YES' 
@@ -1128,8 +1124,7 @@ serve(async (req) => {
           results.push({ market: market.id, success: true, bet: betData });
         }
         
-        // Rate limiting between bets
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
       }
 
       const successCount = results.filter(r => r.success).length;
