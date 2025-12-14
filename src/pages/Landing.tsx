@@ -6,9 +6,38 @@ import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Cl
 import trumpPortrait from '@/assets/trump-portrait.png';
 import trumpSignature from '@/assets/trump-signature.png';
 export default function Landing() {
-  return <div className="min-h-screen">
+  return <div className="min-h-screen relative overflow-hidden">
+      {/* Ultra Trump Background Images */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -right-20 top-20 w-[500px] h-auto opacity-[0.08] rotate-6" 
+        />
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute left-0 bottom-10 w-[600px] h-auto opacity-[0.05] -rotate-3" 
+        />
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -left-32 top-1/3 w-[400px] h-auto opacity-[0.04] -rotate-12" 
+        />
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute right-10 bottom-1/3 w-[300px] h-auto opacity-[0.06] rotate-12" 
+        />
+      </div>
+      
       {/* Hero Section */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
+      <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute right-20 top-1/2 -translate-y-1/2 h-8 opacity-20" 
+        />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
@@ -43,11 +72,16 @@ export default function Landing() {
         </div>
       </header>
 
-      <main>
+      <main className="relative z-10">
         {/* Hero */}
-        <section className="container mx-auto px-4 py-20 text-center space-y-8">
+        <section className="container mx-auto px-4 py-20 text-center space-y-8 relative">
+          <img 
+            src={trumpPortrait} 
+            alt="" 
+            className="absolute right-0 top-0 w-48 h-48 opacity-10 rounded-full hidden lg:block" 
+          />
           <div className="animate-slide-up">
-            <img alt="ManiFed Chairman" src="/lovable-uploads/628bdfd0-48bf-45b8-b87b-952e8ff91924.png" className="w-32 h-32 mx-auto border-primary/50 mb-6 border-0 rounded-3xl shadow-none" />
+            <img alt="ManiFed Chairman" src="/lovable-uploads/628bdfd0-48bf-45b8-b87b-952e8ff91924.png" className="w-40 h-40 mx-auto border-primary/50 mb-6 border-0 rounded-3xl shadow-xl" />
             <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
               Welcome to <span className="text-gradient">ManiFed</span>
             </h1>
@@ -56,7 +90,7 @@ export default function Landing() {
               borrowing, and financial services for the prediction market ecosystem.
             </p>
             <p className="text-lg font-semibold text-primary mb-4">Make America 🇺🇸 like Manifold 💰without mods 🤮. DONALD J. TRUMP</p>
-            <img alt="Signature" className="h-10 mx-auto mb-8 opacity-70" src="/lovable-uploads/ac153951-a664-4258-a2a1-69968ea06607.png" />
+            <img alt="Signature" className="h-14 mx-auto mb-8 opacity-80" src={trumpSignature} />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=signup">
                 <Button variant="glow" size="xl" className="gap-2">
@@ -73,7 +107,12 @@ export default function Landing() {
         </section>
 
         {/* Products */}
-        <section className="container mx-auto px-4 py-16">
+        <section className="container mx-auto px-4 py-16 relative">
+          <img 
+            src={trumpSignature} 
+            alt="" 
+            className="absolute -left-10 top-20 w-[250px] opacity-[0.04] rotate-12" 
+          />
           <div className="text-center mb-12 animate-slide-up">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Our <span className="text-gradient">Products</span>

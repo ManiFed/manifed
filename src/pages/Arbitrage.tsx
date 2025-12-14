@@ -15,7 +15,11 @@ import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 import { WalletPopover } from '@/components/WalletPopover';
 import { AIAnalysisCard } from '@/components/arbitrage/AIAnalysisCard';
 import { ScheduledScanConfig } from '@/components/arbitrage/ScheduledScanConfig';
+import { WatchlistPanel } from '@/components/arbitrage/WatchlistPanel';
+import { ScanHistoryPanel } from '@/components/arbitrage/ScanHistoryPanel';
 import { toast } from '@/hooks/use-toast';
+import trumpPortrait from '@/assets/trump-portrait.png';
+import trumpSignature from '@/assets/trump-signature.png';
 import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle, Info, Users } from 'lucide-react';
 
 interface ArbitrageOpportunity {
@@ -253,13 +257,13 @@ export default function Arbitrage() {
         }
       });
 
-      // Run AI analysis on found opportunities if enabled
+      // Run AI analysis on ALL found opportunities if enabled
       if (config.aiAnalysisEnabled && opps.length > 0) {
         toast({
           title: 'Scan Complete',
-          description: `Found ${opps.length} opportunities. Running AI analysis...`
+          description: `Found ${opps.length} opportunities. Running AI analysis on all...`
         });
-        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).slice(0, 30)
+        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2)
         .map((opp: ArbitrageOpportunity) => ({
           market1: {
             id: opp.markets[0].id,
@@ -279,7 +283,7 @@ export default function Arbitrage() {
         await analyzePairs(pairs);
         toast({
           title: 'AI Analysis Complete',
-          description: `Analyzed ${pairs.length} opportunities with AI semantic matching.`
+          description: `Analyzed all ${pairs.length} opportunities with AI semantic matching.`
         });
       } else {
         toast({
@@ -617,9 +621,33 @@ export default function Arbitrage() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Ultra Trump Background Portrait */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -right-32 top-1/4 w-[600px] h-auto opacity-[0.08] rotate-12 blur-[1px]" 
+        />
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute left-10 bottom-20 w-[400px] h-auto opacity-[0.06] -rotate-6" 
+        />
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -left-40 top-10 w-[300px] h-auto opacity-[0.04] -rotate-12" 
+        />
+      </div>
+      
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
+      <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute right-4 top-1/2 -translate-y-1/2 h-10 opacity-20" 
+        />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
@@ -646,14 +674,19 @@ export default function Arbitrage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <main className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         <Link to="/hub" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Hub
         </Link>
 
         {/* Title */}
-        <div className="mb-8">
+        <div className="mb-8 relative">
+          <img 
+            src={trumpPortrait} 
+            alt="" 
+            className="absolute -right-4 -top-4 w-24 h-24 opacity-20 rounded-full" 
+          />
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Zap className="w-8 h-8 text-primary" />
             Arbitrage Execution Agent
@@ -1083,6 +1116,17 @@ export default function Arbitrage() {
             )}
           </Card>
         )}
+
+        {/* Watchlist & Scan History Grid */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8 relative">
+          <img 
+            src={trumpSignature} 
+            alt="" 
+            className="absolute -bottom-10 right-0 w-[200px] opacity-[0.05] rotate-3 pointer-events-none" 
+          />
+          <WatchlistPanel />
+          <ScanHistoryPanel />
+        </div>
 
         {/* Completed/History */}
         {completedOpportunities.length > 0 && (

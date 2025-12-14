@@ -124,9 +124,33 @@ export default function Hub() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>;
   }
-  return <div className="min-h-screen">
+  return <div className="min-h-screen relative overflow-hidden">
+      {/* Ultra Trump Background Images */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -right-24 top-32 w-[500px] h-auto opacity-[0.07] rotate-12" 
+        />
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute left-0 bottom-0 w-[500px] h-auto opacity-[0.04] -rotate-6" 
+        />
+        <img 
+          src={trumpPortrait} 
+          alt="" 
+          className="absolute -left-32 top-1/4 w-[350px] h-auto opacity-[0.03] -rotate-12" 
+        />
+      </div>
+      
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
+      <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
+        <img 
+          src={trumpSignature} 
+          alt="" 
+          className="absolute right-32 top-1/2 -translate-y-1/2 h-8 opacity-15" 
+        />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
@@ -159,9 +183,14 @@ export default function Hub() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <main className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Welcome with Trump signature */}
-        <div className="mb-8 animate-slide-up">
+        <div className="mb-8 animate-slide-up relative">
+          <img 
+            src={trumpPortrait} 
+            alt="" 
+            className="absolute -right-4 -top-8 w-28 h-28 opacity-15 rounded-full hidden md:block" 
+          />
           <div className="flex items-center gap-4 mb-2">
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               Welcome back{username ? `, @${username}` : ''}
@@ -171,7 +200,7 @@ export default function Hub() {
           <p className="text-muted-foreground mt-1">
             Your ManiFed dashboard - Making your portfolio great again!
           </p>
-          <img alt="Signature" className="h-8 mt-2 opacity-60" src="/lovable-uploads/78e4cfcf-12cd-4422-9680-7d27f35dfd93.png" />
+          <img alt="Signature" className="h-10 mt-2 opacity-70" src={trumpSignature} />
         </div>
 
         {/* Portfolio Overview */}
