@@ -21,7 +21,6 @@ import { toast } from '@/hooks/use-toast';
 import trumpPortrait from '@/assets/trump-portrait.png';
 import trumpSignature from '@/assets/trump-signature.png';
 import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle, Info, Users } from 'lucide-react';
-
 interface ArbitrageOpportunity {
   id: string;
   type: 'mutually_exclusive' | 'exhaustive_incomplete' | 'semantic_pair' | 'multi_market';
@@ -55,7 +54,6 @@ interface ArbitrageOpportunity {
   categoryMatch?: boolean;
   canonicalEvent?: string;
 }
-
 interface ScanStats {
   marketsScanned: number;
   tradeableMarkets: number;
@@ -70,7 +68,6 @@ interface ScanStats {
     low: number;
   };
 }
-
 interface ScanConfig {
   minLiquidity: number;
   minVolume: number;
@@ -83,7 +80,6 @@ interface ScanConfig {
   focusCategories: string[];
   prioritizeNearClosing: boolean;
 }
-
 const CATEGORY_OPTIONS = [{
   value: 'politics_us',
   label: 'US Politics'
@@ -112,9 +108,11 @@ const CATEGORY_OPTIONS = [{
   value: 'economics',
   label: 'Economics'
 }];
-
-const InfoTooltip = ({ content }: { content: string }) => (
-  <TooltipProvider>
+const InfoTooltip = ({
+  content
+}: {
+  content: string;
+}) => <TooltipProvider>
     <Tooltip>
       <TooltipTrigger asChild>
         <Info className="w-4 h-4 text-muted-foreground cursor-help inline-block ml-1" />
@@ -123,9 +121,7 @@ const InfoTooltip = ({ content }: { content: string }) => (
         <p className="text-sm">{content}</p>
       </TooltipContent>
     </Tooltip>
-  </TooltipProvider>
-);
-
+  </TooltipProvider>;
 export default function Arbitrage() {
   const {
     balance,
@@ -180,18 +176,21 @@ export default function Arbitrage() {
   // Collapsible sections
   const [showQuestionable, setShowQuestionable] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
-
   useEffect(() => {
     checkApiKey();
   }, []);
-
   const checkApiKey = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: {
+        user
+      }
+    } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
+    const {
+      data
+    } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
   };
-
   const handleScan = async () => {
     if (!hasApiKey) {
       toast({
@@ -201,16 +200,17 @@ export default function Arbitrage() {
       });
       return;
     }
-
     setIsScanning(true);
     setScanProgress(0);
     setScanStatus('Initializing scan...');
     setOpportunities([]);
     clearAnalysis();
-
     try {
       const focusThemesArray = config.focusThemes.split(',').map(t => t.trim()).filter(t => t.length > 0);
-      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('arbitrage-scan', {
         body: {
           action: 'scan',
           config: {
@@ -229,17 +229,13 @@ export default function Arbitrage() {
           }
         }
       });
-
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-
       if (data.historyId) {
         scanHistoryIdRef.current = data.historyId;
       }
-
       setScanProgress(100);
       setScanStatus('Scan complete!');
-
       const opps = data.opportunities || [];
       setOpportunities(opps);
       setStats({
@@ -263,8 +259,7 @@ export default function Arbitrage() {
           title: 'Scan Complete',
           description: `Found ${opps.length} opportunities. Running AI analysis on all...`
         });
-        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2)
-        .map((opp: ArbitrageOpportunity) => ({
+        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).map((opp: ArbitrageOpportunity) => ({
           market1: {
             id: opp.markets[0].id,
             question: opp.markets[0].question,
@@ -304,14 +299,12 @@ export default function Arbitrage() {
       setScanStatus('');
     }
   };
-
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
     if (confirmingTrade !== opportunity.id) {
       setConfirmingTrade(opportunity.id);
       return;
     }
     setConfirmingTrade(null);
-
     if (opportunity.requiredCapital > balance) {
       toast({
         title: 'Insufficient Balance',
@@ -322,7 +315,10 @@ export default function Arbitrage() {
     }
     setIsExecuting(opportunity.id);
     try {
-      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('arbitrage-scan', {
         body: {
           action: 'execute',
           opportunityId: opportunity.id,
@@ -361,7 +357,6 @@ export default function Arbitrage() {
       setIsExecuting(null);
     }
   };
-
   const skipOpportunity = (opportunityId: string, reason: string) => {
     setOpportunities(prev => prev.map(opp => opp.id === opportunityId ? {
       ...opp,
@@ -369,19 +364,16 @@ export default function Arbitrage() {
       reason
     } : opp));
   };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
   };
-
   const toggleCategory = (category: string) => {
     setConfig(c => ({
       ...c,
       focusCategories: c.focusCategories.includes(category) ? c.focusCategories.filter(cat => cat !== category) : [...c.focusCategories, category]
     }));
   };
-
   const getTypeLabel = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
       case 'mutually_exclusive':
@@ -394,7 +386,6 @@ export default function Arbitrage() {
         return 'Multi-Market';
     }
   };
-
   const getTypeIcon = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
       case 'mutually_exclusive':
@@ -407,7 +398,6 @@ export default function Arbitrage() {
         return <BarChart3 className="w-3 h-3" />;
     }
   };
-
   const getRiskBadge = (risk: ArbitrageOpportunity['riskLevel']) => {
     switch (risk) {
       case 'low':
@@ -418,7 +408,6 @@ export default function Arbitrage() {
         return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />High Risk</Badge>;
     }
   };
-
   const getConfidenceBadge = (confidence?: 'high' | 'medium' | 'low') => {
     switch (confidence) {
       case 'high':
@@ -431,7 +420,6 @@ export default function Arbitrage() {
         return null;
     }
   };
-
   const formatCloseDate = (closeTime?: number) => {
     if (!closeTime) return null;
     const now = new Date();
@@ -464,11 +452,8 @@ export default function Arbitrage() {
     const aiInvalid = aiAnalysis && !aiAnalysis.isValidArbitrage;
     return (o.confidence === 'low' || aiInvalid) && !highConfidenceOpps.includes(o) && !questionableOpps.includes(o);
   });
-
   const completedOpportunities = opportunities.filter(o => o.status === 'completed' || o.status === 'failed' || o.status === 'skipped');
-
-  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => (
-    <Card key={opp.id} className="bg-secondary/20 border-border/50">
+  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => <Card key={opp.id} className="bg-secondary/20 border-border/50">
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
@@ -516,8 +501,7 @@ export default function Arbitrage() {
 
         {/* Markets involved */}
         <div className="space-y-2 mb-4">
-          {opp.markets.slice(0, 4).map(market => (
-            <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
+          {opp.markets.slice(0, 4).map(market => <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
               <Badge variant={market.action === 'BUY_YES' ? 'success' : 'destructive'} className="shrink-0 text-xs">
                 {market.action === 'BUY_YES' ? <><ArrowUpRight className="w-3 h-3 mr-1" />YES</> : <><ArrowDownRight className="w-3 h-3 mr-1" />NO</>}
               </Badge>
@@ -535,64 +519,50 @@ export default function Arbitrage() {
               <a href={market.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline shrink-0">
                 <ExternalLink className="w-4 h-4" />
               </a>
-            </div>
-          ))}
-          {opp.markets.length > 4 && (
-            <p className="text-xs text-muted-foreground text-center">
+            </div>)}
+          {opp.markets.length > 4 && <p className="text-xs text-muted-foreground text-center">
               +{opp.markets.length - 4} more markets
-            </p>
-          )}
+            </p>}
         </div>
 
         {/* AI Analysis Card */}
-        {config.aiAnalysisEnabled && opp.markets.length >= 2 && (
-          <div className="mb-4">
-            <AIAnalysisCard 
-              opportunityId={opp.id} 
-              market1={{ id: opp.markets[0].id, question: opp.markets[0].question }}
-              market2={{ id: opp.markets[1].id, question: opp.markets[1].question }}
-              opportunityType={opp.type}
-              expectedProfit={opp.expectedProfit}
-              analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)}
-              explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]}
-              isLoadingExplanation={loadingExplanation === opp.id}
-              onRequestExplanation={async () => {
-                setLoadingExplanation(opp.id);
-                await explainOpportunity({
-                  market1: {
-                    id: opp.markets[0].id,
-                    question: opp.markets[0].question,
-                    probability: opp.markets[0].probability,
-                    liquidity: opp.markets[0].liquidity
-                  },
-                  market2: {
-                    id: opp.markets[1].id,
-                    question: opp.markets[1].question,
-                    probability: opp.markets[1].probability,
-                    liquidity: opp.markets[1].liquidity
-                  },
-                  expectedProfit: opp.expectedProfit,
-                  matchReason: opp.matchReason
-                });
-                setLoadingExplanation(null);
-              }}
-              onSubmitFeedback={async (isValid, reason) => {
-                const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
-                return await submitFeedback(
-                  opp.id,
-                  { id: opp.markets[0].id, question: opp.markets[0].question },
-                  { id: opp.markets[1].id, question: opp.markets[1].question },
-                  opp.type,
-                  opp.expectedProfit,
-                  isValid,
-                  reason,
-                  analysis?.confidence,
-                  analysis?.reason
-                );
-              }}
-            />
-          </div>
-        )}
+        {config.aiAnalysisEnabled && opp.markets.length >= 2 && <div className="mb-4">
+            <AIAnalysisCard opportunityId={opp.id} market1={{
+          id: opp.markets[0].id,
+          question: opp.markets[0].question
+        }} market2={{
+          id: opp.markets[1].id,
+          question: opp.markets[1].question
+        }} opportunityType={opp.type} expectedProfit={opp.expectedProfit} analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)} explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]} isLoadingExplanation={loadingExplanation === opp.id} onRequestExplanation={async () => {
+          setLoadingExplanation(opp.id);
+          await explainOpportunity({
+            market1: {
+              id: opp.markets[0].id,
+              question: opp.markets[0].question,
+              probability: opp.markets[0].probability,
+              liquidity: opp.markets[0].liquidity
+            },
+            market2: {
+              id: opp.markets[1].id,
+              question: opp.markets[1].question,
+              probability: opp.markets[1].probability,
+              liquidity: opp.markets[1].liquidity
+            },
+            expectedProfit: opp.expectedProfit,
+            matchReason: opp.matchReason
+          });
+          setLoadingExplanation(null);
+        }} onSubmitFeedback={async (isValid, reason) => {
+          const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
+          return await submitFeedback(opp.id, {
+            id: opp.markets[0].id,
+            question: opp.markets[0].question
+          }, {
+            id: opp.markets[1].id,
+            question: opp.markets[1].question
+          }, opp.type, opp.expectedProfit, isValid, reason, analysis?.confidence, analysis?.reason);
+        }} />
+          </div>}
 
         {/* Actions */}
         <div className="flex gap-2 justify-end">
@@ -600,54 +570,24 @@ export default function Arbitrage() {
             <XCircle className="w-4 h-4 mr-1" />
             Skip
           </Button>
-          <Button 
-            size="sm" 
-            onClick={() => executeOpportunity(opp)} 
-            disabled={isExecuting === opp.id}
-            className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}
-          >
-            {isExecuting === opp.id ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : confirmingTrade === opp.id ? (
-              <AlertTriangle className="w-4 h-4" />
-            ) : (
-              <Zap className="w-4 h-4" />
-            )}
+          <Button size="sm" onClick={() => executeOpportunity(opp)} disabled={isExecuting === opp.id} className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}>
+            {isExecuting === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmingTrade === opp.id ? <AlertTriangle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
             {confirmingTrade === opp.id ? 'Confirm?' : 'Execute'}
           </Button>
         </div>
       </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="min-h-screen relative overflow-hidden">
+    </Card>;
+  return <div className="min-h-screen relative overflow-hidden">
       {/* Ultra Trump Background Portrait */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <img 
-          src={trumpPortrait} 
-          alt="" 
-          className="absolute -right-32 top-1/4 w-[600px] h-auto opacity-[0.08] rotate-12 blur-[1px]" 
-        />
-        <img 
-          src={trumpSignature} 
-          alt="" 
-          className="absolute left-10 bottom-20 w-[400px] h-auto opacity-[0.06] -rotate-6" 
-        />
-        <img 
-          src={trumpPortrait} 
-          alt="" 
-          className="absolute -left-40 top-10 w-[300px] h-auto opacity-[0.04] -rotate-12" 
-        />
+        <img src={trumpPortrait} alt="" className="absolute -right-32 top-1/4 w-[600px] h-auto opacity-[0.08] rotate-12 blur-[1px]" />
+        <img src={trumpSignature} alt="" className="absolute left-10 bottom-20 w-[400px] h-auto opacity-[0.06] -rotate-6" />
+        <img src={trumpPortrait} alt="" className="absolute -left-40 top-10 w-[300px] h-auto opacity-[0.04] -rotate-12" />
       </div>
       
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <img 
-          src={trumpSignature} 
-          alt="" 
-          className="absolute right-4 top-1/2 -translate-y-1/2 h-10 opacity-20" 
-        />
+        <img src={trumpSignature} alt="" className="absolute right-4 top-1/2 -translate-y-1/2 h-10 opacity-20" />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
@@ -682,11 +622,7 @@ export default function Arbitrage() {
 
         {/* Title */}
         <div className="mb-8 relative">
-          <img 
-            src={trumpPortrait} 
-            alt="" 
-            className="absolute -right-4 -top-4 w-24 h-24 opacity-20 rounded-full" 
-          />
+          
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Zap className="w-8 h-8 text-primary" />
             Arbitrage Execution Agent
@@ -805,8 +741,7 @@ export default function Arbitrage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!hasApiKey && (
-              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+            {!hasApiKey && <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4" />
                   API Key Required
@@ -814,12 +749,10 @@ export default function Arbitrage() {
                 <p className="text-sm mt-1">
                   Please <Link to="/settings" className="underline">connect your Manifold account</Link> to use the arbitrage scanner.
                 </p>
-              </div>
-            )}
+              </div>}
 
             {/* Configuration Panel */}
-            {showConfig && (
-              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
+            {showConfig && <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-primary" />
                   Scanner Configuration
@@ -832,13 +765,10 @@ export default function Arbitrage() {
                       Min Liquidity (M$)
                       <InfoTooltip content="Minimum liquidity a market must have to be considered. Higher values reduce risk but may miss opportunities." />
                     </Label>
-                    <Input 
-                      id="minLiquidity" 
-                      type="number" 
-                      value={config.minLiquidity} 
-                      onChange={e => setConfig(c => ({ ...c, minLiquidity: parseInt(e.target.value) || 0 }))} 
-                      className="bg-background" 
-                    />
+                    <Input id="minLiquidity" type="number" value={config.minLiquidity} onChange={e => setConfig(c => ({
+                  ...c,
+                  minLiquidity: parseInt(e.target.value) || 0
+                }))} className="bg-background" />
                   </div>
                   
                   <div className="space-y-2">
@@ -846,13 +776,10 @@ export default function Arbitrage() {
                       Min Volume (M$)
                       <InfoTooltip content="Minimum trading volume required. Markets with higher volume are more liquid and easier to trade." />
                     </Label>
-                    <Input 
-                      id="minVolume" 
-                      type="number" 
-                      value={config.minVolume} 
-                      onChange={e => setConfig(c => ({ ...c, minVolume: parseInt(e.target.value) || 0 }))} 
-                      className="bg-background" 
-                    />
+                    <Input id="minVolume" type="number" value={config.minVolume} onChange={e => setConfig(c => ({
+                  ...c,
+                  minVolume: parseInt(e.target.value) || 0
+                }))} className="bg-background" />
                   </div>
                   
                   <div className="space-y-2">
@@ -860,14 +787,10 @@ export default function Arbitrage() {
                       Base Threshold (%)
                       <InfoTooltip content="Minimum profit margin required before considering an opportunity. Adjusted dynamically based on liquidity and other factors." />
                     </Label>
-                    <Input 
-                      id="baseThreshold" 
-                      type="number" 
-                      step="0.5" 
-                      value={config.baseThreshold} 
-                      onChange={e => setConfig(c => ({ ...c, baseThreshold: parseFloat(e.target.value) || 2 }))} 
-                      className="bg-background" 
-                    />
+                    <Input id="baseThreshold" type="number" step="0.5" value={config.baseThreshold} onChange={e => setConfig(c => ({
+                  ...c,
+                  baseThreshold: parseFloat(e.target.value) || 2
+                }))} className="bg-background" />
                   </div>
                 </div>
 
@@ -884,13 +807,10 @@ export default function Arbitrage() {
                       Custom Themes/Entities (comma-separated)
                       <InfoTooltip content="Enter names, topics, or keywords to focus on. Example: 'Trump, Bitcoin, Super Bowl'" />
                     </Label>
-                    <Textarea 
-                      id="focusThemes" 
-                      placeholder="e.g., Trump, AI, Bitcoin, Super Bowl" 
-                      value={config.focusThemes} 
-                      onChange={e => setConfig(c => ({ ...c, focusThemes: e.target.value }))} 
-                      className="bg-background h-20" 
-                    />
+                    <Textarea id="focusThemes" placeholder="e.g., Trump, AI, Bitcoin, Super Bowl" value={config.focusThemes} onChange={e => setConfig(c => ({
+                  ...c,
+                  focusThemes: e.target.value
+                }))} className="bg-background h-20" />
                     <p className="text-xs text-muted-foreground">
                       Leave empty to scan all markets. Add terms to focus on specific topics.
                     </p>
@@ -902,16 +822,9 @@ export default function Arbitrage() {
                       <InfoTooltip content="Click categories to toggle. Selected categories limit the scan to those topics only." />
                     </Label>
                     <div className="flex flex-wrap gap-2">
-                      {CATEGORY_OPTIONS.map(cat => (
-                        <Badge 
-                          key={cat.value} 
-                          variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'} 
-                          className="cursor-pointer transition-colors" 
-                          onClick={() => toggleCategory(cat.value)}
-                        >
+                      {CATEGORY_OPTIONS.map(cat => <Badge key={cat.value} variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'} className="cursor-pointer transition-colors" onClick={() => toggleCategory(cat.value)}>
                           {cat.label}
-                        </Badge>
-                      ))}
+                        </Badge>)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Click to toggle. No selection = all categories.
@@ -922,11 +835,10 @@ export default function Arbitrage() {
                 {/* Toggles */}
                 <div className="flex flex-wrap gap-6 pt-2">
                   <div className="flex items-center gap-2">
-                    <Switch 
-                      id="includeAllTypes" 
-                      checked={config.includeAllMarketTypes} 
-                      onCheckedChange={checked => setConfig(c => ({ ...c, includeAllMarketTypes: checked }))} 
-                    />
+                    <Switch id="includeAllTypes" checked={config.includeAllMarketTypes} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  includeAllMarketTypes: checked
+                }))} />
                     <Label htmlFor="includeAllTypes" className="text-sm flex items-center gap-1">
                       <Activity className="w-3 h-3" />
                       All Market Types
@@ -935,11 +847,10 @@ export default function Arbitrage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch 
-                      id="prioritizeNearClosing" 
-                      checked={config.prioritizeNearClosing} 
-                      onCheckedChange={checked => setConfig(c => ({ ...c, prioritizeNearClosing: checked }))} 
-                    />
+                    <Switch id="prioritizeNearClosing" checked={config.prioritizeNearClosing} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  prioritizeNearClosing: checked
+                }))} />
                     <Label htmlFor="prioritizeNearClosing" className="text-sm flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       Prioritize Near-Closing
@@ -948,11 +859,10 @@ export default function Arbitrage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch 
-                      id="aiAnalysis" 
-                      checked={config.aiAnalysisEnabled} 
-                      onCheckedChange={checked => setConfig(c => ({ ...c, aiAnalysisEnabled: checked }))} 
-                    />
+                    <Switch id="aiAnalysis" checked={config.aiAnalysisEnabled} onCheckedChange={checked => setConfig(c => ({
+                  ...c,
+                  aiAnalysisEnabled: checked
+                }))} />
                     <Label htmlFor="aiAnalysis" className="text-sm flex items-center gap-1">
                       <Brain className="w-3 h-3" />
                       AI Analysis
@@ -960,34 +870,26 @@ export default function Arbitrage() {
                     </Label>
                   </div>
                 </div>
-              </div>
-            )}
+              </div>}
 
             <div className="flex flex-wrap items-center gap-4">
               <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
-                {isScanning ? (
-                  <>
+                {isScanning ? <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Scanning All Markets...
-                  </>
-                ) : (
-                  <>
+                  </> : <>
                     <Play className="w-4 h-4" />
                     Start Full Scan
-                  </>
-                )}
+                  </>}
               </Button>
 
-              {stats.lastScanTime && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {stats.lastScanTime && <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   Last scan: {new Date(stats.lastScanTime).toLocaleTimeString()}
-                </div>
-              )}
+                </div>}
             </div>
 
-            {isScanning && (
-              <div className="space-y-2">
+            {isScanning && <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -996,8 +898,7 @@ export default function Arbitrage() {
                   <span>{scanProgress}%</span>
                 </div>
                 <Progress value={scanProgress} className="h-2" />
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
 
@@ -1021,23 +922,18 @@ export default function Arbitrage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {highConfidenceOpps.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+            {highConfidenceOpps.length === 0 ? <div className="text-center py-12 text-muted-foreground">
                 <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No high confidence opportunities found.</p>
                 <p className="text-sm mt-1">Run a scan or check the questionable section below.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
+              </div> : <div className="space-y-4">
                 {highConfidenceOpps.map(opp => renderOpportunityCard(opp, false))}
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
 
         {/* Questionable Opportunities (Collapsible) */}
-        {questionableOpps.length > 0 && (
-          <Card className="glass mb-8 border-warning/20">
+        {questionableOpps.length > 0 && <Card className="glass mb-8 border-warning/20">
             <CardHeader className="cursor-pointer" onClick={() => setShowQuestionable(!showQuestionable)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-warning">
@@ -1053,19 +949,15 @@ export default function Arbitrage() {
                 Medium confidence matches - may be valid but need human verification
               </CardDescription>
             </CardHeader>
-            {showQuestionable && (
-              <CardContent>
+            {showQuestionable && <CardContent>
                 <div className="space-y-4">
                   {questionableOpps.map(opp => renderOpportunityCard(opp))}
                 </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+              </CardContent>}
+          </Card>}
 
         {/* Invalid Opportunities (Collapsed by default) */}
-        {invalidOpps.length > 0 && (
-          <Card className="glass mb-8 border-destructive/20">
+        {invalidOpps.length > 0 && <Card className="glass mb-8 border-destructive/20">
             <CardHeader className="cursor-pointer" onClick={() => setShowInvalid(!showInvalid)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-muted-foreground">
@@ -1083,54 +975,40 @@ export default function Arbitrage() {
                 Low confidence or AI-rejected opportunities (different events, timeframes, or semantics)
               </CardDescription>
             </CardHeader>
-            {showInvalid && (
-              <CardContent>
+            {showInvalid && <CardContent>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {invalidOpps.map(opp => {
-                    const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
-                    return (
-                      <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+              const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
+              return <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-muted-foreground line-through">{opp.description}</p>
                             <div className="mt-1 space-y-1">
-                              {opp.confidence === 'low' && (
-                                <p className="text-xs text-destructive">
+                              {opp.confidence === 'low' && <p className="text-xs text-destructive">
                                   Low structural confidence: {opp.matchReason}
-                                </p>
-                              )}
-                              {analysis && !analysis.isValidArbitrage && (
-                                <p className="text-xs text-destructive">
+                                </p>}
+                              {analysis && !analysis.isValidArbitrage && <p className="text-xs text-destructive">
                                   AI: {analysis.reason} ({(analysis.confidence * 100).toFixed(0)}% confidence)
-                                </p>
-                              )}
+                                </p>}
                             </div>
                           </div>
                           <Badge variant="destructive" className="shrink-0">Invalid</Badge>
                         </div>
-                      </div>
-                    );
-                  })}
+                      </div>;
+            })}
                 </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+              </CardContent>}
+          </Card>}
 
         {/* Watchlist & Scan History Grid */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8 relative">
-          <img 
-            src={trumpSignature} 
-            alt="" 
-            className="absolute -bottom-10 right-0 w-[200px] opacity-[0.05] rotate-3 pointer-events-none" 
-          />
+          <img src={trumpSignature} alt="" className="absolute -bottom-10 right-0 w-[200px] opacity-[0.05] rotate-3 pointer-events-none" />
           <WatchlistPanel />
           <ScanHistoryPanel />
         </div>
 
         {/* Completed/History */}
-        {completedOpportunities.length > 0 && (
-          <Card className="glass">
+        {completedOpportunities.length > 0 && <Card className="glass">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
@@ -1139,15 +1017,7 @@ export default function Arbitrage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {completedOpportunities.map(opp => (
-                  <div 
-                    key={opp.id} 
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      opp.status === 'completed' ? 'bg-success/10' : 
-                      opp.status === 'failed' ? 'bg-destructive/10' : 
-                      'bg-secondary/30'
-                    }`}
-                  >
+                {completedOpportunities.map(opp => <div key={opp.id} className={`flex items-center justify-between p-3 rounded-lg ${opp.status === 'completed' ? 'bg-success/10' : opp.status === 'failed' ? 'bg-destructive/10' : 'bg-secondary/30'}`}>
                     <div className="flex items-center gap-3">
                       {opp.status === 'completed' && <CheckCircle className="w-5 h-5 text-success" />}
                       {opp.status === 'failed' && <XCircle className="w-5 h-5 text-destructive" />}
@@ -1162,13 +1032,10 @@ export default function Arbitrage() {
                       {opp.status === 'failed' && <span className="text-destructive text-sm">Failed</span>}
                       {opp.status === 'skipped' && <span className="text-muted-foreground text-sm">Skipped</span>}
                     </div>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
       </main>
-    </div>
-  );
+    </div>;
 }
