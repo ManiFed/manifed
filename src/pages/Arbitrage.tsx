@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 import { WalletPopover } from '@/components/WalletPopover';
 import { AIAnalysisCard } from '@/components/arbitrage/AIAnalysisCard';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Eye, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle, Info, Users } from 'lucide-react';
+
 interface ArbitrageOpportunity {
   id: string;
   type: 'mutually_exclusive' | 'exhaustive_incomplete' | 'semantic_pair' | 'multi_market';
@@ -48,6 +50,7 @@ interface ArbitrageOpportunity {
   categoryMatch?: boolean;
   canonicalEvent?: string;
 }
+
 interface ScanStats {
   marketsScanned: number;
   tradeableMarkets: number;
@@ -62,13 +65,11 @@ interface ScanStats {
     low: number;
   };
 }
+
 interface ScanConfig {
   minLiquidity: number;
   minVolume: number;
   baseThreshold: number;
-  dynamicThresholdEnabled: boolean;
-  semanticMatchingEnabled: boolean;
-  dryRun: boolean;
   fullScan: boolean;
   maxMarkets: number;
   aiAnalysisEnabled: boolean;
@@ -77,6 +78,7 @@ interface ScanConfig {
   focusCategories: string[];
   prioritizeNearClosing: boolean;
 }
+
 const CATEGORY_OPTIONS = [{
   value: 'politics_us',
   label: 'US Politics'
@@ -105,6 +107,20 @@ const CATEGORY_OPTIONS = [{
   value: 'economics',
   label: 'Economics'
 }];
+
+const InfoTooltip = ({ content }: { content: string }) => (
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Info className="w-4 h-4 text-muted-foreground cursor-help inline-block ml-1" />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p className="text-sm">{content}</p>
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 export default function Arbitrage() {
   const {
     balance,
@@ -122,6 +138,9 @@ export default function Arbitrage() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState<string>('');
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [stats, setStats] = useState<ScanStats>({
     marketsScanned: 0,
@@ -144,9 +163,6 @@ export default function Arbitrage() {
     minLiquidity: 50,
     minVolume: 10,
     baseThreshold: 2,
-    dynamicThresholdEnabled: true,
-    semanticMatchingEnabled: true,
-    dryRun: true,
     fullScan: true,
     maxMarkets: 50000,
     aiAnalysisEnabled: true,
@@ -155,25 +171,79 @@ export default function Arbitrage() {
     focusCategories: [],
     prioritizeNearClosing: false
   });
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scanLockIdRef = useRef<string | null>(null);
 
   // Collapsible sections
   const [showQuestionable, setShowQuestionable] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
+
   useEffect(() => {
     checkApiKey();
-  }, []);
-  const checkApiKey = async () => {
-    const {
-      data: {
-        user
+    checkActiveScan();
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
       }
-    } = await supabase.auth.getUser();
+    };
+  }, []);
+
+  const checkApiKey = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const {
-      data
-    } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
+    const { data } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
   };
+
+  const checkActiveScan = async () => {
+    // Check if there's an active scan running
+    const { data: activeScan } = await supabase
+      .from('arbitrage_scan_locks')
+      .select('*')
+      .eq('status', 'scanning')
+      .single();
+
+    if (activeScan) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (activeScan.user_id === user?.id) {
+        // Resume progress tracking for own scan
+        setIsScanning(true);
+        scanLockIdRef.current = activeScan.id;
+        setScanProgress(activeScan.progress || 0);
+        startProgressPolling(activeScan.id);
+      } else {
+        // Another user is scanning
+        setQueuePosition(1);
+      }
+    }
+  };
+
+  const startProgressPolling = (lockId: string) => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = setInterval(async () => {
+      const { data } = await supabase
+        .from('arbitrage_scan_locks')
+        .select('progress, markets_scanned, status')
+        .eq('id', lockId)
+        .single();
+
+      if (data) {
+        setScanProgress(data.progress || 0);
+        if (data.markets_scanned) {
+          setScanStatus(`Scanned ${data.markets_scanned.toLocaleString()} markets...`);
+        }
+        if (data.status === 'completed' || data.status === 'failed') {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+          }
+        }
+      }
+    }, 500);
+  };
+
   const handleScan = async () => {
     if (!hasApiKey) {
       toast({
@@ -183,24 +253,26 @@ export default function Arbitrage() {
       });
       return;
     }
+
     setIsScanning(true);
+    setScanProgress(0);
+    setScanStatus('Initializing scan...');
     setOpportunities([]);
     clearAnalysis();
+    setQueuePosition(null);
+
     try {
       const focusThemesArray = config.focusThemes.split(',').map(t => t.trim()).filter(t => t.length > 0);
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('arbitrage-scan', {
+      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
         body: {
           action: 'scan',
           config: {
             minLiquidity: config.minLiquidity,
             minVolume: config.minVolume,
             baseThreshold: config.baseThreshold / 100,
-            dynamicThresholdEnabled: config.dynamicThresholdEnabled,
-            semanticMatchingEnabled: config.semanticMatchingEnabled,
-            dryRun: config.dryRun,
+            dynamicThresholdEnabled: true,
+            semanticMatchingEnabled: true,
+            dryRun: false,
             fullScan: config.fullScan,
             maxMarkets: config.maxMarkets,
             includeAllMarketTypes: config.includeAllMarketTypes,
@@ -210,8 +282,30 @@ export default function Arbitrage() {
           }
         }
       });
+
       if (error) throw error;
+      
+      if (data.queued) {
+        setQueuePosition(data.queuePosition || 1);
+        toast({
+          title: 'Added to Queue',
+          description: `Another scan is in progress. You are #${data.queuePosition} in line.`
+        });
+        // Poll for when it's our turn
+        pollQueuePosition();
+        return;
+      }
+
+      if (data.lockId) {
+        scanLockIdRef.current = data.lockId;
+        startProgressPolling(data.lockId);
+      }
+
       if (data.error) throw new Error(data.error);
+
+      setScanProgress(100);
+      setScanStatus('Scan complete!');
+
       const opps = data.opportunities || [];
       setOpportunities(opps);
       setStats({
@@ -235,7 +329,7 @@ export default function Arbitrage() {
           title: 'Scan Complete',
           description: `Found ${opps.length} opportunities. Running AI analysis...`
         });
-        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).slice(0, 30) // Limit AI analysis to top 30
+        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).slice(0, 30)
         .map((opp: ArbitrageOpportunity) => ({
           market1: {
             id: opp.markets[0].id,
@@ -272,21 +366,38 @@ export default function Arbitrage() {
       });
     } finally {
       setIsScanning(false);
+      setScanProgress(0);
+      setScanStatus('');
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
     }
   };
+
+  const pollQueuePosition = async () => {
+    const pollInterval = setInterval(async () => {
+      const { data: activeScan } = await supabase
+        .from('arbitrage_scan_locks')
+        .select('*')
+        .eq('status', 'scanning')
+        .single();
+
+      if (!activeScan) {
+        // No active scan, we can proceed
+        clearInterval(pollInterval);
+        setQueuePosition(null);
+        handleScan();
+      }
+    }, 2000);
+  };
+
   const executeOpportunity = async (opportunity: ArbitrageOpportunity) => {
     if (confirmingTrade !== opportunity.id) {
       setConfirmingTrade(opportunity.id);
       return;
     }
     setConfirmingTrade(null);
-    if (config.dryRun) {
-      toast({
-        title: 'Dry Run Mode',
-        description: 'Disable dry run mode in settings to execute real trades.'
-      });
-      return;
-    }
+
     if (opportunity.requiredCapital > balance) {
       toast({
         title: 'Insufficient Balance',
@@ -297,10 +408,7 @@ export default function Arbitrage() {
     }
     setIsExecuting(opportunity.id);
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('arbitrage-scan', {
+      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
         body: {
           action: 'execute',
           opportunityId: opportunity.id,
@@ -339,6 +447,7 @@ export default function Arbitrage() {
       setIsExecuting(null);
     }
   };
+
   const skipOpportunity = (opportunityId: string, reason: string) => {
     setOpportunities(prev => prev.map(opp => opp.id === opportunityId ? {
       ...opp,
@@ -346,16 +455,19 @@ export default function Arbitrage() {
       reason
     } : opp));
   };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
   };
+
   const toggleCategory = (category: string) => {
     setConfig(c => ({
       ...c,
       focusCategories: c.focusCategories.includes(category) ? c.focusCategories.filter(cat => cat !== category) : [...c.focusCategories, category]
     }));
   };
+
   const getTypeLabel = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
       case 'mutually_exclusive':
@@ -368,6 +480,7 @@ export default function Arbitrage() {
         return 'Multi-Market';
     }
   };
+
   const getTypeIcon = (type: ArbitrageOpportunity['type']) => {
     switch (type) {
       case 'mutually_exclusive':
@@ -380,6 +493,7 @@ export default function Arbitrage() {
         return <BarChart3 className="w-3 h-3" />;
     }
   };
+
   const getRiskBadge = (risk: ArbitrageOpportunity['riskLevel']) => {
     switch (risk) {
       case 'low':
@@ -390,6 +504,7 @@ export default function Arbitrage() {
         return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />High Risk</Badge>;
     }
   };
+
   const getConfidenceBadge = (confidence?: 'high' | 'medium' | 'low') => {
     switch (confidence) {
       case 'high':
@@ -402,9 +517,9 @@ export default function Arbitrage() {
         return null;
     }
   };
+
   const formatCloseDate = (closeTime?: number) => {
     if (!closeTime) return null;
-    const date = new Date(closeTime);
     const now = new Date();
     const daysUntil = Math.ceil((closeTime - now.getTime()) / (1000 * 60 * 60 * 24));
     if (daysUntil <= 7) return <span className="text-destructive">{daysUntil}d</span>;
@@ -435,8 +550,11 @@ export default function Arbitrage() {
     const aiInvalid = aiAnalysis && !aiAnalysis.isValidArbitrage;
     return (o.confidence === 'low' || aiInvalid) && !highConfidenceOpps.includes(o) && !questionableOpps.includes(o);
   });
+
   const completedOpportunities = opportunities.filter(o => o.status === 'completed' || o.status === 'failed' || o.status === 'skipped');
-  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => <Card key={opp.id} className="bg-secondary/20 border-border/50">
+
+  const renderOpportunityCard = (opp: ArbitrageOpportunity, showConfidence = true) => (
+    <Card key={opp.id} className="bg-secondary/20 border-border/50">
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
@@ -484,7 +602,8 @@ export default function Arbitrage() {
 
         {/* Markets involved */}
         <div className="space-y-2 mb-4">
-          {opp.markets.slice(0, 4).map(market => <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
+          {opp.markets.slice(0, 4).map(market => (
+            <div key={market.id} className="flex items-start gap-2 p-2 rounded bg-background/50 text-sm">
               <Badge variant={market.action === 'BUY_YES' ? 'success' : 'destructive'} className="shrink-0 text-xs">
                 {market.action === 'BUY_YES' ? <><ArrowUpRight className="w-3 h-3 mr-1" />YES</> : <><ArrowDownRight className="w-3 h-3 mr-1" />NO</>}
               </Badge>
@@ -502,50 +621,64 @@ export default function Arbitrage() {
               <a href={market.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline shrink-0">
                 <ExternalLink className="w-4 h-4" />
               </a>
-            </div>)}
-          {opp.markets.length > 4 && <p className="text-xs text-muted-foreground text-center">
+            </div>
+          ))}
+          {opp.markets.length > 4 && (
+            <p className="text-xs text-muted-foreground text-center">
               +{opp.markets.length - 4} more markets
-            </p>}
+            </p>
+          )}
         </div>
 
         {/* AI Analysis Card */}
-        {config.aiAnalysisEnabled && opp.markets.length >= 2 && <div className="mb-4">
-            <AIAnalysisCard opportunityId={opp.id} market1={{
-          id: opp.markets[0].id,
-          question: opp.markets[0].question
-        }} market2={{
-          id: opp.markets[1].id,
-          question: opp.markets[1].question
-        }} opportunityType={opp.type} expectedProfit={opp.expectedProfit} analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)} explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]} isLoadingExplanation={loadingExplanation === opp.id} onRequestExplanation={async () => {
-          setLoadingExplanation(opp.id);
-          await explainOpportunity({
-            market1: {
-              id: opp.markets[0].id,
-              question: opp.markets[0].question,
-              probability: opp.markets[0].probability,
-              liquidity: opp.markets[0].liquidity
-            },
-            market2: {
-              id: opp.markets[1].id,
-              question: opp.markets[1].question,
-              probability: opp.markets[1].probability,
-              liquidity: opp.markets[1].liquidity
-            },
-            expectedProfit: opp.expectedProfit,
-            matchReason: opp.matchReason
-          });
-          setLoadingExplanation(null);
-        }} onSubmitFeedback={async (isValid, reason) => {
-          const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
-          return await submitFeedback(opp.id, {
-            id: opp.markets[0].id,
-            question: opp.markets[0].question
-          }, {
-            id: opp.markets[1].id,
-            question: opp.markets[1].question
-          }, opp.type, opp.expectedProfit, isValid, reason, analysis?.confidence, analysis?.reason);
-        }} />
-          </div>}
+        {config.aiAnalysisEnabled && opp.markets.length >= 2 && (
+          <div className="mb-4">
+            <AIAnalysisCard 
+              opportunityId={opp.id} 
+              market1={{ id: opp.markets[0].id, question: opp.markets[0].question }}
+              market2={{ id: opp.markets[1].id, question: opp.markets[1].question }}
+              opportunityType={opp.type}
+              expectedProfit={opp.expectedProfit}
+              analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)}
+              explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]}
+              isLoadingExplanation={loadingExplanation === opp.id}
+              onRequestExplanation={async () => {
+                setLoadingExplanation(opp.id);
+                await explainOpportunity({
+                  market1: {
+                    id: opp.markets[0].id,
+                    question: opp.markets[0].question,
+                    probability: opp.markets[0].probability,
+                    liquidity: opp.markets[0].liquidity
+                  },
+                  market2: {
+                    id: opp.markets[1].id,
+                    question: opp.markets[1].question,
+                    probability: opp.markets[1].probability,
+                    liquidity: opp.markets[1].liquidity
+                  },
+                  expectedProfit: opp.expectedProfit,
+                  matchReason: opp.matchReason
+                });
+                setLoadingExplanation(null);
+              }}
+              onSubmitFeedback={async (isValid, reason) => {
+                const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
+                return await submitFeedback(
+                  opp.id,
+                  { id: opp.markets[0].id, question: opp.markets[0].question },
+                  { id: opp.markets[1].id, question: opp.markets[1].question },
+                  opp.type,
+                  opp.expectedProfit,
+                  isValid,
+                  reason,
+                  analysis?.confidence,
+                  analysis?.reason
+                );
+              }}
+            />
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 justify-end">
@@ -553,14 +686,28 @@ export default function Arbitrage() {
             <XCircle className="w-4 h-4 mr-1" />
             Skip
           </Button>
-          <Button size="sm" onClick={() => executeOpportunity(opp)} disabled={isExecuting === opp.id} className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}>
-            {isExecuting === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmingTrade === opp.id ? <AlertTriangle className="w-4 h-4" /> : config.dryRun ? <Eye className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-            {confirmingTrade === opp.id ? 'Confirm?' : config.dryRun ? 'Preview' : 'Execute'}
+          <Button 
+            size="sm" 
+            onClick={() => executeOpportunity(opp)} 
+            disabled={isExecuting === opp.id}
+            className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+          >
+            {isExecuting === opp.id ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : confirmingTrade === opp.id ? (
+              <AlertTriangle className="w-4 h-4" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {confirmingTrade === opp.id ? 'Confirm?' : 'Execute'}
           </Button>
         </div>
       </CardContent>
-    </Card>;
-  return <div className="min-h-screen">
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
@@ -715,7 +862,8 @@ export default function Arbitrage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!hasApiKey && <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+            {!hasApiKey && (
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4" />
                   API Key Required
@@ -723,10 +871,12 @@ export default function Arbitrage() {
                 <p className="text-sm mt-1">
                   Please <Link to="/settings" className="underline">connect your Manifold account</Link> to use the arbitrage scanner.
                 </p>
-              </div>}
+              </div>
+            )}
 
             {/* Configuration Panel */}
-            {showConfig && <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
+            {showConfig && (
+              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50 space-y-6">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-primary" />
                   Scanner Configuration
@@ -735,27 +885,46 @@ export default function Arbitrage() {
                 {/* Basic Settings */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="minLiquidity">Min Liquidity (M$)</Label>
-                    <Input id="minLiquidity" type="number" value={config.minLiquidity} onChange={e => setConfig(c => ({
-                  ...c,
-                  minLiquidity: parseInt(e.target.value) || 0
-                }))} className="bg-background" />
+                    <Label htmlFor="minLiquidity" className="flex items-center">
+                      Min Liquidity (M$)
+                      <InfoTooltip content="Minimum liquidity a market must have to be considered. Higher values reduce risk but may miss opportunities." />
+                    </Label>
+                    <Input 
+                      id="minLiquidity" 
+                      type="number" 
+                      value={config.minLiquidity} 
+                      onChange={e => setConfig(c => ({ ...c, minLiquidity: parseInt(e.target.value) || 0 }))} 
+                      className="bg-background" 
+                    />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="minVolume">Min Volume (M$)</Label>
-                    <Input id="minVolume" type="number" value={config.minVolume} onChange={e => setConfig(c => ({
-                  ...c,
-                  minVolume: parseInt(e.target.value) || 0
-                }))} className="bg-background" />
+                    <Label htmlFor="minVolume" className="flex items-center">
+                      Min Volume (M$)
+                      <InfoTooltip content="Minimum trading volume required. Markets with higher volume are more liquid and easier to trade." />
+                    </Label>
+                    <Input 
+                      id="minVolume" 
+                      type="number" 
+                      value={config.minVolume} 
+                      onChange={e => setConfig(c => ({ ...c, minVolume: parseInt(e.target.value) || 0 }))} 
+                      className="bg-background" 
+                    />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="baseThreshold">Base Threshold (%)</Label>
-                    <Input id="baseThreshold" type="number" step="0.5" value={config.baseThreshold} onChange={e => setConfig(c => ({
-                  ...c,
-                  baseThreshold: parseFloat(e.target.value) || 2
-                }))} className="bg-background" />
+                    <Label htmlFor="baseThreshold" className="flex items-center">
+                      Base Threshold (%)
+                      <InfoTooltip content="Minimum profit margin required before considering an opportunity. Adjusted dynamically based on liquidity and other factors." />
+                    </Label>
+                    <Input 
+                      id="baseThreshold" 
+                      type="number" 
+                      step="0.5" 
+                      value={config.baseThreshold} 
+                      onChange={e => setConfig(c => ({ ...c, baseThreshold: parseFloat(e.target.value) || 2 }))} 
+                      className="bg-background" 
+                    />
                   </div>
                 </div>
 
@@ -764,25 +933,42 @@ export default function Arbitrage() {
                   <h5 className="text-sm font-medium flex items-center gap-2">
                     <Filter className="w-4 h-4" />
                     Focus Filters (Optional)
+                    <InfoTooltip content="Limit the scan to specific topics or categories. Leave empty to scan all markets." />
                   </h5>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="focusThemes">Custom Themes/Entities (comma-separated)</Label>
-                    <Textarea id="focusThemes" placeholder="e.g., Trump, AI, Bitcoin, Super Bowl" value={config.focusThemes} onChange={e => setConfig(c => ({
-                  ...c,
-                  focusThemes: e.target.value
-                }))} className="bg-background h-20" />
+                    <Label htmlFor="focusThemes" className="flex items-center">
+                      Custom Themes/Entities (comma-separated)
+                      <InfoTooltip content="Enter names, topics, or keywords to focus on. Example: 'Trump, Bitcoin, Super Bowl'" />
+                    </Label>
+                    <Textarea 
+                      id="focusThemes" 
+                      placeholder="e.g., Trump, AI, Bitcoin, Super Bowl" 
+                      value={config.focusThemes} 
+                      onChange={e => setConfig(c => ({ ...c, focusThemes: e.target.value }))} 
+                      className="bg-background h-20" 
+                    />
                     <p className="text-xs text-muted-foreground">
                       Leave empty to scan all markets. Add terms to focus on specific topics.
                     </p>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>Category Filters</Label>
+                    <Label className="flex items-center">
+                      Category Filters
+                      <InfoTooltip content="Click categories to toggle. Selected categories limit the scan to those topics only." />
+                    </Label>
                     <div className="flex flex-wrap gap-2">
-                      {CATEGORY_OPTIONS.map(cat => <Badge key={cat.value} variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'} className="cursor-pointer transition-colors" onClick={() => toggleCategory(cat.value)}>
+                      {CATEGORY_OPTIONS.map(cat => (
+                        <Badge 
+                          key={cat.value} 
+                          variant={config.focusCategories.includes(cat.value) ? 'default' : 'outline'} 
+                          className="cursor-pointer transition-colors" 
+                          onClick={() => toggleCategory(cat.value)}
+                        >
                           {cat.label}
-                        </Badge>)}
+                        </Badge>
+                      ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Click to toggle. No selection = all categories.
@@ -793,96 +979,94 @@ export default function Arbitrage() {
                 {/* Toggles */}
                 <div className="flex flex-wrap gap-6 pt-2">
                   <div className="flex items-center gap-2">
-                    <Switch id="dynamicThreshold" checked={config.dynamicThresholdEnabled} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  dynamicThresholdEnabled: checked
-                }))} />
-                    <Label htmlFor="dynamicThreshold" className="text-sm">Dynamic Thresholds</Label>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Switch id="semanticMatching" checked={config.semanticMatchingEnabled} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  semanticMatchingEnabled: checked
-                }))} />
-                    <Label htmlFor="semanticMatching" className="text-sm">Semantic Matching</Label>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Switch id="includeAllTypes" checked={config.includeAllMarketTypes} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  includeAllMarketTypes: checked
-                }))} />
+                    <Switch 
+                      id="includeAllTypes" 
+                      checked={config.includeAllMarketTypes} 
+                      onCheckedChange={checked => setConfig(c => ({ ...c, includeAllMarketTypes: checked }))} 
+                    />
                     <Label htmlFor="includeAllTypes" className="text-sm flex items-center gap-1">
                       <Activity className="w-3 h-3" />
                       All Market Types
+                      <InfoTooltip content="Include binary, multiple choice, numeric, and other market types in the scan." />
                     </Label>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch id="prioritizeNearClosing" checked={config.prioritizeNearClosing} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  prioritizeNearClosing: checked
-                }))} />
+                    <Switch 
+                      id="prioritizeNearClosing" 
+                      checked={config.prioritizeNearClosing} 
+                      onCheckedChange={checked => setConfig(c => ({ ...c, prioritizeNearClosing: checked }))} 
+                    />
                     <Label htmlFor="prioritizeNearClosing" className="text-sm flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       Prioritize Near-Closing
+                      <InfoTooltip content="Boost the score of markets closing soon. Useful for finding time-sensitive opportunities." />
                     </Label>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Switch id="dryRun" checked={config.dryRun} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  dryRun: checked
-                }))} />
-                    <Label htmlFor="dryRun" className="text-sm flex items-center gap-1">
-                      <Eye className="w-3 h-3" />
-                      Dry Run Mode
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Switch id="aiAnalysis" checked={config.aiAnalysisEnabled} onCheckedChange={checked => setConfig(c => ({
-                  ...c,
-                  aiAnalysisEnabled: checked
-                }))} />
+                    <Switch 
+                      id="aiAnalysis" 
+                      checked={config.aiAnalysisEnabled} 
+                      onCheckedChange={checked => setConfig(c => ({ ...c, aiAnalysisEnabled: checked }))} 
+                    />
                     <Label htmlFor="aiAnalysis" className="text-sm flex items-center gap-1">
                       <Brain className="w-3 h-3" />
                       AI Analysis
+                      <InfoTooltip content="Use AI to validate semantic equivalence of market pairs. Helps filter out false positives." />
                     </Label>
                   </div>
                 </div>
-              </div>}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-4">
-              <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
-                {isScanning ? <>
+              <Button onClick={handleScan} disabled={isScanning || !hasApiKey || queuePosition !== null} className="gap-2" size="lg">
+                {isScanning ? (
+                  <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Scanning All Markets...
-                  </> : <>
+                  </>
+                ) : queuePosition !== null ? (
+                  <>
+                    <Users className="w-4 h-4" />
+                    In Queue (#{queuePosition})
+                  </>
+                ) : (
+                  <>
                     <Play className="w-4 h-4" />
                     Start Full Scan
-                  </>}
+                  </>
+                )}
               </Button>
 
-              {config.dryRun && <Badge variant="outline" className="gap-1">
-                  <Eye className="w-3 h-3" />
-                  Dry Run Mode - No Real Trades
-                </Badge>}
+              {queuePosition !== null && (
+                <Badge variant="pending" className="gap-1">
+                  <Users className="w-3 h-3" />
+                  Waiting in queue - position #{queuePosition}
+                </Badge>
+              )}
 
-              {stats.lastScanTime && <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {stats.lastScanTime && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   Last scan: {new Date(stats.lastScanTime).toLocaleTimeString()}
-                </div>}
+                </div>
+              )}
             </div>
 
-            {isScanning && <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Fetching and analyzing ALL markets with structured metadata extraction...
+            {isScanning && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {scanStatus || 'Fetching and analyzing markets...'}
+                  </div>
+                  <span>{scanProgress}%</span>
                 </div>
-                <Progress value={undefined} className="h-2" />
-              </div>}
+                <Progress value={scanProgress} className="h-2" />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -901,18 +1085,23 @@ export default function Arbitrage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {highConfidenceOpps.length === 0 ? <div className="text-center py-12 text-muted-foreground">
+            {highConfidenceOpps.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
                 <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No high confidence opportunities found.</p>
                 <p className="text-sm mt-1">Run a scan or check the questionable section below.</p>
-              </div> : <div className="space-y-4">
+              </div>
+            ) : (
+              <div className="space-y-4">
                 {highConfidenceOpps.map(opp => renderOpportunityCard(opp, false))}
-              </div>}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Questionable Opportunities (Collapsible) */}
-        {questionableOpps.length > 0 && <Card className="glass mb-8 border-warning/20">
+        {questionableOpps.length > 0 && (
+          <Card className="glass mb-8 border-warning/20">
             <CardHeader className="cursor-pointer" onClick={() => setShowQuestionable(!showQuestionable)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-warning">
@@ -928,15 +1117,19 @@ export default function Arbitrage() {
                 Medium confidence matches - may be valid but need human verification
               </CardDescription>
             </CardHeader>
-            {showQuestionable && <CardContent>
+            {showQuestionable && (
+              <CardContent>
                 <div className="space-y-4">
                   {questionableOpps.map(opp => renderOpportunityCard(opp))}
                 </div>
-              </CardContent>}
-          </Card>}
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Invalid Opportunities (Collapsed by default) */}
-        {invalidOpps.length > 0 && <Card className="glass mb-8 border-destructive/20">
+        {invalidOpps.length > 0 && (
+          <Card className="glass mb-8 border-destructive/20">
             <CardHeader className="cursor-pointer" onClick={() => setShowInvalid(!showInvalid)}>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-muted-foreground">
@@ -954,33 +1147,43 @@ export default function Arbitrage() {
                 Low confidence or AI-rejected opportunities (different events, timeframes, or semantics)
               </CardDescription>
             </CardHeader>
-            {showInvalid && <CardContent>
+            {showInvalid && (
+              <CardContent>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {invalidOpps.map(opp => {
-              const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
-              return <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                    const analysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
+                    return (
+                      <div key={opp.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-muted-foreground line-through">{opp.description}</p>
                             <div className="mt-1 space-y-1">
-                              {opp.confidence === 'low' && <p className="text-xs text-destructive">
+                              {opp.confidence === 'low' && (
+                                <p className="text-xs text-destructive">
                                   Low structural confidence: {opp.matchReason}
-                                </p>}
-                              {analysis && !analysis.isValidArbitrage && <p className="text-xs text-destructive">
+                                </p>
+                              )}
+                              {analysis && !analysis.isValidArbitrage && (
+                                <p className="text-xs text-destructive">
                                   AI: {analysis.reason} ({(analysis.confidence * 100).toFixed(0)}% confidence)
-                                </p>}
+                                </p>
+                              )}
                             </div>
                           </div>
                           <Badge variant="destructive" className="shrink-0">Invalid</Badge>
                         </div>
-                      </div>;
-            })}
+                      </div>
+                    );
+                  })}
                 </div>
-              </CardContent>}
-          </Card>}
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Completed/History */}
-        {completedOpportunities.length > 0 && <Card className="glass">
+        {completedOpportunities.length > 0 && (
+          <Card className="glass">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
@@ -989,7 +1192,15 @@ export default function Arbitrage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {completedOpportunities.map(opp => <div key={opp.id} className={`flex items-center justify-between p-3 rounded-lg ${opp.status === 'completed' ? 'bg-success/10' : opp.status === 'failed' ? 'bg-destructive/10' : 'bg-secondary/30'}`}>
+                {completedOpportunities.map(opp => (
+                  <div 
+                    key={opp.id} 
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      opp.status === 'completed' ? 'bg-success/10' : 
+                      opp.status === 'failed' ? 'bg-destructive/10' : 
+                      'bg-secondary/30'
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
                       {opp.status === 'completed' && <CheckCircle className="w-5 h-5 text-success" />}
                       {opp.status === 'failed' && <XCircle className="w-5 h-5 text-destructive" />}
@@ -1004,10 +1215,13 @@ export default function Arbitrage() {
                       {opp.status === 'failed' && <span className="text-destructive text-sm">Failed</span>}
                       {opp.status === 'skipped' && <span className="text-muted-foreground text-sm">Skipped</span>}
                     </div>
-                  </div>)}
+                  </div>
+                ))}
               </div>
             </CardContent>
-          </Card>}
+          </Card>
+        )}
       </main>
-    </div>;
+    </div>
+  );
 }

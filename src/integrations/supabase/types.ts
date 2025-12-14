@@ -71,6 +71,39 @@ export type Database = {
         }
         Relationships: []
       }
+      arbitrage_scan_locks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          markets_scanned: number | null
+          progress: number | null
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          markets_scanned?: number | null
+          progress?: number | null
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          markets_scanned?: number | null
+          progress?: number | null
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bond_listings: {
         Row: {
           asking_price: number
