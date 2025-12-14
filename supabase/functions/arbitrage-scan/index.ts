@@ -455,7 +455,11 @@ function findSemanticPairArbitrage(
   const opportunities: ArbitrageOpportunity[] = [];
   const processedPairs = new Set<string>();
   
-  console.log(`Analyzing ${markets.length} eligible markets for semantic pairs`);
+  // Limit processing to avoid CPU timeout
+  const MAX_OPPORTUNITIES = 200;
+  const MAX_PAIRS_PER_BUCKET = 50;
+  
+  console.log(`Analyzing ${markets.length} markets for semantic pairs`);
   
   const bucketedMarkets: Record<string, ManifoldMarket[]> = {};
   
@@ -466,23 +470,34 @@ function findSemanticPairArbitrage(
     const buckets = getStructuredBuckets(market, metadata);
     for (const bucket of buckets) {
       if (!bucketedMarkets[bucket]) bucketedMarkets[bucket] = [];
-      bucketedMarkets[bucket].push(market);
+      // Only add to bucket if not too large
+      if (bucketedMarkets[bucket].length < 50) {
+        bucketedMarkets[bucket].push(market);
+      }
     }
   }
   
-  console.log(`Created ${Object.keys(bucketedMarkets).length} structured buckets`);
+  console.log(`Created ${Object.keys(bucketedMarkets).length} buckets`);
   
-  for (const [bucket, bucketMarkets] of Object.entries(bucketedMarkets)) {
-    if (bucketMarkets.length < 2 || bucketMarkets.length > 100) continue;
+  // Sort buckets by size to prioritize smaller, more focused ones
+  const sortedBuckets = Object.entries(bucketedMarkets)
+    .filter(([_, markets]) => markets.length >= 2 && markets.length <= 50)
+    .sort((a, b) => a[1].length - b[1].length);
+  
+  for (const [bucket, bucketMarkets] of sortedBuckets) {
+    if (opportunities.length >= MAX_OPPORTUNITIES) break;
     
-    for (let i = 0; i < bucketMarkets.length; i++) {
-      for (let j = i + 1; j < bucketMarkets.length; j++) {
+    let pairsInBucket = 0;
+    
+    for (let i = 0; i < bucketMarkets.length && pairsInBucket < MAX_PAIRS_PER_BUCKET; i++) {
+      for (let j = i + 1; j < bucketMarkets.length && pairsInBucket < MAX_PAIRS_PER_BUCKET; j++) {
         const m1 = bucketMarkets[i];
         const m2 = bucketMarkets[j];
         
         const pairKey = [m1.id, m2.id].sort().join('_');
         if (processedPairs.has(pairKey)) continue;
         processedPairs.add(pairKey);
+        pairsInBucket++;
         
         const meta1 = metadataMap.get(m1.id)!;
         const meta2 = metadataMap.get(m2.id)!;
@@ -693,7 +708,7 @@ function findMultiMarketArbitrage(
   return opportunities;
 }
 
-// ============= MARKET FETCHING (FULL PAGINATION - OPTIMIZED) =============
+// ============= MARKET FETCHING (OPTIMIZED FOR CPU LIMITS) =============
 
 async function fetchAllMarkets(
   config: ScanConfig,
@@ -701,25 +716,23 @@ async function fetchAllMarkets(
   historyId: string
 ): Promise<ManifoldMarket[]> {
   const allMarkets: ManifoldMarket[] = [];
-  const batchSize = 1000;
-  let offset = 0;
-  let consecutiveEmpty = 0;
-  const maxEmpty = 5;
+  const batchSize = 500;
   const seenIds = new Set<string>();
   
-  const sortOptions = ['liquidity', 'newest', 'score', '24-hour-vol'];
+  // Limit total markets to avoid CPU timeout
+  const MAX_MARKETS = Math.min(config.maxMarkets || 5000, 8000);
+  const MAX_API_CALLS = 20;
   let totalApiCalls = 0;
   
-  console.log(`Starting FULL market fetch (optimized for 350 req/min)...`);
+  console.log(`Fetching markets (max ${MAX_MARKETS}, max ${MAX_API_CALLS} API calls)...`);
+  
+  // Only fetch from high-value sort orders
+  const sortOptions = ['liquidity', '24-hour-vol'];
   
   for (const sortOrder of sortOptions) {
-    offset = 0;
-    consecutiveEmpty = 0;
-    let sortFetched = 0;
+    let offset = 0;
     
-    console.log(`Fetching with sort: ${sortOrder}...`);
-    
-    while (consecutiveEmpty < maxEmpty) {
+    while (allMarkets.length < MAX_MARKETS && totalApiCalls < MAX_API_CALLS) {
       const url = `https://api.manifold.markets/v0/search-markets?limit=${batchSize}&offset=${offset}&filter=open&sort=${sortOrder}`;
       
       try {
@@ -733,40 +746,22 @@ async function fetchAllMarkets(
         
         const markets: ManifoldMarket[] = await response.json();
         
-        if (markets.length === 0) {
-          consecutiveEmpty++;
-          offset += batchSize;
-          continue;
-        }
+        if (markets.length === 0) break;
         
-        consecutiveEmpty = 0;
-        
-        let newCount = 0;
         for (const market of markets) {
           if (!seenIds.has(market.id)) {
             seenIds.add(market.id);
             allMarkets.push(market);
-            newCount++;
           }
         }
         
-        sortFetched += newCount;
         offset += batchSize;
+        console.log(`[${sortOrder}] ${allMarkets.length} unique markets`);
         
-        console.log(`[${sortOrder}] Fetched ${allMarkets.length} unique markets (${newCount} new this batch)`);
+        if (markets.length < batchSize * 0.5) break;
         
-        if (newCount < batchSize * 0.1 && offset > batchSize * 3) {
-          console.log(`[${sortOrder}] Diminishing returns, moving to next sort order`);
-          break;
-        }
-        
-        if (markets.length < batchSize * 0.3) {
-          console.log(`[${sortOrder}] Partial batch received, likely near end`);
-          break;
-        }
-        
-        // Rate limiting - 350 req/min = ~171ms between requests
-        await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
         
       } catch (error) {
         console.error('Fetch error:', error);
@@ -774,13 +769,10 @@ async function fetchAllMarkets(
       }
     }
     
-    console.log(`[${sortOrder}] Total from this sort: ${sortFetched}`);
-    
-    // Small delay between sort orders
-    await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+    if (allMarkets.length >= MAX_MARKETS) break;
   }
   
-  console.log(`Finished fetching ${allMarkets.length} total unique markets in ${totalApiCalls} API calls`);
+  console.log(`Fetched ${allMarkets.length} markets in ${totalApiCalls} API calls`);
   return allMarkets;
 }
 
