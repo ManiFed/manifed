@@ -19,7 +19,6 @@ import { WatchlistPanel } from '@/components/arbitrage/WatchlistPanel';
 import { ScanHistoryPanel } from '@/components/arbitrage/ScanHistoryPanel';
 import { toast } from '@/hooks/use-toast';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import trumpSignature from '@/assets/trump-signature.png';
 import { ArrowLeft, Settings, LogOut, Loader2, Play, Target, TrendingUp, AlertTriangle, CheckCircle, XCircle, Zap, BarChart3, ExternalLink, Shield, Clock, Sliders, AlertCircle, Activity, Droplets, ArrowUpRight, ArrowDownRight, Brain, Sparkles, Filter, Calendar, ChevronDown, ChevronRight, HelpCircle, Info, Users } from 'lucide-react';
 interface ArbitrageOpportunity {
   id: string;
@@ -253,39 +252,12 @@ export default function Arbitrage() {
         }
       });
 
-      // Run AI analysis on ALL found opportunities if enabled
-      if (config.aiAnalysisEnabled && opps.length > 0) {
-        toast({
-          title: 'Scan Complete',
-          description: `Found ${opps.length} opportunities. Running AI analysis on all...`
-        });
-        const pairs = opps.filter((opp: ArbitrageOpportunity) => opp.markets.length >= 2).map((opp: ArbitrageOpportunity) => ({
-          market1: {
-            id: opp.markets[0].id,
-            question: opp.markets[0].question,
-            probability: opp.markets[0].probability,
-            liquidity: opp.markets[0].liquidity
-          },
-          market2: {
-            id: opp.markets[1].id,
-            question: opp.markets[1].question,
-            probability: opp.markets[1].probability,
-            liquidity: opp.markets[1].liquidity
-          },
-          expectedProfit: opp.expectedProfit,
-          matchReason: opp.matchReason
-        }));
-        await analyzePairs(pairs);
-        toast({
-          title: 'AI Analysis Complete',
-          description: `Analyzed all ${pairs.length} opportunities with AI semantic matching.`
-        });
-      } else {
-        toast({
-          title: 'Scan Complete',
-          description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.`
-        });
-      }
+      // AI semantic matching still happens on the backend during scan
+      // User can click to analyze individual opportunities
+      toast({
+        title: 'Scan Complete',
+        description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.${config.aiAnalysisEnabled ? ' Click "Analyze" on any opportunity for AI insights.' : ''}`
+      });
     } catch (error) {
       console.error('Scan error:', error);
       toast({
@@ -525,44 +497,79 @@ export default function Arbitrage() {
             </p>}
         </div>
 
-        {/* AI Analysis Card */}
+        {/* AI Analysis - Click to Generate */}
         {config.aiAnalysisEnabled && opp.markets.length >= 2 && <div className="mb-4">
+          {getAnalysis(opp.markets[0].id, opp.markets[1].id) ? (
             <AIAnalysisCard opportunityId={opp.id} market1={{
-          id: opp.markets[0].id,
-          question: opp.markets[0].question
-        }} market2={{
-          id: opp.markets[1].id,
-          question: opp.markets[1].question
-        }} opportunityType={opp.type} expectedProfit={opp.expectedProfit} analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)} explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]} isLoadingExplanation={loadingExplanation === opp.id} onRequestExplanation={async () => {
-          setLoadingExplanation(opp.id);
-          await explainOpportunity({
-            market1: {
               id: opp.markets[0].id,
-              question: opp.markets[0].question,
-              probability: opp.markets[0].probability,
-              liquidity: opp.markets[0].liquidity
-            },
-            market2: {
+              question: opp.markets[0].question
+            }} market2={{
               id: opp.markets[1].id,
-              question: opp.markets[1].question,
-              probability: opp.markets[1].probability,
-              liquidity: opp.markets[1].liquidity
-            },
-            expectedProfit: opp.expectedProfit,
-            matchReason: opp.matchReason
-          });
-          setLoadingExplanation(null);
-        }} onSubmitFeedback={async (isValid, reason) => {
-          const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
-          return await submitFeedback(opp.id, {
-            id: opp.markets[0].id,
-            question: opp.markets[0].question
-          }, {
-            id: opp.markets[1].id,
-            question: opp.markets[1].question
-          }, opp.type, opp.expectedProfit, isValid, reason, analysis?.confidence, analysis?.reason);
-        }} />
-          </div>}
+              question: opp.markets[1].question
+            }} opportunityType={opp.type} expectedProfit={opp.expectedProfit} analysis={getAnalysis(opp.markets[0].id, opp.markets[1].id)} explanation={explanations[`${opp.markets[0].id}_${opp.markets[1].id}`]} isLoadingExplanation={loadingExplanation === opp.id} onRequestExplanation={async () => {
+              setLoadingExplanation(opp.id);
+              await explainOpportunity({
+                market1: {
+                  id: opp.markets[0].id,
+                  question: opp.markets[0].question,
+                  probability: opp.markets[0].probability,
+                  liquidity: opp.markets[0].liquidity
+                },
+                market2: {
+                  id: opp.markets[1].id,
+                  question: opp.markets[1].question,
+                  probability: opp.markets[1].probability,
+                  liquidity: opp.markets[1].liquidity
+                },
+                expectedProfit: opp.expectedProfit,
+                matchReason: opp.matchReason
+              });
+              setLoadingExplanation(null);
+            }} onSubmitFeedback={async (isValid, reason) => {
+              const analysis = getAnalysis(opp.markets[0].id, opp.markets[1].id);
+              return await submitFeedback(opp.id, {
+                id: opp.markets[0].id,
+                question: opp.markets[0].question
+              }, {
+                id: opp.markets[1].id,
+                question: opp.markets[1].question
+              }, opp.type, opp.expectedProfit, isValid, reason, analysis?.confidence, analysis?.reason);
+            }} />
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              disabled={isAnalyzing || loadingExplanation === opp.id}
+              onClick={async () => {
+                setLoadingExplanation(opp.id);
+                await analyzePairs([{
+                  market1: {
+                    id: opp.markets[0].id,
+                    question: opp.markets[0].question,
+                    probability: opp.markets[0].probability,
+                    liquidity: opp.markets[0].liquidity
+                  },
+                  market2: {
+                    id: opp.markets[1].id,
+                    question: opp.markets[1].question,
+                    probability: opp.markets[1].probability,
+                    liquidity: opp.markets[1].liquidity
+                  },
+                  expectedProfit: opp.expectedProfit,
+                  matchReason: opp.matchReason
+                }]);
+                setLoadingExplanation(null);
+              }}
+            >
+              {loadingExplanation === opp.id ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Analyzing...</>
+              ) : (
+                <><Brain className="w-4 h-4" />Analyze with AI</>
+              )}
+            </Button>
+          )}
+        </div>}
 
         {/* Actions */}
         <div className="flex gap-2 justify-end">
@@ -578,16 +585,15 @@ export default function Arbitrage() {
       </CardContent>
     </Card>;
   return <div className="min-h-screen relative overflow-hidden">
-      {/* Ultra Trump Background Portrait */}
+      {/* Ultra Trump Background - Different portraits, no signatures */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <img src={trumpPortrait} alt="" className="absolute -right-32 top-1/4 w-[600px] h-auto opacity-[0.08] rotate-12 blur-[1px]" />
-        <img src={trumpSignature} alt="" className="absolute left-10 bottom-20 w-[400px] h-auto opacity-[0.06] -rotate-6" />
-        <img src={trumpPortrait} alt="" className="absolute -left-40 top-10 w-[300px] h-auto opacity-[0.04] -rotate-12" />
+        <img src={trumpPortrait} alt="" className="absolute -right-20 top-1/3 w-[700px] h-auto opacity-[0.06] rotate-6 blur-[0.5px]" />
+        <img src={trumpPortrait} alt="" className="absolute -left-32 bottom-10 w-[450px] h-auto opacity-[0.04] -rotate-12 scale-x-[-1]" />
+        <img src={trumpPortrait} alt="" className="absolute right-1/4 -top-20 w-[250px] h-auto opacity-[0.03] rotate-45" />
       </div>
       
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <img src={trumpSignature} alt="" className="absolute right-4 top-1/2 -translate-y-1/2 h-10 opacity-20" />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
@@ -1002,7 +1008,7 @@ export default function Arbitrage() {
 
         {/* Watchlist & Scan History Grid */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8 relative">
-          <img src={trumpSignature} alt="" className="absolute -bottom-10 right-0 w-[200px] opacity-[0.05] rotate-3 pointer-events-none" />
+          <img src={trumpPortrait} alt="" className="absolute -bottom-10 right-0 w-[150px] opacity-[0.04] rotate-3 pointer-events-none" />
           <WatchlistPanel />
           <ScanHistoryPanel />
         </div>

@@ -8,8 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import trumpSignature from '@/assets/trump-signature.png';
-import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare } from 'lucide-react';
 interface Transaction {
   id: string;
   type: string;
@@ -125,16 +124,15 @@ export default function Hub() {
       </div>;
   }
   return <div className="min-h-screen relative overflow-hidden">
-      {/* Ultra Trump Background Images */}
+      {/* Ultra Trump Background - Portraits only, no signatures */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <img src={trumpPortrait} alt="" className="absolute -right-24 top-32 w-[500px] h-auto opacity-[0.07] rotate-12" />
-        <img src={trumpSignature} alt="" className="absolute left-0 bottom-0 w-[500px] h-auto opacity-[0.04] -rotate-6" />
-        <img src={trumpPortrait} alt="" className="absolute -left-32 top-1/4 w-[350px] h-auto opacity-[0.03] -rotate-12" />
+        <img src={trumpPortrait} alt="" className="absolute -right-16 top-40 w-[550px] h-auto opacity-[0.06] rotate-6" />
+        <img src={trumpPortrait} alt="" className="absolute -left-24 bottom-10 w-[400px] h-auto opacity-[0.04] -rotate-12 scale-x-[-1]" />
+        <img src={trumpPortrait} alt="" className="absolute right-1/4 top-3/4 w-[200px] h-auto opacity-[0.025] rotate-45" />
       </div>
       
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <img src={trumpSignature} alt="" className="absolute right-32 top-1/2 -translate-y-1/2 h-8 opacity-15" />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
@@ -280,6 +278,54 @@ export default function Hub() {
               </Card>
             </Link>
 
+            {/* Arbitrage Agent */}
+            <Link to="/arbitrage" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="active">AI-Powered</Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">Arbitrage Agent</CardTitle>
+                  <CardDescription>
+                    Scan Manifold Markets for arbitrage opportunities using AI semantic matching.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    Start Scanning
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Market Agent */}
+            <Link to="/market-agent" className="group">
+              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                      <MessageSquare className="w-6 h-6 text-white" />
+                    </div>
+                    <Badge variant="active">AI-Powered</Badge>
+                  </div>
+                  <CardTitle className="text-xl mt-4">Market Agent</CardTitle>
+                  <CardDescription>
+                    Paste a Manifold market link and ask AI questions about it.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                    Ask AI
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </Link>
+
             {/* Bonds - Coming Soon */}
             <Card className="glass h-full opacity-60 cursor-not-allowed">
               <CardHeader>
@@ -363,14 +409,6 @@ export default function Hub() {
                       <p className="text-xs text-muted-foreground">Buy verified badges and site themes.</p>
                     </div>
                     
-                    {/* Arbitrage Agent */}
-                    <Link to="/arbitrage" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-foreground text-sm">Arbitrage Agent</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Scan markets for arbitrage opportunities.</p>
-                    </Link>
                     
                     {/* Leaderboard */}
                     <Link to="/leaderboard" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">

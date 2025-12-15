@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.arbitrage-notifications]
 verify_jwt = true
+
+[functions.market-agent]
+verify_jwt = true

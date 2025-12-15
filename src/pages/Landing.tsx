@@ -4,20 +4,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Clock, Search, Newspaper } from 'lucide-react';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import trumpSignature from '@/assets/trump-signature.png';
 export default function Landing() {
   return <div className="min-h-screen relative overflow-hidden">
-      {/* Ultra Trump Background Images */}
+      {/* Ultra Trump Background - Portraits only, no signatures */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <img src={trumpPortrait} alt="" className="absolute -right-20 top-20 w-[500px] h-auto opacity-[0.08] rotate-6" />
-        <img src={trumpSignature} alt="" className="absolute left-0 bottom-10 w-[600px] h-auto opacity-[0.05] -rotate-3" />
-        <img src={trumpPortrait} alt="" className="absolute -left-32 top-1/3 w-[400px] h-auto opacity-[0.04] -rotate-12" />
-        <img src={trumpSignature} alt="" className="absolute right-10 bottom-1/3 w-[300px] h-auto opacity-[0.06] rotate-12" />
+        <img src={trumpPortrait} alt="" className="absolute -right-10 top-32 w-[550px] h-auto opacity-[0.07] rotate-3" />
+        <img src={trumpPortrait} alt="" className="absolute -left-20 bottom-20 w-[400px] h-auto opacity-[0.05] -rotate-6 scale-x-[-1]" />
+        <img src={trumpPortrait} alt="" className="absolute right-1/3 top-2/3 w-[280px] h-auto opacity-[0.03] rotate-12" />
       </div>
       
       {/* Hero Section */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <img src={trumpSignature} alt="" className="absolute right-20 top-1/2 -translate-y-1/2 h-8 opacity-20" />
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
