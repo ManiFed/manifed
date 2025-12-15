@@ -272,16 +272,7 @@ export default function LoanDetail() {
 
       if (investError) throw investError;
 
-      // Update loan funded amount
-      const { error: loanError } = await supabase
-        .from('loans')
-        .update({ 
-          funded_amount: loan.funded_amount + amount,
-          status: loan.funded_amount + amount >= loan.amount ? 'active' : 'seeking_funding'
-        })
-        .eq('id', loan.id);
-
-      if (loanError) throw loanError;
+      // Note: loan funded_amount is automatically updated by database trigger
 
       // Refresh balance from server (edge function already updated it)
       await fetchBalance();
