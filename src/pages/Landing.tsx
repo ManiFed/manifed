@@ -139,22 +139,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Fee Notice */}
-        <section className="container mx-auto px-4 py-4">
-          <Card className="glass animate-slide-up" style={{
-          animationDelay: '300ms'
-        }}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4 justify-center text-center">
-                <Clock className="w-5 h-5 text-primary shrink-0" />
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">2% transaction fee</strong> on loans (charged to borrowers).
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
         {/* Disclaimer */}
         <section className="container mx-auto px-4 py-8">
           <Card className="glass border-warning/30 animate-slide-up" style={{
@@ -220,7 +204,7 @@ export default function Landing() {
                 <span className="text-muted-foreground">- Making Manifold Great Again</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Powered by Manifold Markets • All loans settled in M$ • 2% loan fee (borrowers only)
+                Powered by Manifold Markets • All loans settled in M$
               </p>
             </div>
           </div>
