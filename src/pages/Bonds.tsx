@@ -16,11 +16,13 @@ interface BondRate {
 }
 interface Bond {
   id: string;
+  bond_code: string;
   amount: number;
   term_weeks: number;
   annual_yield: number;
   purchase_date: string;
   maturity_date: string;
+  next_interest_date: string;
   status: string;
   total_return: number;
 }
@@ -158,7 +160,13 @@ export default function Bonds() {
   const selectedRate = rates.find(r => r.term_weeks === selectedTerm);
   const purchaseAmount = parseFloat(amount) || 0;
   const termYears = selectedTerm ? selectedTerm / 52 : 0;
-  const estimatedReturn = selectedRate ? purchaseAmount * (1 + selectedRate.annual_yield / 100 * termYears) : 0;
+  const monthlyInterest = selectedRate ? purchaseAmount * (selectedRate.annual_yield / 100) / 12 : 0;
+  const termMonths = selectedTerm ? selectedTerm / 4 : 0;
+  const totalInterest = monthlyInterest * termMonths;
+  const estimatedReturn = purchaseAmount + totalInterest;
+  
+  // Minimum amount for M$10/month interest at current rate
+  const minimumAmount = selectedRate ? Math.ceil((10 * 12 * 100) / selectedRate.annual_yield) : 2000;
   return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
@@ -213,8 +221,8 @@ export default function Bonds() {
             ManiFed <span className="text-gradient">Treasury Bonds</span>
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Earn stable yields on your M$ with our Treasury Bills. Fixed terms, guaranteed returns at maturity.
-            Currently offering {rates[0]?.annual_yield || 6}% APY. <strong>Bonds are now tradable!</strong>
+            Earn stable yields on your M$ with our Treasury Bills. Interest paid monthly, principal returned at maturity.
+            Currently offering {rates[0]?.annual_yield || 6}% APY. Each bond has a unique tracking code.
           </p>
         </div>
 
@@ -290,26 +298,40 @@ export default function Bonds() {
                       </div> : <>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">M$</span>
-                          <Input type="number" placeholder="Enter amount..." value={amount} onChange={e => setAmount(e.target.value)} className="pl-10 h-12 text-lg bg-secondary/50" min={10} />
+                          <Input type="number" placeholder="Enter amount..." value={amount} onChange={e => setAmount(e.target.value)} className="pl-10 h-12 text-lg bg-secondary/50" min={minimumAmount} />
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Minimum purchase: M$10 • No transaction fee
+                          Minimum: M${minimumAmount.toLocaleString()} (ensures M$10+/month interest) • No fee
                         </p>
 
-                        {purchaseAmount >= 10 && <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+                        {purchaseAmount >= minimumAmount && <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm text-muted-foreground">At Maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})</p>
-                                <p className="text-2xl font-bold text-success">M${estimatedReturn.toFixed(2)}</p>
+                                <p className="text-sm text-muted-foreground">Monthly Interest</p>
+                                <p className="text-xl font-bold text-success">M${monthlyInterest.toFixed(2)}/month</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm text-muted-foreground">Profit</p>
-                                <p className="text-lg font-semibold text-success">+M${(estimatedReturn - purchaseAmount).toFixed(2)}</p>
+                                <p className="text-sm text-muted-foreground">Total Interest ({termMonths.toFixed(0)} months)</p>
+                                <p className="text-lg font-semibold text-success">+M${totalInterest.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            <div className="pt-2 border-t border-success/20">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">Principal returned at maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})</p>
+                                <p className="font-semibold text-foreground">M${purchaseAmount.toFixed(2)}</p>
                               </div>
                             </div>
                           </div>}
+                        
+                        {purchaseAmount > 0 && purchaseAmount < minimumAmount && (
+                          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                            <p className="text-sm text-destructive">
+                              Amount must be at least M${minimumAmount.toLocaleString()} to ensure M$10+ monthly interest payment.
+                            </p>
+                          </div>
+                        )}
 
-                        <Button variant="default" className="w-full gap-2" onClick={handlePurchaseBond} disabled={isPurchasing || purchaseAmount < 10 || purchaseAmount > balance}>
+                        <Button variant="default" className="w-full gap-2" onClick={handlePurchaseBond} disabled={isPurchasing || purchaseAmount < minimumAmount || purchaseAmount > balance}>
                           {isPurchasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                           Purchase Bond
                         </Button>
@@ -338,23 +360,33 @@ export default function Bonds() {
                         <p className="text-sm text-muted-foreground">No bonds yet</p>
                         <p className="text-xs text-muted-foreground mt-1">Purchase a T-Bill to get started</p>
                       </div> : <div className="space-y-3">
-                        {userBonds.map(bond => <div key={bond.id} className="p-3 rounded-lg bg-secondary/30">
-                            <div className="flex items-center justify-between mb-1">
-                              <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
-                                {bond.status}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
+                        {userBonds.map(bond => {
+                          const bondMonthlyInterest = bond.amount * (bond.annual_yield / 100) / 12;
+                          return (
+                            <div key={bond.id} className="p-3 rounded-lg bg-secondary/30">
+                              <div className="flex items-center justify-between mb-1">
+                                <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
+                                  {bond.status}
+                                </Badge>
+                                <span className="text-xs font-mono text-primary">
+                                  {bond.bond_code}
+                                </span>
+                              </div>
+                              <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground">
                                 {bond.term_weeks}w • {bond.annual_yield}% APY
-                              </span>
+                              </p>
+                              {bond.status === 'active' && bond.next_interest_date && (
+                                <p className="text-xs text-success mt-1">
+                                  Next interest: M${bondMonthlyInterest.toFixed(2)} on {format(new Date(bond.next_interest_date), 'MMM d')}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
+                              </p>
                             </div>
-                            <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
-                            </p>
-                            <p className="text-xs text-success mt-1">
-                              Returns: M${bond.total_return.toFixed(2)}
-                            </p>
-                          </div>)}
+                          );
+                        })}
                       </div>}
                   </CardContent>
                 </Card> : <Card className="glass animate-slide-up" style={{

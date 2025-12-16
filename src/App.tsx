@@ -6,20 +6,22 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Hub from "./pages/Hub";
-import Index from "./pages/Index";
-import LoanDetail from "./pages/LoanDetail";
-import CreateLoan from "./pages/CreateLoan";
-import Portfolio from "./pages/Portfolio";
 import CreditSearch from "./pages/CreditSearch";
+import CreateLoan from "./pages/CreateLoan";
+import LoanDetail from "./pages/LoanDetail";
+import Portfolio from "./pages/Portfolio";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
+import Leaderboard from "./pages/Leaderboard";
 import Bonds from "./pages/Bonds";
 import BondMarket from "./pages/BondMarket";
 import TreasuryNews from "./pages/TreasuryNews";
+import TreasuryAdmin from "./pages/TreasuryAdmin";
 import Memecoins from "./pages/Memecoins";
-import Leaderboard from "./pages/Leaderboard";
 import Market from "./pages/Market";
 import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
@@ -79,6 +81,7 @@ const App = () => (
           <Route path="/bonds" element={<Bonds />} />
           <Route path="/bond-market" element={<ProtectedRoute><BondMarket /></ProtectedRoute>} />
           <Route path="/treasury" element={<ProtectedRoute><TreasuryNews /></ProtectedRoute>} />
+          <Route path="/treasury-admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />

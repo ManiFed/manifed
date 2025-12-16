@@ -1,5 +1,8 @@
 project_id = "tqdcpatixtuwgaqakrbx"
 
+[functions.process-bond-interest]
+verify_jwt = false
+
 [functions.manifold-user]
 verify_jwt = false
 

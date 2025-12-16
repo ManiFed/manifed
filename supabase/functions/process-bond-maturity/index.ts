@@ -28,7 +28,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log("Processing matured bonds...");
+    console.log("Processing matured bonds (principal return only)...");
 
     // Find all bonds that have matured
     const now = new Date().toISOString();
@@ -50,12 +50,15 @@ serve(async (req) => {
 
     for (const bond of maturedBonds || []) {
       try {
-        console.log(`Processing bond ${bond.id} for user ${bond.user_id}`);
+        console.log(`Processing matured bond ${bond.id} (${bond.bond_code}) for user ${bond.user_id}`);
         
-        // Credit the user's ManiFed balance with the total return
+        // Only return the PRINCIPAL (interest was paid monthly)
+        const principalAmount = bond.amount;
+
+        // Credit the user's ManiFed balance with the principal
         const { error: balanceError } = await supabase.rpc('modify_user_balance', {
           p_user_id: bond.user_id,
-          p_amount: bond.total_return,
+          p_amount: principalAmount,
           p_operation: 'add'
         });
 
@@ -70,8 +73,8 @@ serve(async (req) => {
           .insert({
             user_id: bond.user_id,
             type: "bond_maturity",
-            amount: bond.total_return,
-            description: `T-Bill matured: ${bond.term_weeks} week bond`,
+            amount: principalAmount,
+            description: `T-Bill matured (${bond.bond_code}): principal returned`,
           });
 
         // Update bond status to matured
@@ -84,23 +87,23 @@ serve(async (req) => {
           .eq("id", bond.id);
 
         processedCount++;
-        totalPaid += Number(bond.total_return);
+        totalPaid += Number(principalAmount);
 
-        console.log(`Bond ${bond.id} matured - paid M$${bond.total_return} to user ${bond.user_id}`);
+        console.log(`Bond ${bond.bond_code} matured - returned principal M$${principalAmount} to user ${bond.user_id}`);
 
       } catch (bondError) {
         console.error(`Error processing bond ${bond.id}:`, bondError);
       }
     }
 
-    console.log(`Processed ${processedCount} bonds, total paid: M$${totalPaid}`);
+    console.log(`Processed ${processedCount} matured bonds, total principal returned: M$${totalPaid}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         processedCount,
         totalPaid,
-        message: `Processed ${processedCount} matured bonds, paid out M$${totalPaid.toFixed(2)}`,
+        message: `Processed ${processedCount} matured bonds, returned M$${totalPaid.toFixed(2)} principal`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
