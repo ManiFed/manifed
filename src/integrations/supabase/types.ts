@@ -239,6 +239,41 @@ export type Database = {
         }
         Relationships: []
       }
+      bond_interest_payments: {
+        Row: {
+          amount: number
+          bond_id: string
+          created_at: string
+          id: string
+          payment_date: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bond_id: string
+          created_at?: string
+          id?: string
+          payment_date?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bond_id?: string
+          created_at?: string
+          id?: string
+          payment_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bond_interest_payments_bond_id_fkey"
+            columns: ["bond_id"]
+            isOneToOne: false
+            referencedRelation: "bonds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bond_listings: {
         Row: {
           asking_price: number
@@ -346,10 +381,12 @@ export type Database = {
         Row: {
           amount: number
           annual_yield: number
+          bond_code: string | null
           created_at: string
           id: string
           maturity_date: string
           monthly_yield: number
+          next_interest_date: string | null
           purchase_date: string
           status: string
           term_weeks: number
@@ -360,10 +397,12 @@ export type Database = {
         Insert: {
           amount: number
           annual_yield?: number
+          bond_code?: string | null
           created_at?: string
           id?: string
           maturity_date: string
           monthly_yield?: number
+          next_interest_date?: string | null
           purchase_date?: string
           status?: string
           term_weeks: number
@@ -374,10 +413,12 @@ export type Database = {
         Update: {
           amount?: number
           annual_yield?: number
+          bond_code?: string | null
           created_at?: string
           id?: string
           maturity_date?: string
           monthly_yield?: number
+          next_interest_date?: string | null
           purchase_date?: string
           status?: string
           term_weeks?: number
@@ -859,18 +900,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       modify_user_balance: {
         Args: { p_amount: number; p_operation: string; p_user_id: string }
         Returns: undefined
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -997,6 +1066,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
