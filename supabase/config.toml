@@ -47,3 +47,18 @@ verify_jwt = true
 
 [functions.market-agent]
 verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.increment-usage]
+verify_jwt = true
+
+[functions.create-donation]
+verify_jwt = false

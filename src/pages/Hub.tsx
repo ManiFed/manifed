@@ -7,8 +7,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { supabase } from '@/integrations/supabase/client';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
+import { DonationButton } from '@/components/DonationButton';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, CreditCard } from 'lucide-react';
 interface Transaction {
   id: string;
   type: string;
@@ -150,6 +151,13 @@ export default function Hub() {
                     {notifications.length}
                   </span>
                 </div>}
+              <DonationButton />
+              <Link to="/subscription">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="hidden sm:inline">Plans</span>
+                </Button>
+              </Link>
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">

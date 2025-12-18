@@ -25,6 +25,7 @@ import Memecoins from "./pages/Memecoins";
 import Market from "./pages/Market";
 import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -87,6 +88,7 @@ const App = () => (
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
           <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
+          <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

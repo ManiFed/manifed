@@ -176,6 +176,21 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
+
+                {/* Fraud Agreement Notice */}
+                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-foreground mb-1">Fraud Prevention Agreement</p>
+                      <p className="text-muted-foreground">
+                        There is an agreement between ManiFed and the Manifold Markets administrators that ensures 
+                        the destruction and liquidation of the creator's personal accounts if fraud is committed. 
+                        By using ManiFed, you agree to these terms.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

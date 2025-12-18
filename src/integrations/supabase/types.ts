@@ -921,6 +921,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          arbitrage_scans_used: number
+          created_at: string
+          current_period_end: string | null
+          id: string
+          market_queries_used: number
+          price_id: string | null
+          product_id: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          usage_reset_at: string
+          user_id: string
+        }
+        Insert: {
+          arbitrage_scans_used?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          market_queries_used?: number
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          usage_reset_at?: string
+          user_id: string
+        }
+        Update: {
+          arbitrage_scans_used?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          market_queries_used?: number
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          usage_reset_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
