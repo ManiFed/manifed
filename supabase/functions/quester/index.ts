@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const QUESTER_MARKET_ID = "quester"; // The quester market slug
+const QUESTER_MARKET_SLUG = "quester"; // The quester market slug
 const QUESTER_MARKET_URL = "https://manifold.markets/ManiFed/quester";
 const MONTHLY_FEE = 10; // M$ per month for non-subscribers
 
@@ -216,7 +216,17 @@ serve(async (req) => {
 
       const apiKey = await decryptApiKey(settings.manifold_api_key);
 
-      // First, buy 1 share YES
+      // First, fetch the market to get the actual contract ID (not just the slug)
+      const marketResponse = await fetch(`https://api.manifold.markets/v0/slug/${QUESTER_MARKET_SLUG}`);
+      if (!marketResponse.ok) {
+        throw new Error(`Failed to fetch Quester market: ${await marketResponse.text()}`);
+      }
+      const market = await marketResponse.json();
+      const contractId = market.id;
+      
+      console.log(`Executing trade on market: ${contractId} (${market.question})`);
+
+      // Buy 1 mana worth of YES shares
       const buyResponse = await fetch("https://api.manifold.markets/v0/bet", {
         method: "POST",
         headers: {
@@ -224,7 +234,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contractId: QUESTER_MARKET_ID,
+          contractId: contractId,
           amount: 1,
           outcome: "YES",
         }),
@@ -235,10 +245,13 @@ serve(async (req) => {
         throw new Error(`Failed to buy share: ${errorText}`);
       }
 
+      const buyResult = await buyResponse.json();
+      console.log("Buy result:", buyResult);
+
       // Wait a moment, then sell
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const sellResponse = await fetch("https://api.manifold.markets/v0/market/" + QUESTER_MARKET_ID + "/sell", {
+      const sellResponse = await fetch(`https://api.manifold.markets/v0/market/${contractId}/sell`, {
         method: "POST",
         headers: {
           "Authorization": `Key ${apiKey}`,
@@ -246,9 +259,14 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           outcome: "YES",
-          shares: 1,
+          shares: buyResult.shares || 1,
         }),
       });
+
+      if (!sellResponse.ok) {
+        console.log("Sell failed (this is often expected for small amounts):", await sellResponse.text());
+        // Don't throw error for sell failures - the buy was successful
+      }
 
       // Update subscription
       const tomorrow = new Date();
