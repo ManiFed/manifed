@@ -164,11 +164,6 @@ export default function Hub() {
           alt=""
           className="absolute -left-24 bottom-10 w-[400px] h-auto opacity-[0.04] -rotate-12 scale-x-[-1]"
         />
-        <img
-          src={trumpPortrait}
-          alt=""
-          className="absolute right-1/4 top-3/4 w-[200px] h-auto opacity-[0.025] rotate-45"
-        />
       </div>
 
       {/* Header */}
