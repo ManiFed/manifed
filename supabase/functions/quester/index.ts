@@ -106,6 +106,13 @@ serve(async (req) => {
         // Send the 10 mana fee via managram
         const apiKey = await decryptApiKey(settings.manifold_api_key);
         
+        // First get ManiFed user ID from username
+        const manifedUserResponse = await fetch("https://api.manifold.markets/v0/user/ManiFed");
+        if (!manifedUserResponse.ok) {
+          throw new Error("Could not find ManiFed user on Manifold");
+        }
+        const manifedUser = await manifedUserResponse.json();
+        
         const manaResponse = await fetch("https://api.manifold.markets/v0/managram", {
           method: "POST",
           headers: {
@@ -113,7 +120,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            toIds: ["rFT1GdVb6dZZQXXoHcBsANSJBle2"], // ManiFed user ID
+            toIds: [manifedUser.id],
             amount: MONTHLY_FEE,
             message: "Quester subscription fee - 1 month",
           }),
