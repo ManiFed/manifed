@@ -1,15 +1,15 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { useUserBalance } from '@/hooks/useUserBalance';
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Header } from "@/components/layout/Header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useUserBalance } from "@/hooks/useUserBalance";
 import {
   ArrowLeft,
   Clock,
@@ -23,20 +23,20 @@ import {
   DollarSign,
   ExternalLink,
   Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const statusConfig = {
-  seeking_funding: { label: 'Seeking Funding', variant: 'pending' as const, icon: Clock },
-  active: { label: 'Active', variant: 'active' as const, icon: TrendingUp },
-  repaid: { label: 'Repaid', variant: 'success' as const, icon: CheckCircle },
-  defaulted: { label: 'Defaulted', variant: 'destructive' as const, icon: XCircle },
+  seeking_funding: { label: "Seeking Funding", variant: "pending" as const, icon: Clock },
+  active: { label: "Active", variant: "active" as const, icon: TrendingUp },
+  repaid: { label: "Repaid", variant: "success" as const, icon: CheckCircle },
+  defaulted: { label: "Defaulted", variant: "destructive" as const, icon: XCircle },
 };
 
 const riskConfig = {
-  low: { label: 'Low Risk', className: 'text-success bg-success/10 border-success/20' },
-  medium: { label: 'Medium Risk', className: 'text-warning bg-warning/10 border-warning/20' },
-  high: { label: 'High Risk', className: 'text-destructive bg-destructive/10 border-destructive/20' },
+  low: { label: "Low Risk", className: "text-success bg-success/10 border-success/20" },
+  medium: { label: "Medium Risk", className: "text-warning bg-warning/10 border-warning/20" },
+  high: { label: "High Risk", className: "text-destructive bg-destructive/10 border-destructive/20" },
 };
 
 interface Loan {
@@ -69,8 +69,8 @@ interface Investment {
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [investAmount, setInvestAmount] = useState('');
-  const [investMessage, setInvestMessage] = useState('');
+  const [investAmount, setInvestAmount] = useState("");
+  const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -87,27 +87,23 @@ export default function LoanDetail() {
 
   const fetchLoanData = async () => {
     if (!id) return;
-    
+
     try {
-      const { data: loanData, error: loanError } = await supabase
-        .from('loans')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data: loanData, error: loanError } = await supabase.from("loans").select("*").eq("id", id).single();
 
       if (loanError) throw loanError;
       setLoan(loanData);
 
       const { data: investmentData, error: investmentError } = await supabase
-        .from('investments')
-        .select('*')
-        .eq('loan_id', id)
-        .order('created_at', { ascending: false });
+        .from("investments")
+        .select("*")
+        .eq("loan_id", id)
+        .order("created_at", { ascending: false });
 
       if (investmentError) throw investmentError;
       setInvestments(investmentData || []);
     } catch (error) {
-      console.error('Error fetching loan:', error);
+      console.error("Error fetching loan:", error);
     } finally {
       setIsLoading(false);
     }
@@ -115,20 +111,22 @@ export default function LoanDetail() {
 
   const fetchUserSettings = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       setCurrentUserId(user.id);
 
       const { data } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_api_key, manifold_username')
-        .eq('user_id', user.id)
+        .from("user_manifold_settings")
+        .select("manifold_api_key, manifold_username")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       setHasApiKey(!!data?.manifold_api_key);
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error("Error fetching settings:", error);
     }
   };
 
@@ -136,32 +134,32 @@ export default function LoanDetail() {
     if (!loan) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to cancel this loan? All investors will be refunded M$${loan.funded_amount.toLocaleString()} immediately.`
+      `Are you sure you want to cancel this loan? All investors will be refunded M$${loan.funded_amount.toLocaleString()} immediately.`,
     );
 
     if (!confirmed) return;
 
     setIsCancelling(true);
     try {
-      const { data, error } = await supabase.functions.invoke('cancel-loan', {
-        body: { loanId: loan.id }
+      const { data, error } = await supabase.functions.invoke("cancel-loan", {
+        body: { loanId: loan.id },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
       toast({
-        title: 'Loan Cancelled',
+        title: "Loan Cancelled",
         description: data.message,
       });
 
-      navigate('/marketplace');
+      navigate("/marketplace");
     } catch (error) {
-      console.error('Cancel error:', error);
+      console.error("Cancel error:", error);
       toast({
-        title: 'Failed to cancel loan',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
+        title: "Failed to cancel loan",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
       });
     } finally {
       setIsCancelling(false);
@@ -208,17 +206,17 @@ export default function LoanDetail() {
     const amount = parseFloat(investAmount);
     if (isNaN(amount) || amount < 10) {
       toast({
-        title: 'Invalid amount',
-        description: 'Minimum investment is M$10',
-        variant: 'destructive',
+        title: "Invalid amount",
+        description: "Minimum investment is M$10",
+        variant: "destructive",
       });
       return;
     }
     if (!hasApiKey) {
       toast({
-        title: 'API Key Required',
-        description: 'Please connect your Manifold account in Settings first',
-        variant: 'destructive',
+        title: "API Key Required",
+        description: "Please connect your Manifold account in Settings first",
+        variant: "destructive",
       });
       return;
     }
@@ -226,9 +224,9 @@ export default function LoanDetail() {
     // CHECK MANIFED BALANCE BEFORE INVESTING
     if (amount > balance) {
       toast({
-        title: 'Insufficient ManiFed Balance',
+        title: "Insufficient ManiFed Balance",
         description: `You need to deposit M$${(amount - balance).toLocaleString()} more to make this investment. Click on your wallet to deposit.`,
-        variant: 'destructive',
+        variant: "destructive",
       });
       return;
     }
@@ -236,22 +234,25 @@ export default function LoanDetail() {
     setIsInvesting(true);
     try {
       // Get user info for recording investment
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_username')
-        .eq('user_id', user.id)
+        .from("user_manifold_settings")
+        .select("manifold_username")
+        .eq("user_id", user.id)
         .single();
 
       // Call the managram function to send funds to borrower (API key fetched server-side)
-      const { data, error } = await supabase.functions.invoke('managram', {
+      const { data, error } = await supabase.functions.invoke("managram", {
         body: {
-          action: 'invest',
+          action: "invest",
           amount: amount,
           recipientUsername: loan.borrower_username,
-          message: investMessage || `Loan investment for: ${loan.title}`,
+          message:
+            investMessage || `${loan.title} investment. Pay it back or Kristi Noem & goons are going to come for you`,
           loanId: loan.id,
         },
       });
@@ -260,15 +261,13 @@ export default function LoanDetail() {
       if (data.error) throw new Error(data.error);
 
       // Record the investment in the database
-      const { error: investError } = await supabase
-        .from('investments')
-        .insert({
-          loan_id: loan.id,
-          investor_user_id: user.id,
-          investor_username: settings?.manifold_username || 'Anonymous',
-          amount: amount,
-          message: investMessage,
-        });
+      const { error: investError } = await supabase.from("investments").insert({
+        loan_id: loan.id,
+        investor_user_id: user.id,
+        investor_username: settings?.manifold_username || "Anonymous",
+        amount: amount,
+        message: investMessage,
+      });
 
       if (investError) throw investError;
 
@@ -278,19 +277,19 @@ export default function LoanDetail() {
       await fetchBalance();
 
       toast({
-        title: 'Investment Successful!',
+        title: "Investment Successful!",
         description: `You invested M$${amount.toLocaleString()} in this loan`,
       });
-      
-      setInvestAmount('');
-      setInvestMessage('');
+
+      setInvestAmount("");
+      setInvestMessage("");
       fetchLoanData(); // Refresh loan data
     } catch (error) {
-      console.error('Investment error:', error);
+      console.error("Investment error:", error);
       toast({
-        title: 'Investment Failed',
-        description: error instanceof Error ? error.message : 'Failed to process investment',
-        variant: 'destructive',
+        title: "Investment Failed",
+        description: error instanceof Error ? error.message : "Failed to process investment",
+        variant: "destructive",
       });
     } finally {
       setIsInvesting(false);
@@ -302,7 +301,10 @@ export default function LoanDetail() {
       <Header />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <Link to="/marketplace" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+        <Link
+          to="/marketplace"
+          className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Marketplace
         </Link>
@@ -318,15 +320,13 @@ export default function LoanDetail() {
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {status.label}
                     </Badge>
-                    <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">
-                      {loan.title}
-                    </CardTitle>
+                    <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">{loan.title}</CardTitle>
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <span>by @{loan.borrower_username}</span>
                       <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
                     </div>
                   </div>
-                  <div className={cn('px-3 py-2 rounded-lg border flex items-center gap-2', risk.className)}>
+                  <div className={cn("px-3 py-2 rounded-lg border flex items-center gap-2", risk.className)}>
                     <AlertTriangle className="w-4 h-4" />
                     {risk.label}
                   </div>
@@ -370,7 +370,7 @@ export default function LoanDetail() {
                 </div>
 
                 {/* Funding Progress */}
-                {loan.status === 'seeking_funding' && (
+                {loan.status === "seeking_funding" && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Funding Progress</span>
@@ -378,12 +378,8 @@ export default function LoanDetail() {
                     </div>
                     <Progress value={fundingProgress} className="h-3" />
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        M${loan.funded_amount.toLocaleString()} funded
-                      </span>
-                      <span className="text-muted-foreground">
-                        M${remainingAmount.toLocaleString()} remaining
-                      </span>
+                      <span className="text-muted-foreground">M${loan.funded_amount.toLocaleString()} funded</span>
+                      <span className="text-muted-foreground">M${remainingAmount.toLocaleString()} remaining</span>
                     </div>
                   </div>
                 )}
@@ -391,7 +387,7 @@ export default function LoanDetail() {
             </Card>
 
             {/* Investors List */}
-            <Card className="glass animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <Card className="glass animate-slide-up" style={{ animationDelay: "100ms" }}>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="w-5 h-5 text-primary" />
@@ -412,51 +408,44 @@ export default function LoanDetail() {
                             {new Date(investor.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <p className="font-semibold text-foreground">
-                          M${Number(investor.amount).toLocaleString()}
-                        </p>
+                        <p className="font-semibold text-foreground">M${Number(investor.amount).toLocaleString()}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    No investors yet. Be the first!
-                  </p>
+                  <p className="text-muted-foreground text-center py-8">No investors yet. Be the first!</p>
                 )}
               </CardContent>
             </Card>
 
             {/* Cancel Loan Button - Only show to loan owner */}
-            {currentUserId === loan.borrower_user_id && (loan.status === 'seeking_funding' || loan.status === 'active') && (
-              <Card className="glass border-destructive/30 animate-slide-up" style={{ animationDelay: '150ms' }}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-foreground">Cancel This Loan</p>
-                      <p className="text-sm text-muted-foreground">
-                        {loan.status === 'active' 
-                          ? 'Cancelling after funding requires repaying principal + interest to all investors.'
-                          : 'All investors will be refunded their principal immediately.'}
-                      </p>
+            {currentUserId === loan.borrower_user_id &&
+              (loan.status === "seeking_funding" || loan.status === "active") && (
+                <Card className="glass border-destructive/30 animate-slide-up" style={{ animationDelay: "150ms" }}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-medium text-foreground">Cancel This Loan</p>
+                        <p className="text-sm text-muted-foreground">
+                          {loan.status === "active"
+                            ? "Cancelling after funding requires repaying principal + interest to all investors."
+                            : "All investors will be refunded their principal immediately."}
+                        </p>
+                      </div>
+                      <Button variant="destructive" onClick={handleCancelLoan} disabled={isCancelling}>
+                        {isCancelling ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Cancel Loan
+                      </Button>
                     </div>
-                    <Button 
-                      variant="destructive" 
-                      onClick={handleCancelLoan}
-                      disabled={isCancelling}
-                    >
-                      {isCancelling ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Cancel Loan
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {loan.status === 'seeking_funding' && currentUserId !== loan.borrower_user_id && (
-              <Card className="glass animate-slide-up sticky top-24" style={{ animationDelay: '150ms' }}>
+            {loan.status === "seeking_funding" && currentUserId !== loan.borrower_user_id && (
+              <Card className="glass animate-slide-up sticky top-24" style={{ animationDelay: "150ms" }}>
                 <CardHeader>
                   <CardTitle className="text-lg">Invest in this Loan</CardTitle>
                 </CardHeader>
@@ -465,7 +454,11 @@ export default function LoanDetail() {
                     <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 text-sm">
                       <p className="text-warning font-medium">Connect Manifold Account</p>
                       <p className="text-muted-foreground">
-                        Go to <Link to="/settings" className="text-primary hover:underline">Settings</Link> to connect.
+                        Go to{" "}
+                        <Link to="/settings" className="text-primary hover:underline">
+                          Settings
+                        </Link>{" "}
+                        to connect.
                       </p>
                     </div>
                   )}
@@ -475,9 +468,7 @@ export default function LoanDetail() {
                       <p className="text-muted-foreground">Your ManiFed Balance</p>
                       <p className="text-xl font-bold text-foreground">M${balance.toLocaleString()}</p>
                       {balance < 10 && (
-                        <p className="text-warning text-xs mt-1">
-                          Deposit funds via the wallet icon in the header
-                        </p>
+                        <p className="text-warning text-xs mt-1">Deposit funds via the wallet icon in the header</p>
                       )}
                     </div>
                   )}
@@ -491,9 +482,7 @@ export default function LoanDetail() {
                       onChange={(e) => setInvestAmount(e.target.value)}
                       className="bg-secondary/50"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Min: M$10
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">Min: M$10</p>
                   </div>
 
                   <div>
@@ -512,10 +501,9 @@ export default function LoanDetail() {
                       <p className="text-sm text-muted-foreground">Expected Return</p>
                       <p className="text-lg font-bold text-success">
                         M$
-                        {(
-                          parseFloat(investAmount) *
-                          (1 + loan.interest_rate / 100)
-                        ).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {(parseFloat(investAmount) * (1 + loan.interest_rate / 100)).toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         +{loan.interest_rate}% in {loan.term_days} days
@@ -523,10 +511,10 @@ export default function LoanDetail() {
                     </div>
                   )}
 
-                  <Button 
-                    variant="glow" 
-                    className="w-full" 
-                    size="lg" 
+                  <Button
+                    variant="glow"
+                    className="w-full"
+                    size="lg"
                     onClick={handleInvest}
                     disabled={isInvesting || !hasApiKey || balance < 10}
                   >
@@ -542,7 +530,7 @@ export default function LoanDetail() {
             )}
 
             {loan.manifold_market_id && (
-              <Card className="glass animate-slide-up" style={{ animationDelay: '200ms' }}>
+              <Card className="glass animate-slide-up" style={{ animationDelay: "200ms" }}>
                 <CardContent className="p-4">
                   <Button variant="outline" className="w-full" asChild>
                     <a
