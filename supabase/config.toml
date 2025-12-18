@@ -65,3 +65,9 @@ verify_jwt = false
 
 [functions.comment-maker]
 verify_jwt = true
+
+[functions.mispriced-scanner]
+verify_jwt = true
+
+[functions.quester]
+verify_jwt = true

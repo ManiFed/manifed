@@ -27,6 +27,9 @@ import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
 import Subscription from "./pages/Subscription";
 import CommentMaker from "./pages/CommentMaker";
+import ManiFedAI from "./pages/ManiFedAI";
+import MispricedScanner from "./pages/MispricedScanner";
+import Quester from "./pages/Quester";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,7 +83,7 @@ const App = () => (
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
           <Route path="/credit-search" element={<CreditSearch />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/bonds" element={<Bonds />} />
+          <Route path="/bonds" element={<ProtectedRoute><Bonds /></ProtectedRoute>} />
           <Route path="/bond-market" element={<ProtectedRoute><BondMarket /></ProtectedRoute>} />
           <Route path="/treasury" element={<ProtectedRoute><TreasuryNews /></ProtectedRoute>} />
           <Route path="/treasury-admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
@@ -91,6 +94,9 @@ const App = () => (
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
+          <Route path="/mfai" element={<ProtectedRoute><ManiFedAI /></ProtectedRoute>} />
+          <Route path="/mispriced-scanner" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
+          <Route path="/quester" element={<ProtectedRoute><Quester /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

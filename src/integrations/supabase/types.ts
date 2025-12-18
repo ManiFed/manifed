@@ -719,6 +719,8 @@ export type Database = {
           equipped_effect: string | null
           equipped_flair: string | null
           id: string
+          theme: string
+          trump_level: number
           updated_at: string
           user_id: string
           username: string | null
@@ -731,6 +733,8 @@ export type Database = {
           equipped_effect?: string | null
           equipped_flair?: string | null
           id?: string
+          theme?: string
+          trump_level?: number
           updated_at?: string
           user_id: string
           username?: string | null
@@ -743,9 +747,44 @@ export type Database = {
           equipped_effect?: string | null
           equipped_flair?: string | null
           id?: string
+          theme?: string
+          trump_level?: number
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      quester_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_trade_at: string | null
+          next_trade_at: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_trade_at?: string | null
+          next_trade_at?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_trade_at?: string | null
+          next_trade_at?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -929,6 +968,7 @@ export type Database = {
           current_period_end: string | null
           id: string
           market_queries_used: number
+          mfai_credits_used: number
           price_id: string | null
           product_id: string | null
           status: string
@@ -945,6 +985,7 @@ export type Database = {
           current_period_end?: string | null
           id?: string
           market_queries_used?: number
+          mfai_credits_used?: number
           price_id?: string | null
           product_id?: string | null
           status?: string
@@ -961,6 +1002,7 @@ export type Database = {
           current_period_end?: string | null
           id?: string
           market_queries_used?: number
+          mfai_credits_used?: number
           price_id?: string | null
           product_id?: string | null
           status?: string
