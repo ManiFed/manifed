@@ -8,10 +8,10 @@ const corsHeaders = {
 
 // Tier limits
 const TIER_LIMITS = {
-  free: { arbitrageScans: 3, marketQueries: 5 },
-  basic: { arbitrageScans: 10, marketQueries: 20 },
-  pro: { arbitrageScans: 25, marketQueries: 40 },
-  premium: { arbitrageScans: 60, marketQueries: 80 },
+  free: { arbitrageScans: 3, marketQueries: 5, commentPosts: 3 },
+  basic: { arbitrageScans: 10, marketQueries: 20, commentPosts: 5 },
+  pro: { arbitrageScans: 25, marketQueries: 40, commentPosts: 10 },
+  premium: { arbitrageScans: 60, marketQueries: 80, commentPosts: 20 },
 };
 
 serve(async (req) => {
@@ -26,8 +26,8 @@ serve(async (req) => {
   );
 
   try {
-    const { type } = await req.json(); // 'arbitrage_scan' or 'market_query'
-    if (!type || !['arbitrage_scan', 'market_query'].includes(type)) {
+    const { type } = await req.json(); // 'arbitrage_scan', 'market_query', or 'comment_post'
+    if (!type || !['arbitrage_scan', 'market_query', 'comment_post'].includes(type)) {
       throw new Error("Invalid usage type");
     }
 
@@ -107,7 +107,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
-    } else {
+    } else if (type === 'market_query') {
       if (subscription.market_queries_used >= limits.marketQueries) {
         return new Response(JSON.stringify({
           success: false,
@@ -130,6 +130,35 @@ serve(async (req) => {
         success: true,
         current: subscription.market_queries_used + 1,
         limit: limits.marketQueries,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } else {
+      // comment_post
+      const commentPostsUsed = (subscription as any).comment_posts_used || 0;
+      if (commentPostsUsed >= limits.commentPosts) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'limit_reached',
+          message: `You've reached your monthly limit of ${limits.commentPosts} AI comment posts. Upgrade your plan for more.`,
+          current: commentPostsUsed,
+          limit: limits.commentPosts,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        });
+      }
+
+      await supabaseClient
+        .from('user_subscriptions')
+        .update({ comment_posts_used: commentPostsUsed + 1 })
+        .eq('user_id', user.id);
+
+      return new Response(JSON.stringify({
+        success: true,
+        current: commentPostsUsed + 1,
+        limit: limits.commentPosts,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

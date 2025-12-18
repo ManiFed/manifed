@@ -13,11 +13,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Heart, Loader2, DollarSign, Coins, ExternalLink } from 'lucide-react';
+import { Heart, Loader2, DollarSign, Coins } from 'lucide-react';
 
 export function DonationButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [usdAmount, setUsdAmount] = useState('5');
+  const [manaAmount, setManaAmount] = useState('100');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUsdDonate = async () => {
@@ -34,7 +35,7 @@ export function DonationButton() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-donation', {
-        body: { amount: Math.round(amount * 100) }, // Convert to cents
+        body: { amount: Math.round(amount * 100) },
       });
       if (error) throw error;
       if (data?.url) {
@@ -52,7 +53,45 @@ export function DonationButton() {
     }
   };
 
-  const quickAmounts = [1, 5, 10, 25];
+  const handleManaDonate = async () => {
+    const amount = parseInt(manaAmount);
+    if (isNaN(amount) || amount < 10) {
+      toast({
+        title: 'Invalid amount',
+        description: 'Minimum donation is M$10',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('managram', {
+        body: { 
+          action: 'deposit',
+          amount: amount,
+          message: `Donation to ManiFed: M$${amount} - Thank you for Making Manifold Great Again! 🇺🇸`
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Donation Sent!',
+        description: `Thank you for your M$${amount} donation! The deep state fears your generosity.`,
+      });
+      setIsOpen(false);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send mana donation',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const quickUsdAmounts = [1, 5, 10, 25];
+  const quickManaAmounts = [50, 100, 500, 1000];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -69,7 +108,7 @@ export function DonationButton() {
             Support ManiFed
           </DialogTitle>
           <DialogDescription>
-            Your donations help cover AI costs and keep ManiFed running. We don't make a profit!
+            Your donations help fight the deep state... I mean, cover AI costs. We don't make a profit! 🇺🇸
           </DialogDescription>
         </DialogHeader>
 
@@ -87,7 +126,7 @@ export function DonationButton() {
 
           <TabsContent value="usd" className="space-y-4 mt-4">
             <div className="flex gap-2">
-              {quickAmounts.map((amount) => (
+              {quickUsdAmounts.map((amount) => (
                 <Button
                   key={amount}
                   variant={usdAmount === String(amount) ? 'default' : 'outline'}
@@ -100,11 +139,11 @@ export function DonationButton() {
               ))}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="custom-amount">Custom Amount (USD)</Label>
+              <Label htmlFor="custom-usd">Custom Amount (USD)</Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="custom-amount"
+                  id="custom-usd"
                   type="number"
                   min="1"
                   step="0.01"
@@ -131,20 +170,51 @@ export function DonationButton() {
           </TabsContent>
 
           <TabsContent value="mana" className="space-y-4 mt-4">
-            <div className="p-4 rounded-lg bg-secondary/50 border border-border/50 text-center">
-              <Coins className="w-10 h-10 mx-auto mb-3 text-primary" />
-              <p className="text-sm text-muted-foreground mb-4">
-                To donate M$, you can send a managram directly to <strong>@ManiFed</strong> on Manifold Markets.
-              </p>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => window.open('https://manifold.markets/ManiFed', '_blank')}
-              >
-                <ExternalLink className="w-4 h-4" />
-                Open Manifold Profile
-              </Button>
+            <div className="flex gap-2">
+              {quickManaAmounts.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={manaAmount === String(amount) ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setManaAmount(String(amount))}
+                >
+                  M${amount}
+                </Button>
+              ))}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="custom-mana">Custom Amount (M$)</Label>
+              <div className="relative">
+                <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="custom-mana"
+                  type="number"
+                  min="10"
+                  step="1"
+                  value={manaAmount}
+                  onChange={(e) => setManaAmount(e.target.value)}
+                  className="pl-10"
+                  placeholder="100"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Sends M$ directly from your Manifold account via managram
+            </p>
+            <Button
+              variant="glow"
+              className="w-full"
+              onClick={handleManaDonate}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Coins className="w-4 h-4 mr-2" />
+              )}
+              Donate M${manaAmount || '0'}
+            </Button>
           </TabsContent>
         </Tabs>
       </DialogContent>

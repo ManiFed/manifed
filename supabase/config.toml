@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.create-donation]
 verify_jwt = false
+
+[functions.comment-maker]
+verify_jwt = true

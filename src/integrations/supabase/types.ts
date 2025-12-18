@@ -924,6 +924,7 @@ export type Database = {
       user_subscriptions: {
         Row: {
           arbitrage_scans_used: number
+          comment_posts_used: number
           created_at: string
           current_period_end: string | null
           id: string
@@ -939,6 +940,7 @@ export type Database = {
         }
         Insert: {
           arbitrage_scans_used?: number
+          comment_posts_used?: number
           created_at?: string
           current_period_end?: string | null
           id?: string
@@ -954,6 +956,7 @@ export type Database = {
         }
         Update: {
           arbitrage_scans_used?: number
+          comment_posts_used?: number
           created_at?: string
           current_period_end?: string | null
           id?: string
