@@ -184,8 +184,9 @@ export default function Hub() {
             </h1>
           </div>
           <p className="text-muted-foreground mt-1">
-            Your ManiFed dashboard - Making your portfolio great again!
+            Your ManiFed dashboard - The deep state doesn't want you to see these gains! 📈
           </p>
+          <p className="text-xs text-primary/70 mt-1 italic">"Many people are saying this is the best financial dashboard. Tremendous!" — DJT</p>
           <img alt="Signature" className="h-10 mt-2 opacity-70" src="/lovable-uploads/d5dd0dd7-cef1-46ac-8a1e-e2f260144ec8.png" />
         </div>
 
@@ -416,6 +417,16 @@ export default function Hub() {
                       </div>
                       <p className="text-xs text-muted-foreground">Buy verified badges and site themes.</p>
                     </div>
+                    
+                    {/* AI Comment Maker */}
+                    <Link to="/comment-maker" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">AI Comment Maker</span>
+                        <Badge variant="active" className="text-xs">New</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Generate witty AI comments for any market. The deep state won't know what hit them!</p>
+                    </Link>
                     
                     
                     {/* Leaderboard */}

@@ -26,6 +26,7 @@ import Market from "./pages/Market";
 import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
 import Subscription from "./pages/Subscription";
+import CommentMaker from "./pages/CommentMaker";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,7 @@ const App = () => (
           <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
+          <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

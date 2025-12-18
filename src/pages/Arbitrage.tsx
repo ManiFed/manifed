@@ -199,6 +199,24 @@ export default function Arbitrage() {
       });
       return;
     }
+
+    // Check usage limit first
+    try {
+      const { data: usageData, error: usageError } = await supabase.functions.invoke('increment-usage', {
+        body: { type: 'arbitrage_scan' }
+      });
+      if (usageError || !usageData?.success) {
+        toast({
+          title: 'Limit Reached',
+          description: usageData?.message || 'You\'ve reached your monthly arbitrage scan limit. Upgrade your plan for more!',
+          variant: 'destructive'
+        });
+        return;
+      }
+    } catch (e) {
+      console.error('Usage check failed:', e);
+    }
+
     setIsScanning(true);
     setScanProgress(0);
     setScanStatus('Initializing scan...');
@@ -252,8 +270,6 @@ export default function Arbitrage() {
         }
       });
 
-      // AI semantic matching still happens on the backend during scan
-      // User can click to analyze individual opportunities
       toast({
         title: 'Scan Complete',
         description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.${config.aiAnalysisEnabled ? ' Click "Analyze" on any opportunity for AI insights.' : ''}`

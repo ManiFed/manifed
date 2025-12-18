@@ -110,6 +110,23 @@ export default function MarketAgent() {
   const askQuestion = async () => {
     if (!inputMessage.trim() || !marketData) return;
 
+    // Check usage limit first
+    try {
+      const { data: usageData, error: usageError } = await supabase.functions.invoke('increment-usage', {
+        body: { type: 'market_query' }
+      });
+      if (usageError || !usageData?.success) {
+        toast({
+          title: 'Limit Reached',
+          description: usageData?.message || 'You\'ve reached your monthly market query limit. Upgrade your plan for more!',
+          variant: 'destructive'
+        });
+        return;
+      }
+    } catch (e) {
+      console.error('Usage check failed:', e);
+    }
+
     const userMessage = inputMessage.trim();
     setInputMessage('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -135,7 +152,6 @@ export default function MarketAgent() {
         description: error instanceof Error ? error.message : 'Failed to get AI response',
         variant: 'destructive',
       });
-      // Remove the user message if we failed
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsAsking(false);

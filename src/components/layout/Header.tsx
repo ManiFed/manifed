@@ -12,10 +12,6 @@ const navItems = [{
   label: 'Marketplace',
   icon: TrendingUp
 }, {
-  path: '/portfolio',
-  label: 'Portfolio',
-  icon: LayoutDashboard
-}, {
   path: '/create',
   label: 'Create Loan',
   icon: PlusCircle

@@ -61,8 +61,10 @@ export default function Landing() {
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
               ManiFed is Manifold's decentralized financial institution. We provide lending, 
               borrowing, and financial services for the prediction market ecosystem.
+              <span className="text-primary font-semibold"> The deep state doesn't want you to know about this.</span>
             </p>
-            <p className="text-lg font-semibold text-primary mb-4">Make America 🇺🇸 like Manifold 💰without mods 🤮. DONALD J. TRUMP</p>
+            <p className="text-lg font-semibold text-primary mb-2">Make America 🇺🇸 like Manifold 💰 without mods 🤮</p>
+            <p className="text-sm text-muted-foreground mb-4 italic">"They tried to regulate prediction markets. They failed. Bigly." — DONALD J. TRUMP</p>
             <img alt="Signature" className="h-14 mx-auto mb-8 opacity-80" src="/lovable-uploads/dc5fca2b-4f00-4a11-a7fd-3c71e7c6374b.png" />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/auth?mode=signup">

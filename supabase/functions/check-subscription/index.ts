@@ -17,6 +17,7 @@ const TIERS = {
   free: {
     arbitrageScans: 3,
     marketQueries: 5,
+    commentPosts: 3,
     scanInterval: null,
     queryInterval: 'month',
   },
@@ -24,6 +25,7 @@ const TIERS = {
     productId: 'prod_Tck6DaVe4R3cWv',
     arbitrageScans: 10,
     marketQueries: 20,
+    commentPosts: 5,
     scanInterval: 'month',
     queryInterval: 'month',
   },
@@ -31,6 +33,7 @@ const TIERS = {
     productId: 'prod_Tck6cZ15Oc03JA',
     arbitrageScans: 25,
     marketQueries: 40,
+    commentPosts: 10,
     scanInterval: 'month',
     queryInterval: 'month',
   },
@@ -38,6 +41,7 @@ const TIERS = {
     productId: 'prod_Tck6LV1MCbB6mm',
     arbitrageScans: 60, // 1 per 12 hours = ~60/month
     marketQueries: 80, // 20/week = 80/month
+    commentPosts: 20,
     scanInterval: 'month',
     queryInterval: 'month',
   },
@@ -124,13 +128,14 @@ serve(async (req) => {
     // Get current usage
     const { data: usageData } = await supabaseClient
       .from('user_subscriptions')
-      .select('arbitrage_scans_used, market_queries_used, usage_reset_at')
+      .select('arbitrage_scans_used, market_queries_used, comment_posts_used, usage_reset_at')
       .eq('user_id', user.id)
       .single();
 
     // Check if usage needs reset (monthly)
     let scansUsed = 0;
     let queriesUsed = 0;
+    let commentPostsUsed = 0;
     if (usageData) {
       const resetAt = new Date(usageData.usage_reset_at);
       const now = new Date();
@@ -143,12 +148,14 @@ serve(async (req) => {
           .update({
             arbitrage_scans_used: 0,
             market_queries_used: 0,
+            comment_posts_used: 0,
             usage_reset_at: now.toISOString(),
           })
           .eq('user_id', user.id);
       } else {
         scansUsed = usageData.arbitrage_scans_used;
         queriesUsed = usageData.market_queries_used;
+        commentPostsUsed = usageData.comment_posts_used || 0;
       }
     } else {
       // Create free tier record
@@ -170,10 +177,12 @@ serve(async (req) => {
       limits: {
         arbitrageScans: tierConfig.arbitrageScans,
         marketQueries: tierConfig.marketQueries,
+        commentPosts: tierConfig.commentPosts,
       },
       usage: {
         arbitrageScans: scansUsed,
         marketQueries: queriesUsed,
+        commentPosts: commentPostsUsed,
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

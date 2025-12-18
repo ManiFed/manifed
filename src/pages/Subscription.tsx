@@ -15,6 +15,7 @@ const TIERS: Record<string, {
   productId?: string;
   arbitrageScans: number;
   marketQueries: number;
+  commentPosts: number;
   description: string;
   features: string[];
   icon: any;
@@ -26,8 +27,9 @@ const TIERS: Record<string, {
     priceId: null,
     arbitrageScans: 3,
     marketQueries: 5,
+    commentPosts: 3,
     description: 'Get started with ManiFed',
-    features: ['3 arbitrage scans/month', '5 market AI queries/month', 'Basic market insights'],
+    features: ['3 arbitrage scans/month', '5 market AI queries/month', '3 AI comment posts/month'],
     icon: Zap,
   },
   basic: {
@@ -37,8 +39,9 @@ const TIERS: Record<string, {
     productId: 'prod_Tck6DaVe4R3cWv',
     arbitrageScans: 10,
     marketQueries: 20,
+    commentPosts: 5,
     description: 'For casual traders',
-    features: ['10 arbitrage scans/month', '20 market AI queries/month', 'Priority scan processing'],
+    features: ['10 arbitrage scans/month', '20 market AI queries/month', '5 AI comment posts/month'],
     icon: Sparkles,
   },
   pro: {
@@ -48,8 +51,9 @@ const TIERS: Record<string, {
     productId: 'prod_Tck6cZ15Oc03JA',
     arbitrageScans: 25,
     marketQueries: 40,
+    commentPosts: 10,
     description: 'For active traders',
-    features: ['25 arbitrage scans/month', '40 market AI queries/month', 'Advanced analytics'],
+    features: ['25 arbitrage scans/month', '40 market AI queries/month', '10 AI comment posts/month'],
     icon: Crown,
     popular: true,
   },
@@ -60,8 +64,9 @@ const TIERS: Record<string, {
     productId: 'prod_Tck6LV1MCbB6mm',
     arbitrageScans: 60,
     marketQueries: 80,
-    description: 'For power users',
-    features: ['1 scan every 12 hours', '20 AI queries/week', 'Unlimited potential'],
+    commentPosts: 20,
+    description: 'For power users - MAGA mode',
+    features: ['60 arbitrage scans/month', '80 market AI queries/month', '20 AI comment posts/month'],
     icon: Crown,
   },
 };
