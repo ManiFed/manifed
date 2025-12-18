@@ -15,6 +15,7 @@ import {
   Clock,
   CheckCircle,
   Loader2,
+  Brain,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -43,11 +44,20 @@ interface Transaction {
   created_at: string;
 }
 
+const CREDIT_LIMITS: Record<string, number> = {
+  'free': 15,
+  'basic': 50,
+  'pro': 100,
+  'premium': 200,
+};
+
 export default function Portfolio() {
   const { balance, totalInvested, isLoading: balanceLoading } = useUserBalance();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [mfaiCreditsUsed, setMfaiCreditsUsed] = useState(0);
+  const [mfaiCreditsLimit, setMfaiCreditsLimit] = useState(15);
 
   useEffect(() => {
     fetchPortfolioData();
@@ -93,6 +103,18 @@ export default function Portfolio() {
 
       if (transactionError) throw transactionError;
       setTransactions(transactionData || []);
+
+      // Fetch MFAI credits
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
+        .select('status, mfai_credits_used')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (subscription) {
+        setMfaiCreditsUsed(subscription.mfai_credits_used || 0);
+        setMfaiCreditsLimit(CREDIT_LIMITS[subscription.status] || 15);
+      }
     } catch (error) {
       console.error('Error fetching portfolio:', error);
     } finally {
@@ -111,6 +133,8 @@ export default function Portfolio() {
   const activeInvestments = investments.filter(
     inv => inv.loans && (inv.loans.status === 'active' || inv.loans.status === 'seeking_funding')
   );
+
+  const mfaiCreditsRemaining = mfaiCreditsLimit - mfaiCreditsUsed;
 
   if (isLoading || balanceLoading) {
     return (
@@ -134,7 +158,7 @@ export default function Portfolio() {
             <h1 className="text-3xl font-bold text-foreground">Your Portfolio</h1>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="glass">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
@@ -203,6 +227,25 @@ export default function Portfolio() {
                   </div>
                   <div className="p-3 rounded-xl bg-success/10">
                     <ArrowUpRight className="w-6 h-6 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">MFAI Credits</p>
+                    <p className="text-3xl font-bold text-foreground mt-1">
+                      {mfaiCreditsRemaining}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      of {mfaiCreditsLimit} remaining
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-violet-500/10">
+                    <Brain className="w-6 h-6 text-violet-500" />
                   </div>
                 </div>
               </CardContent>

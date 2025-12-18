@@ -2,10 +2,85 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Clock, Search, Newspaper } from 'lucide-react';
+import { TrendingUp, Landmark, Shield, Sparkles, ArrowRight, Coins, FileText, Clock, Search, Newspaper, Brain, Target, MessageSquare, BarChart3, Zap } from 'lucide-react';
 import trumpPortrait from '@/assets/trump-portrait.png';
+
 export default function Landing() {
-  return <div className="min-h-screen relative overflow-hidden">
+  const products = [
+    {
+      title: 'P2P Loans',
+      description: 'Peer-to-peer marketplace for prediction market loans. Borrow or lend M$.',
+      icon: TrendingUp,
+      gradient: 'bg-gradient-primary',
+      link: '/auth?mode=signup',
+      available: true,
+    },
+    {
+      title: 'Treasury Bonds',
+      description: 'Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.',
+      icon: FileText,
+      gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600',
+      link: '/auth?mode=signup',
+      available: true,
+    },
+    {
+      title: 'ManiFed AI',
+      description: 'AI-powered tools for prediction markets: arbitrage scanner, market agent, and comment maker.',
+      icon: Brain,
+      gradient: 'bg-gradient-to-br from-violet-500 to-purple-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: 'AI-Powered',
+    },
+    {
+      title: 'Arbitrage Scanner',
+      description: 'Scan Manifold Markets for arbitrage opportunities using AI semantic matching.',
+      icon: Target,
+      gradient: 'bg-gradient-to-br from-orange-500 to-red-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: '5 credits',
+    },
+    {
+      title: 'Mispriced Markets',
+      description: 'Find generally underpriced or overpriced markets using AI analysis.',
+      icon: BarChart3,
+      gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: '5 credits',
+    },
+    {
+      title: 'Market Agent',
+      description: 'Paste a Manifold market link and ask AI questions about it.',
+      icon: MessageSquare,
+      gradient: 'bg-gradient-to-br from-blue-500 to-cyan-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: '1 credit',
+    },
+    {
+      title: 'AI Comment Maker',
+      description: 'Generate Trump-style comments for Manifold markets using AI.',
+      icon: Sparkles,
+      gradient: 'bg-gradient-to-br from-pink-500 to-rose-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: '1 credit',
+    },
+    {
+      title: 'Quester',
+      description: 'Automated daily trading bot. Buy and sell shares on the Quester market automatically.',
+      icon: Zap,
+      gradient: 'bg-gradient-to-br from-yellow-500 to-amber-600',
+      link: '/auth?mode=signup',
+      available: true,
+      badge: 'Auto-Trade',
+    },
+  ];
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
       {/* Ultra Trump Background - Portraits only, no signatures */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <img src={trumpPortrait} alt="" className="absolute -right-10 top-32 w-[550px] h-auto opacity-[0.07] rotate-3" />
@@ -60,7 +135,7 @@ export default function Landing() {
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-4">
               ManiFed is Manifold's decentralized financial institution. We provide lending, 
-              borrowing, and financial services for the prediction market ecosystem.
+              borrowing, and AI-powered trading tools for the prediction market ecosystem.
               <span className="text-primary font-semibold"> The deep state doesn't want you to know about this.</span>
             </p>
             <p className="text-lg font-semibold text-primary mb-2">Make America 🇺🇸 like Manifold 💰 without mods 🤮</p>
@@ -89,63 +164,53 @@ export default function Landing() {
               Our <span className="text-gradient">Products</span>
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Financial instruments designed for the prediction market ecosystem
+              Financial instruments and AI tools designed for the prediction market ecosystem
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Loans */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '100ms'
-          }}>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-primary-foreground" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {products.map((product, index) => (
+              <Card 
+                key={product.title} 
+                className="glass border-primary/30 animate-slide-up hover:bg-card/90 transition-all hover:-translate-y-1" 
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-12 h-12 rounded-xl ${product.gradient} flex items-center justify-center`}>
+                      <product.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-foreground">{product.title}</h3>
+                      {product.badge && (
+                        <Badge variant="secondary" className="text-xs mt-0.5">{product.badge}</Badge>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-bold text-foreground">P2P Loans</h3>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Peer-to-peer marketplace for prediction market loans. Borrow or lend M$.
-                </p>
-                <Link to="/auth?mode=signup">
-                  <Button variant="outline" className="w-full gap-2" size="sm">
-                    Access Loans <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Bonds */}
-            <Card className="glass border-primary/30 animate-slide-up" style={{
-            animationDelay: '150ms'
-          }}>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">T-Bills</h3>
-                    <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Fixed-income Treasury Bills with 6% APY. Guaranteed yields at maturity.
-                </p>
-                <Button variant="outline" className="w-full gap-2" size="sm" disabled>
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
+                  <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
+                  <Link to={product.link}>
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-2" 
+                      size="sm"
+                      disabled={!product.available}
+                    >
+                      {product.available ? (
+                        <>Access <ArrowRight className="w-4 h-4" /></>
+                      ) : (
+                        'Coming Soon'
+                      )}
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </section>
 
         {/* Disclaimer */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass border-warning/30 animate-slide-up" style={{
-          animationDelay: '350ms'
-        }}>
+          <Card className="glass border-warning/30 animate-slide-up" style={{ animationDelay: '350ms' }}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-2 rounded-lg bg-warning/10 shrink-0">
@@ -172,14 +237,12 @@ export default function Landing() {
 
         {/* Contact Section */}
         <section className="container mx-auto px-4 py-8">
-          <Card className="glass animate-slide-up" style={{
-          animationDelay: '400ms'
-        }}>
+          <Card className="glass animate-slide-up" style={{ animationDelay: '400ms' }}>
             <CardContent className="p-6">
               <div className="text-center">
                 <h3 className="font-semibold text-foreground mb-2">Questions or Need Help?</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  ManiFed offers P2P loans. Reach out to us anytime:
+                  ManiFed offers P2P loans and AI-powered trading tools. Reach out to us anytime:
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
@@ -212,5 +275,6 @@ export default function Landing() {
           </div>
         </footer>
       </main>
-    </div>;
+    </div>
+  );
 }
