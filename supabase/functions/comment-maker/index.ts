@@ -149,6 +149,22 @@ Respond in this exact JSON format:
 
       const apiKey = await decryptApiKey(userSettings.manifold_api_key);
 
+      // Convert plain text to TipTap JSON format required by Manifold API
+      const tiptapContent = {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: comment,
+              },
+            ],
+          },
+        ],
+      };
+
       const postResponse = await fetch("https://api.manifold.markets/v0/comment", {
         method: "POST",
         headers: {
@@ -157,7 +173,7 @@ Respond in this exact JSON format:
         },
         body: JSON.stringify({
           contractId: marketData.id,
-          content: comment,
+          content: tiptapContent,
         }),
       });
 
