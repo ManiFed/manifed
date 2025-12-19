@@ -1,79 +1,82 @@
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { Landmark, ArrowLeft, Check, Loader2, Zap, Crown, Sparkles, Heart, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Landmark, ArrowLeft, Check, Loader2, Zap, Crown, Sparkles, Heart, ExternalLink } from "lucide-react";
 
-const TIERS: Record<string, {
-  name: string;
-  price: number;
-  priceId: string | null;
-  productId?: string;
-  arbitrageScans: number;
-  marketQueries: number;
-  commentPosts: number;
-  description: string;
-  features: string[];
-  icon: any;
-  popular?: boolean;
-}> = {
+const TIERS: Record<
+  string,
+  {
+    name: string;
+    price: number;
+    priceId: string | null;
+    productId?: string;
+    arbitrageScans: number;
+    marketQueries: number;
+    commentPosts: number;
+    description: string;
+    features: string[];
+    icon: any;
+    popular?: boolean;
+  }
+> = {
   free: {
-    name: 'Free',
+    name: "Free",
     price: 0,
     priceId: null,
     arbitrageScans: 3,
     marketQueries: 5,
     commentPosts: 3,
-    description: 'Get started with ManiFed',
-    features: ['3 arbitrage scans/month', '5 market AI queries/month', '3 AI comment posts/month'],
+    description: "Get started with ManiFed",
+    features: ["15 ManiFed AI credits per month."],
     icon: Zap,
   },
   basic: {
-    name: 'Basic',
+    name: "Basic",
     price: 2,
-    priceId: 'price_1SfUcZLmnTnECZahuTMqzZcH',
-    productId: 'prod_Tck6DaVe4R3cWv',
+    priceId: "price_1SfUcZLmnTnECZahuTMqzZcH",
+    productId: "prod_Tck6DaVe4R3cWv",
     arbitrageScans: 10,
     marketQueries: 20,
     commentPosts: 5,
-    description: 'For casual traders',
-    features: ['10 arbitrage scans/month', '20 market AI queries/month', '5 AI comment posts/month'],
+    description: "For casual traders",
+    features: ["50 ManiFed AI credits per month."],
     icon: Sparkles,
   },
   pro: {
-    name: 'Pro',
+    name: "Pro",
     price: 5,
-    priceId: 'price_1SfUchLmnTnECZahyWyHKt8z',
-    productId: 'prod_Tck6cZ15Oc03JA',
+    priceId: "price_1SfUchLmnTnECZahyWyHKt8z",
+    productId: "prod_Tck6cZ15Oc03JA",
     arbitrageScans: 25,
     marketQueries: 40,
     commentPosts: 10,
-    description: 'For active traders',
-    features: ['25 arbitrage scans/month', '40 market AI queries/month', '10 AI comment posts/month'],
+    description: "For active traders",
+    features: ["50 ManiFed AI credits per month."],
     icon: Crown,
     popular: true,
   },
   premium: {
-    name: 'Premium',
+    name: "Premium",
     price: 10,
-    priceId: 'price_1SfUciLmnTnECZahdS5wBRrT',
-    productId: 'prod_Tck6LV1MCbB6mm',
+    priceId: "price_1SfUciLmnTnECZahdS5wBRrT",
+    productId: "prod_Tck6LV1MCbB6mm",
     arbitrageScans: 60,
     marketQueries: 80,
     commentPosts: 20,
-    description: 'For power users - MAGA mode',
-    features: ['60 arbitrage scans/month', '80 market AI queries/month', '20 AI comment posts/month'],
+    description: "For power users - MAGA mode",
+    features: ["200 ManiFed AI credits per month. We're going full MAGA."],
     icon: Crown,
   },
 };
 
 export default function Subscription() {
   const [searchParams] = useSearchParams();
-  const [currentTier, setCurrentTier] = useState<string>('free');
+  const [currentTier, setCurrentTier] = useState<string>("free");
   const [usage, setUsage] = useState({ arbitrageScans: 0, marketQueries: 0 });
   const [limits, setLimits] = useState({ arbitrageScans: 3, marketQueries: 5 });
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
@@ -82,25 +85,25 @@ export default function Subscription() {
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('success') === 'true') {
-      toast({ title: 'Subscription successful!', description: 'Thank you for supporting ManiFed.' });
-    } else if (searchParams.get('canceled') === 'true') {
-      toast({ title: 'Checkout canceled', description: 'No changes were made to your subscription.' });
+    if (searchParams.get("success") === "true") {
+      toast({ title: "Subscription successful!", description: "Thank you for supporting ManiFed." });
+    } else if (searchParams.get("canceled") === "true") {
+      toast({ title: "Checkout canceled", description: "No changes were made to your subscription." });
     }
     fetchSubscription();
   }, [searchParams]);
 
   const fetchSubscription = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      const { data, error } = await supabase.functions.invoke("check-subscription");
       if (error) throw error;
-      
-      setCurrentTier(data.tier || 'free');
+
+      setCurrentTier(data.tier || "free");
       setUsage(data.usage || { arbitrageScans: 0, marketQueries: 0 });
       setLimits(data.limits || { arbitrageScans: 3, marketQueries: 5 });
       setSubscriptionEnd(data.subscription_end);
     } catch (error) {
-      console.error('Error fetching subscription:', error);
+      console.error("Error fetching subscription:", error);
     } finally {
       setIsLoading(false);
     }
@@ -109,18 +112,18 @@ export default function Subscription() {
   const handleSubscribe = async (priceId: string, tierKey: string) => {
     setCheckoutLoading(tierKey);
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: { priceId },
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create checkout session',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to create checkout session! The Deep State has taken over.",
+        variant: "destructive",
       });
     } finally {
       setCheckoutLoading(null);
@@ -130,16 +133,16 @@ export default function Subscription() {
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal');
+      const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to open customer portal',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to open customer portal! The Deep State has taken over.",
+        variant: "destructive",
       });
     } finally {
       setPortalLoading(false);
@@ -192,18 +195,13 @@ export default function Subscription() {
                   {currentTierConfig.name} Plan
                 </CardTitle>
                 <CardDescription>
-                  {subscriptionEnd 
+                  {subscriptionEnd
                     ? `Renews on ${new Date(subscriptionEnd).toLocaleDateString()}`
-                    : 'Free tier - no expiration'}
+                    : "Free tier - no expiration"}
                 </CardDescription>
               </div>
-              {currentTier !== 'free' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleManageSubscription}
-                  disabled={portalLoading}
-                >
+              {currentTier !== "free" && (
+                <Button variant="outline" size="sm" onClick={handleManageSubscription} disabled={portalLoading}>
                   {portalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Manage Subscription
                 </Button>
@@ -215,14 +213,18 @@ export default function Subscription() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Arbitrage Scans</span>
-                  <span className="font-medium">{usage.arbitrageScans} / {limits.arbitrageScans}</span>
+                  <span className="font-medium">
+                    {usage.arbitrageScans} / {limits.arbitrageScans}
+                  </span>
                 </div>
                 <Progress value={(usage.arbitrageScans / limits.arbitrageScans) * 100} className="h-2" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Market AI Queries</span>
-                  <span className="font-medium">{usage.marketQueries} / {limits.marketQueries}</span>
+                  <span className="font-medium">
+                    {usage.marketQueries} / {limits.marketQueries}
+                  </span>
                 </div>
                 <Progress value={(usage.marketQueries / limits.marketQueries) * 100} className="h-2" />
               </div>
@@ -231,24 +233,26 @@ export default function Subscription() {
         </Card>
 
         {/* Pricing Notice */}
-        <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: '50ms' }}>
+        <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: "50ms" }}>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm">
             <Heart className="w-4 h-4" />
-            <span>Subscription fees only cover AI costs - we don't make a profit</span>
+            <span>
+              Subscription fees only cover AI costs - we don't make a profit no matter what Gavin Newscum says.
+            </span>
           </div>
         </div>
 
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up" style={{ animationDelay: "100ms" }}>
           {Object.entries(TIERS).map(([key, tier]) => {
             const isCurrent = currentTier === key;
             const Icon = tier.icon;
-            
+
             return (
               <Card
                 key={key}
-                className={`glass relative ${isCurrent ? 'border-primary ring-2 ring-primary/20' : ''} ${
-                  tier.popular ? 'border-primary/50' : ''
+                className={`glass relative ${isCurrent ? "border-primary ring-2 ring-primary/20" : ""} ${
+                  tier.popular ? "border-primary/50" : ""
                 }`}
               >
                 {tier.popular && (
@@ -287,15 +291,13 @@ export default function Subscription() {
                     </Button>
                   ) : tier.priceId ? (
                     <Button
-                      variant={tier.popular ? 'glow' : 'outline'}
+                      variant={tier.popular ? "glow" : "outline"}
                       className="w-full"
                       onClick={() => handleSubscribe(tier.priceId!, key)}
                       disabled={checkoutLoading === key}
                     >
-                      {checkoutLoading === key ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : null}
-                      {currentTier === 'free' ? 'Subscribe' : 'Upgrade'}
+                      {checkoutLoading === key ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      {currentTier === "free" ? "Subscribe" : "Upgrade"}
                     </Button>
                   ) : (
                     <Button variant="outline" className="w-full" disabled>
