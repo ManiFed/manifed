@@ -36,16 +36,6 @@ const AI_PRODUCTS: AIProduct[] = [
     trumpQuote: '"Many people say this finds the best deals. Tremendous arbitrage opportunities!"',
   },
   {
-    id: 'mispriced',
-    name: 'Mispriced Markets',
-    description: 'AI-powered scanner to find underpriced or overpriced prediction markets.',
-    icon: <TrendingDown className="w-6 h-6 text-white" />,
-    gradient: 'from-amber-500 to-orange-600',
-    creditCost: 5,
-    route: '/mispriced-scanner',
-    trumpQuote: '"The fake news media gets probabilities wrong all the time. We find those mistakes!"',
-  },
-  {
     id: 'market-agent',
     name: 'Market Agent',
     description: 'Ask AI questions about any Manifold market. Get analysis and insights.',

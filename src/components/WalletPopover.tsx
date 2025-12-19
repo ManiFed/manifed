@@ -260,17 +260,7 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
                 className="bg-secondary/50 flex-1"
                 min={10}
               />
-              {mode === "deposit" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMaxDeposit}
-                  disabled={isFetchingManifoldBalance}
-                  className="px-3"
-                >
-                  {isFetchingManifoldBalance ? <Loader2 className="w-3 h-3 animate-spin" /> : "Max"}
-                </Button>
-              )}
+              {/* Max button only for withdrawals */}
               {mode === "withdraw" && (
                 <Button
                   variant="outline"
