@@ -246,7 +246,13 @@ serve(async (req) => {
 
     // If admin is deleting, remove the loan entirely
     if (isAdmin) {
-      // First delete related investments
+      // First delete related transactions (they reference loan_id)
+      await supabase
+        .from("transactions")
+        .delete()
+        .eq("loan_id", loanId);
+      
+      // Then delete related investments
       await supabase
         .from("investments")
         .delete()
