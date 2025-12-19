@@ -62,13 +62,26 @@ serve(async (req) => {
       );
     }
 
-    // Verify user owns the loan
-    if (loan.borrower_user_id !== user.id) {
+    // Check if user is admin
+    const { data: userRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .single();
+    
+    const isAdmin = !!userRole;
+
+    // Verify user owns the loan or is admin
+    if (loan.borrower_user_id !== user.id && !isAdmin) {
       return new Response(
         JSON.stringify({ error: "You can only cancel your own loans" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    // For admin cancelling someone else's loan with funded amount, skip the managram return
+    const isOwner = loan.borrower_user_id === user.id;
 
     // Can only cancel seeking_funding or active loans
     if (loan.status !== "seeking_funding" && loan.status !== "active") {
@@ -78,8 +91,8 @@ serve(async (req) => {
       );
     }
 
-    // If loan has funded_amount > 0, borrower must managram funds back to @ManiFed first
-    if (Number(loan.funded_amount) > 0) {
+    // If loan has funded_amount > 0 and the owner is cancelling, they must send funds back
+    if (Number(loan.funded_amount) > 0 && isOwner) {
       // Get borrower's Manifold settings to send funds back
       const { data: borrowerSettings } = await supabase
         .from("user_manifold_settings")
