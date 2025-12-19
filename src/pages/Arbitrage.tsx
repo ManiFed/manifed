@@ -158,6 +158,7 @@ export default function Arbitrage() {
   const [isExecuting, setIsExecuting] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [confirmingTrade, setConfirmingTrade] = useState<string | null>(null);
+  const [investmentAmounts, setInvestmentAmounts] = useState<Record<string, number>>({});
   const [config, setConfig] = useState<ScanConfig>({
     minLiquidity: 50,
     minVolume: 10,
@@ -293,16 +294,32 @@ export default function Arbitrage() {
       return;
     }
     setConfirmingTrade(null);
-    if (opportunity.requiredCapital > balance) {
+    
+    const customAmount = investmentAmounts[opportunity.id];
+    const requiredCapital = customAmount || opportunity.requiredCapital;
+    
+    if (requiredCapital > balance) {
       toast({
         title: 'Insufficient Balance',
-        description: `You need M$${opportunity.requiredCapital.toLocaleString()} but only have M$${balance.toLocaleString()}`,
+        description: `You need M$${requiredCapital.toLocaleString()} but only have M$${balance.toLocaleString()}`,
         variant: 'destructive'
       });
       return;
     }
     setIsExecuting(opportunity.id);
     try {
+      // Scale optimalBet for each market if custom amount is set
+      const marketsWithScaling = opportunity.markets.map(m => {
+        if (customAmount && opportunity.requiredCapital > 0) {
+          const scale = customAmount / opportunity.requiredCapital;
+          return {
+            ...m,
+            optimalBet: Math.floor((m.optimalBet || 50) * scale)
+          };
+        }
+        return m;
+      });
+      
       const {
         data,
         error
@@ -310,7 +327,7 @@ export default function Arbitrage() {
         body: {
           action: 'execute',
           opportunityId: opportunity.id,
-          markets: opportunity.markets
+          markets: marketsWithScaling
         }
       });
       if (error) throw error;
@@ -319,10 +336,13 @@ export default function Arbitrage() {
         ...opp,
         status: 'completed' as const
       } : opp));
+      const scaledProfit = customAmount 
+        ? opportunity.expectedProfit * (customAmount / opportunity.requiredCapital)
+        : opportunity.expectedProfit;
       setStats(prev => ({
         ...prev,
         tradesExecuted: prev.tradesExecuted + 1,
-        totalProfit: prev.totalProfit + opportunity.expectedProfit
+        totalProfit: prev.totalProfit + scaledProfit
       }));
       await fetchBalance();
       toast({
@@ -587,6 +607,42 @@ export default function Arbitrage() {
           )}
         </div>}
 
+        {/* Investment Amount Selection */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Label className="text-xs text-muted-foreground">Investment:</Label>
+          <div className="flex items-center gap-1">
+            {[25, 50, 100, 250].map(amount => {
+              const maxFromLiquidity = Math.floor(opp.liquidityScore * 0.3);
+              const isDisabled = amount > maxFromLiquidity || amount > balance;
+              return (
+                <Button
+                  key={amount}
+                  variant={investmentAmounts[opp.id] === amount ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={isDisabled}
+                  onClick={() => setInvestmentAmounts(prev => ({ ...prev, [opp.id]: amount }))}
+                >
+                  M${amount}
+                </Button>
+              );
+            })}
+            <Input
+              type="number"
+              placeholder="Custom"
+              className="w-20 h-7 text-xs"
+              value={investmentAmounts[opp.id] || ''}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setInvestmentAmounts(prev => ({ ...prev, [opp.id]: val }));
+              }}
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            (Max ~M${Math.floor(opp.liquidityScore * 0.3)} based on liquidity)
+          </span>
+        </div>
+
         {/* Actions */}
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={() => skipOpportunity(opp.id, 'Manually skipped')}>
@@ -595,7 +651,7 @@ export default function Arbitrage() {
           </Button>
           <Button size="sm" onClick={() => executeOpportunity(opp)} disabled={isExecuting === opp.id} className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}>
             {isExecuting === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmingTrade === opp.id ? <AlertTriangle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-            {confirmingTrade === opp.id ? 'Confirm?' : 'Execute'}
+            {confirmingTrade === opp.id ? 'Confirm?' : `Execute${investmentAmounts[opp.id] ? ` M$${investmentAmounts[opp.id]}` : ''}`}
           </Button>
         </div>
       </CardContent>
