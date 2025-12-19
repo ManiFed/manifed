@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -37,12 +38,32 @@ interface Loan {
   funded_amount: number;
 }
 
+interface TradingBot {
+  id: string;
+  name: string;
+  strategy: string;
+  description: string;
+  is_active: boolean;
+  config: Record<string, unknown>;
+  last_run_at: string | null;
+  total_profit: number;
+  total_trades: number;
+}
+
 const TERM_LABELS: Record<number, string> = {
   4: '4 Week T-Bond',
   13: '3 Month T-Bond',
   26: '6 Month T-Bond',
   52: '1 Year T-Bond',
 };
+
+const BOT_STRATEGIES = [
+  { id: 'market_maker', name: 'Market Maker', description: 'Provides liquidity by placing YES/NO orders at spread.' },
+  { id: 'mispriced_hunter', name: 'Mispriced Hunter', description: 'Bets against markets with prices far from calibration data.' },
+  { id: 'overleveraged', name: 'Overleveraged Trader Fader', description: 'Fades positions from traders with high leverage and poor calibration.' },
+  { id: 'calibration_arb', name: 'Calibration Arbitrage', description: 'Uses historical Manifold calibration data to find edge.' },
+  { id: 'big_bad_bet', name: 'BigBadBetUser', description: 'Aggressive contrarian betting on highly confident markets.' },
+];
 
 export default function TreasuryAdmin() {
   const navigate = useNavigate();
@@ -51,6 +72,7 @@ export default function TreasuryAdmin() {
   const [rates, setRates] = useState<BondRate[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [bots, setBots] = useState<TradingBot[]>([]);
   
   // New rate form
   const [newRate, setNewRate] = useState({ term_weeks: 4, annual_yield: 6, monthly_yield: 0.5 });
@@ -62,6 +84,11 @@ export default function TreasuryAdmin() {
 
   // Loan moderation
   const [processingLoan, setProcessingLoan] = useState<string | null>(null);
+
+  // Bot management
+  const [processingBot, setProcessingBot] = useState<string | null>(null);
+  const [showNewBot, setShowNewBot] = useState(false);
+  const [newBot, setNewBot] = useState({ name: '', strategy: 'market_maker', description: '' });
 
   useEffect(() => {
     checkAdminAndFetchData();
@@ -112,6 +139,13 @@ export default function TreasuryAdmin() {
           .order('created_at', { ascending: false })
           .limit(50);
         if (loansData) setLoans(loansData);
+
+        // Fetch bots
+        const { data: botsData } = await supabase
+          .from('trading_bots')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (botsData) setBots(botsData as TradingBot[]);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -208,6 +242,39 @@ export default function TreasuryAdmin() {
     }
   };
 
+  const handleDeleteLoan = async (loanId: string) => {
+    setProcessingLoan(loanId);
+    try {
+      // First cancel to return funds, then delete
+      const { data, error } = await supabase.functions.invoke('cancel-loan', {
+        body: { loanId, reason: 'Admin moderation: Loan deleted by administrator' }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Now delete the loan record
+      const { error: deleteError } = await supabase
+        .from('loans')
+        .delete()
+        .eq('id', loanId);
+
+      if (deleteError) throw deleteError;
+
+      toast({ title: 'Loan Deleted', description: 'The loan has been removed from the marketplace.' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      console.error('Error deleting loan:', error);
+      toast({ 
+        title: 'Error', 
+        description: error instanceof Error ? error.message : 'Failed to delete loan', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setProcessingLoan(null);
+    }
+  };
+
   const handleApproveLoan = async (loanId: string) => {
     setProcessingLoan(loanId);
     try {
@@ -243,6 +310,69 @@ export default function TreasuryAdmin() {
       toast({ title: 'Error', description: 'Failed to flag loan', variant: 'destructive' });
     } finally {
       setProcessingLoan(null);
+    }
+  };
+
+  const handleCreateBot = async () => {
+    if (!newBot.name.trim()) {
+      toast({ title: 'Invalid', description: 'Please enter a bot name', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const strategy = BOT_STRATEGIES.find(s => s.id === newBot.strategy);
+      const { error } = await supabase.from('trading_bots').insert({
+        name: newBot.name,
+        strategy: newBot.strategy,
+        description: newBot.description || strategy?.description || '',
+        config: {},
+        is_active: false,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Bot Created', description: `${newBot.name} has been created.` });
+      setNewBot({ name: '', strategy: 'market_maker', description: '' });
+      setShowNewBot(false);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create bot', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleBot = async (botId: string, currentState: boolean) => {
+    setProcessingBot(botId);
+    try {
+      const { error } = await supabase
+        .from('trading_bots')
+        .update({ is_active: !currentState, updated_at: new Date().toISOString() })
+        .eq('id', botId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: currentState ? 'Bot Paused' : 'Bot Activated', 
+        description: currentState ? 'Trading bot has been paused.' : 'Trading bot is now active!' 
+      });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to toggle bot', variant: 'destructive' });
+    } finally {
+      setProcessingBot(null);
+    }
+  };
+
+  const handleDeleteBot = async (botId: string) => {
+    setProcessingBot(botId);
+    try {
+      const { error } = await supabase.from('trading_bots').delete().eq('id', botId);
+      if (error) throw error;
+      toast({ title: 'Bot Deleted' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete bot', variant: 'destructive' });
+    } finally {
+      setProcessingBot(null);
     }
   };
 
@@ -296,7 +426,7 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
             <TabsTrigger value="rates" className="gap-2">
               <TrendingUp className="w-4 h-4" />
               Rates
@@ -308,6 +438,10 @@ export default function TreasuryAdmin() {
             <TabsTrigger value="loans" className="gap-2">
               <Users className="w-4 h-4" />
               Loans
+            </TabsTrigger>
+            <TabsTrigger value="bots" className="gap-2">
+              <Bot className="w-4 h-4" />
+              Bots
             </TabsTrigger>
           </TabsList>
 
@@ -446,7 +580,7 @@ export default function TreasuryAdmin() {
                   P2P Loans Moderation
                 </CardTitle>
                 <CardDescription>
-                  Review, approve, flag, or cancel loans in the marketplace.
+                  Review, approve, flag, delete, or cancel loans in the marketplace.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -469,11 +603,11 @@ export default function TreasuryAdmin() {
                                   loan.status === 'cancelled' ? 'destructive' : 'secondary'
                                 }
                               >
-                                {loan.status}
+                                {loan.status.replace('_', ' ')}
                               </Badge>
                               <Badge 
                                 variant={
-                                  loan.risk_score === 'low' ? 'success' : 
+                                  loan.risk_score === 'low' ? 'success' :
                                   loan.risk_score === 'high' ? 'destructive' : 'secondary'
                                 }
                               >
@@ -481,48 +615,48 @@ export default function TreasuryAdmin() {
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              @{loan.borrower_username} • M${loan.amount.toLocaleString()} • 
+                              By @{loan.borrower_username} • M${loan.amount.toLocaleString()} • 
                               Funded: M${loan.funded_amount.toLocaleString()}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               Created: {new Date(loan.created_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="gap-1"
                               onClick={() => handleApproveLoan(loan.id)}
                               disabled={processingLoan === loan.id || loan.risk_score === 'low'}
+                              className="gap-1"
                             >
                               {processingLoan === loan.id ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
-                                <CheckCircle className="w-3 h-3 text-success" />
+                                <CheckCircle className="w-3 h-3" />
                               )}
                               Approve
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="gap-1"
                               onClick={() => handleFlagLoan(loan.id)}
                               disabled={processingLoan === loan.id || loan.risk_score === 'high'}
+                              className="gap-1"
                             >
                               {processingLoan === loan.id ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
-                                <AlertTriangle className="w-3 h-3 text-warning" />
+                                <AlertTriangle className="w-3 h-3" />
                               )}
                               Flag
                             </Button>
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
-                              className="gap-1"
                               onClick={() => handleCancelLoan(loan.id)}
-                              disabled={processingLoan === loan.id || loan.status === 'cancelled' || loan.status === 'repaid'}
+                              disabled={processingLoan === loan.id || loan.status === 'cancelled'}
+                              className="gap-1 text-warning border-warning/50 hover:bg-warning/10"
                             >
                               {processingLoan === loan.id ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -531,11 +665,156 @@ export default function TreasuryAdmin() {
                               )}
                               Cancel
                             </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteLoan(loan.id)}
+                              disabled={processingLoan === loan.id}
+                              className="gap-1"
+                            >
+                              {processingLoan === loan.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                              Delete
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bots Tab */}
+          <TabsContent value="bots">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-primary" />
+                  ManiFed Trading Bots
+                </CardTitle>
+                <CardDescription>
+                  Automated trading strategies that run continuously. Market making, mispricing detection, and more.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {bots.filter(b => b.is_active).length} active bots running
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewBot(!showNewBot)} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Bot
+                  </Button>
+                </div>
+
+                {showNewBot && (
+                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-3">
+                    <h4 className="font-medium">Create New Bot</h4>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label>Bot Name</Label>
+                        <Input 
+                          placeholder="e.g., Alpha Maker 1"
+                          value={newBot.name}
+                          onChange={(e) => setNewBot({ ...newBot, name: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Strategy</Label>
+                        <select 
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                          value={newBot.strategy}
+                          onChange={(e) => setNewBot({ ...newBot, strategy: e.target.value })}
+                        >
+                          {BOT_STRATEGIES.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {BOT_STRATEGIES.find(s => s.id === newBot.strategy)?.description}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleCreateBot}>Create Bot</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowNewBot(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {bots.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Bot className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No trading bots configured</p>
+                      <p className="text-sm">Create your first bot to start automated trading</p>
+                    </div>
+                  ) : (
+                    bots.map(bot => {
+                      const strategy = BOT_STRATEGIES.find(s => s.id === bot.strategy);
+                      return (
+                        <div key={bot.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-foreground">{bot.name}</h3>
+                                <Badge variant={bot.is_active ? 'success' : 'secondary'}>
+                                  {bot.is_active ? 'Active' : 'Paused'}
+                                </Badge>
+                                <Badge variant="outline">{strategy?.name || bot.strategy}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {bot.description || strategy?.description}
+                              </p>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                <span>Trades: {bot.total_trades}</span>
+                                <span>Profit: M${bot.total_profit.toFixed(2)}</span>
+                                {bot.last_run_at && (
+                                  <span>Last run: {new Date(bot.last_run_at).toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch 
+                                checked={bot.is_active}
+                                onCheckedChange={() => handleToggleBot(bot.id, bot.is_active)}
+                                disabled={processingBot === bot.id}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteBot(bot.id)}
+                                disabled={processingBot === bot.id}
+                              >
+                                {processingBot === bot.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-2">Available Strategies</h4>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {BOT_STRATEGIES.map(s => (
+                      <div key={s.id} className="p-3 rounded-lg bg-background/50 text-sm">
+                        <p className="font-medium">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">{s.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>

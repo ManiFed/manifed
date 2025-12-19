@@ -428,6 +428,53 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_run_history: {
+        Row: {
+          bot_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          log: string[] | null
+          markets_analyzed: number
+          profit: number
+          started_at: string
+          status: string
+          trades_executed: number
+        }
+        Insert: {
+          bot_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          log?: string[] | null
+          markets_analyzed?: number
+          profit?: number
+          started_at?: string
+          status?: string
+          trades_executed?: number
+        }
+        Update: {
+          bot_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          log?: string[] | null
+          markets_analyzed?: number
+          profit?: number
+          started_at?: string
+          status?: string
+          trades_executed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_run_history_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "trading_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_pool: {
         Row: {
           amount: number
@@ -710,6 +757,39 @@ export type Database = {
         }
         Relationships: []
       }
+      product_suggestions: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          description: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -785,6 +865,48 @@ export type Database = {
           started_at?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      trading_bots: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          name: string
+          strategy: string
+          total_profit: number
+          total_trades: number
+          updated_at: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name: string
+          strategy: string
+          total_profit?: number
+          total_trades?: number
+          updated_at?: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name?: string
+          strategy?: string
+          total_profit?: number
+          total_trades?: number
+          updated_at?: string
         }
         Relationships: []
       }
