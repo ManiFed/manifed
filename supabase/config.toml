@@ -42,9 +42,6 @@ verify_jwt = true
 [functions.ai-arbitrage]
 verify_jwt = true
 
-[functions.arbitrage-notifications]
-verify_jwt = true
-
 [functions.market-agent]
 verify_jwt = true
 
@@ -67,9 +64,6 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.mispriced-scanner]
-verify_jwt = true
-
-[functions.quester]
 verify_jwt = true
 
 [functions.process-trading-bots]

@@ -29,7 +29,7 @@ import Subscription from "./pages/Subscription";
 import CommentMaker from "./pages/CommentMaker";
 import ManiFedAI from "./pages/ManiFedAI";
 import MispricedScanner from "./pages/MispricedScanner";
-import Quester from "./pages/Quester";
+
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
@@ -96,7 +96,7 @@ const App = () => (
           <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/mfai" element={<ProtectedRoute><ManiFedAI /></ProtectedRoute>} />
-          <Route path="/quester" element={<ProtectedRoute><Quester /></ProtectedRoute>} />
+          
           <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />

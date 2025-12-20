@@ -944,18 +944,7 @@ serve(async (req) => {
           })
           .eq('id', historyId);
 
-        // Create notification for high-confidence opportunities
-        if (highConfidence.length > 0) {
-          await supabaseService
-            .from('arbitrage_notifications')
-            .insert({
-              user_id: user.id,
-              type: 'opportunity_found',
-              title: 'High-Confidence Opportunities Found',
-              message: `Found ${highConfidence.length} high-confidence arbitrage opportunities from your scan.`,
-              data: { historyId, count: highConfidence.length },
-            });
-        }
+        // Removed: notification creation was here
 
         return new Response(
           JSON.stringify({
