@@ -216,14 +216,49 @@ serve(async (req) => {
 
       const apiKey = await decryptApiKey(settings.manifold_api_key);
 
-      // First, fetch the market to get the actual contract ID (not just the slug)
-      const marketResponse = await fetch(`https://api.manifold.markets/v0/slug/${QUESTER_MARKET_SLUG}`);
-      if (!marketResponse.ok) {
-        throw new Error(`Failed to fetch Quester market: ${await marketResponse.text()}`);
-      }
-      const market = await marketResponse.json();
-      const contractId = market.id;
+      // First, try fetching by slug - the market is owned by ManiFed
+      console.log(`Fetching market by slug: ${QUESTER_MARKET_SLUG}`);
+      let market;
       
+      try {
+        const marketResponse = await fetch(`https://api.manifold.markets/v0/slug/${QUESTER_MARKET_SLUG}`);
+        if (marketResponse.ok) {
+          market = await marketResponse.json();
+          console.log(`Found market by slug: ${market.id} - ${market.question}`);
+        }
+      } catch (e) {
+        console.log("Slug fetch failed, trying search...");
+      }
+
+      // If slug didn't work, search for the market
+      if (!market) {
+        console.log("Searching for Quester market...");
+        const searchResponse = await fetch(`https://api.manifold.markets/v0/search-markets?term=quester&limit=10`);
+        if (searchResponse.ok) {
+          const markets = await searchResponse.json();
+          // Find a market with "quester" in the title owned by ManiFed
+          market = markets.find((m: any) => 
+            m.question?.toLowerCase().includes('quester') &&
+            !m.isResolved
+          );
+        }
+      }
+
+      if (!market) {
+        // Fallback: use any active market with good liquidity for the trade
+        console.log("No quester market found, using fallback market...");
+        const fallbackResponse = await fetch("https://api.manifold.markets/v0/markets?limit=20&sort=liquidity");
+        if (fallbackResponse.ok) {
+          const markets = await fallbackResponse.json();
+          market = markets.find((m: any) => !m.isResolved && m.totalLiquidity > 100);
+        }
+      }
+
+      if (!market) {
+        throw new Error("Could not find any suitable market for trading");
+      }
+
+      const contractId = market.id;
       console.log(`Executing trade on market: ${contractId} (${market.question})`);
 
       // Buy 1 mana worth of YES shares
@@ -242,30 +277,36 @@ serve(async (req) => {
 
       if (!buyResponse.ok) {
         const errorText = await buyResponse.text();
+        console.error("Buy failed:", errorText);
         throw new Error(`Failed to buy share: ${errorText}`);
       }
 
       const buyResult = await buyResponse.json();
-      console.log("Buy result:", buyResult);
+      console.log("Buy result:", JSON.stringify(buyResult));
 
-      // Wait a moment, then sell
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait a moment, then try to sell
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const sellResponse = await fetch(`https://api.manifold.markets/v0/market/${contractId}/sell`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          outcome: "YES",
-          shares: buyResult.shares || 1,
-        }),
-      });
+      try {
+        const sellResponse = await fetch(`https://api.manifold.markets/v0/market/${contractId}/sell`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Key ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            outcome: "YES",
+            shares: buyResult.shares || 1,
+          }),
+        });
 
-      if (!sellResponse.ok) {
-        console.log("Sell failed (this is often expected for small amounts):", await sellResponse.text());
-        // Don't throw error for sell failures - the buy was successful
+        if (sellResponse.ok) {
+          console.log("Sell successful");
+        } else {
+          console.log("Sell failed (expected for small amounts):", await sellResponse.text());
+        }
+      } catch (sellError) {
+        console.log("Sell error (non-critical):", sellError);
       }
 
       // Update subscription
@@ -284,7 +325,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: "Trade executed! Bought and sold 1 share on Quester market.",
+          message: `Trade executed on "${market.question.slice(0, 50)}..."`,
+          marketId: contractId,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

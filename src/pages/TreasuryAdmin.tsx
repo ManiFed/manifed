@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings } from 'lucide-react';
+import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -50,6 +50,16 @@ interface TradingBot {
   total_trades: number;
 }
 
+interface ProductSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  user_id: string;
+  admin_notes: string | null;
+  created_at: string;
+}
+
 const TERM_LABELS: Record<number, string> = {
   4: '4 Week T-Bond',
   13: '3 Month T-Bond',
@@ -73,6 +83,7 @@ export default function TreasuryAdmin() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [bots, setBots] = useState<TradingBot[]>([]);
+  const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
   
   // New rate form
   const [newRate, setNewRate] = useState({ term_weeks: 4, annual_yield: 6, monthly_yield: 0.5 });
@@ -89,6 +100,9 @@ export default function TreasuryAdmin() {
   const [processingBot, setProcessingBot] = useState<string | null>(null);
   const [showNewBot, setShowNewBot] = useState(false);
   const [newBot, setNewBot] = useState({ name: '', strategy: 'market_maker', description: '' });
+
+  // Suggestions
+  const [processingSuggestion, setProcessingSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAndFetchData();
@@ -146,6 +160,14 @@ export default function TreasuryAdmin() {
           .select('*')
           .order('created_at', { ascending: false });
         if (botsData) setBots(botsData as TradingBot[]);
+
+        // Fetch product suggestions
+        const { data: suggestionsData } = await supabase
+          .from('product_suggestions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (suggestionsData) setSuggestions(suggestionsData as ProductSuggestion[]);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -376,6 +398,42 @@ export default function TreasuryAdmin() {
     }
   };
 
+  const handleUpdateSuggestionStatus = async (suggestionId: string, status: string, notes?: string) => {
+    setProcessingSuggestion(suggestionId);
+    try {
+      const { error } = await supabase
+        .from('product_suggestions')
+        .update({ 
+          status, 
+          admin_notes: notes || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', suggestionId);
+
+      if (error) throw error;
+      toast({ title: 'Updated', description: `Suggestion marked as ${status}` });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update suggestion', variant: 'destructive' });
+    } finally {
+      setProcessingSuggestion(null);
+    }
+  };
+
+  const handleDeleteSuggestion = async (suggestionId: string) => {
+    setProcessingSuggestion(suggestionId);
+    try {
+      const { error } = await supabase.from('product_suggestions').delete().eq('id', suggestionId);
+      if (error) throw error;
+      toast({ title: 'Deleted' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete suggestion', variant: 'destructive' });
+    } finally {
+      setProcessingSuggestion(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -426,7 +484,7 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="rates" className="gap-2">
               <TrendingUp className="w-4 h-4" />
               Rates
@@ -442,6 +500,10 @@ export default function TreasuryAdmin() {
             <TabsTrigger value="bots" className="gap-2">
               <Bot className="w-4 h-4" />
               Bots
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Suggestions
             </TabsTrigger>
           </TabsList>
 
@@ -816,6 +878,86 @@ export default function TreasuryAdmin() {
                     ))}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Suggestions Tab */}
+          <TabsContent value="suggestions">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  Product Suggestions
+                </CardTitle>
+                <CardDescription>
+                  User-submitted feature requests and product ideas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {suggestions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No suggestions yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {suggestions.map(suggestion => (
+                      <div key={suggestion.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium text-foreground">{suggestion.title}</h3>
+                              <Badge variant={
+                                suggestion.status === 'approved' ? 'success' :
+                                suggestion.status === 'rejected' ? 'destructive' :
+                                suggestion.status === 'in_progress' ? 'pending' :
+                                'secondary'
+                              }>
+                                {suggestion.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2">{suggestion.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
+                            </div>
+                            {suggestion.admin_notes && (
+                              <p className="text-xs text-primary mt-2 italic">Admin: {suggestion.admin_notes}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'approved')}
+                              disabled={processingSuggestion === suggestion.id || suggestion.status === 'approved'}
+                            >
+                              <CheckCircle className="w-4 h-4 text-success" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'rejected')}
+                              disabled={processingSuggestion === suggestion.id || suggestion.status === 'rejected'}
+                            >
+                              <XCircle className="w-4 h-4 text-destructive" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSuggestion(suggestion.id)}
+                              disabled={processingSuggestion === suggestion.id}
+                            >
+                              {processingSuggestion === suggestion.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

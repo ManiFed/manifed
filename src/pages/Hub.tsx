@@ -452,6 +452,22 @@ export default function Hub() {
                       <p className="text-xs text-muted-foreground">See top lenders, traders, and earners.</p>
                     </Link>
 
+                    <Link to="/treasury" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Landmark className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Treasury News</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Official announcements and treasury updates.</p>
+                    </Link>
+
+                    <Link to="/about" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">About ManiFed</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Learn about our platform and mission.</p>
+                    </Link>
+
                     <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
                       <div className="flex items-center gap-2 mb-1">
                         <Store className="w-4 h-4 text-muted-foreground" />
