@@ -611,9 +611,8 @@ export default function Arbitrage() {
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Label className="text-xs text-muted-foreground">Investment:</Label>
           <div className="flex items-center gap-1">
-            {[25, 50, 100, 250].map(amount => {
-              const maxFromLiquidity = Math.floor(opp.liquidityScore * 0.3);
-              const isDisabled = amount > maxFromLiquidity || amount > balance;
+            {[25, 50, 100, 250, 500].map(amount => {
+              const isDisabled = amount > balance;
               return (
                 <Button
                   key={amount}
@@ -630,7 +629,8 @@ export default function Arbitrage() {
             <Input
               type="number"
               placeholder="Custom"
-              className="w-20 h-7 text-xs"
+              className="w-24 h-7 text-xs"
+              min={1}
               value={investmentAmounts[opp.id] || ''}
               onChange={(e) => {
                 const val = parseInt(e.target.value) || 0;
@@ -639,7 +639,7 @@ export default function Arbitrage() {
             />
           </div>
           <span className="text-xs text-muted-foreground">
-            (Max ~M${Math.floor(opp.liquidityScore * 0.3)} based on liquidity)
+            (Liquidity: M${Math.floor(opp.liquidityScore)})
           </span>
         </div>
 

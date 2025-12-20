@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.quester]
 verify_jwt = true
+
+[functions.process-trading-bots]
+verify_jwt = false
