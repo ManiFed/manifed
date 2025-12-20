@@ -100,6 +100,9 @@ export default function TreasuryAdmin() {
   const [processingBot, setProcessingBot] = useState<string | null>(null);
   const [showNewBot, setShowNewBot] = useState(false);
   const [newBot, setNewBot] = useState({ name: '', strategy: 'market_maker', description: '' });
+  const [emergencyStop, setEmergencyStop] = useState(false);
+  const [togglingEmergencyStop, setTogglingEmergencyStop] = useState(false);
+  const [runningBots, setRunningBots] = useState(false);
 
   // Suggestions
   const [processingSuggestion, setProcessingSuggestion] = useState<string | null>(null);
@@ -168,6 +171,14 @@ export default function TreasuryAdmin() {
           .order('created_at', { ascending: false })
           .limit(50);
         if (suggestionsData) setSuggestions(suggestionsData as ProductSuggestion[]);
+
+        // Fetch emergency stop status
+        const { data: stopData } = await supabase
+          .from('trading_bot_settings')
+          .select('setting_value')
+          .eq('setting_key', 'emergency_stop')
+          .single();
+        if (stopData) setEmergencyStop(stopData.setting_value === 'true');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -395,6 +406,47 @@ export default function TreasuryAdmin() {
       toast({ title: 'Error', description: 'Failed to delete bot', variant: 'destructive' });
     } finally {
       setProcessingBot(null);
+    }
+  };
+
+  const handleToggleEmergencyStop = async () => {
+    setTogglingEmergencyStop(true);
+    try {
+      const newValue = !emergencyStop;
+      const { error } = await supabase
+        .from('trading_bot_settings')
+        .update({ setting_value: String(newValue), updated_at: new Date().toISOString() })
+        .eq('setting_key', 'emergency_stop');
+      
+      if (error) throw error;
+      
+      setEmergencyStop(newValue);
+      toast({ 
+        title: newValue ? '🛑 Emergency Stop Activated' : '✅ Bots Resumed', 
+        description: newValue ? 'All trading bots have been halted.' : 'Trading bots can now run.',
+        variant: newValue ? 'destructive' : 'default'
+      });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to toggle emergency stop', variant: 'destructive' });
+    } finally {
+      setTogglingEmergencyStop(false);
+    }
+  };
+
+  const handleManualBotRun = async () => {
+    setRunningBots(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-trading-bots');
+      if (error) throw error;
+      toast({ 
+        title: 'Bots Executed', 
+        description: data?.message || `Processed ${data?.botsProcessed || 0} bots`
+      });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to run bots', variant: 'destructive' });
+    } finally {
+      setRunningBots(false);
     }
   };
 
@@ -764,9 +816,58 @@ export default function TreasuryAdmin() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Emergency Stop & Controls */}
+                <div className="p-4 rounded-lg border-2 border-destructive/50 bg-destructive/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${emergencyStop ? 'bg-destructive animate-pulse' : 'bg-success'}`} />
+                      <span className="font-medium">
+                        {emergencyStop ? '🛑 EMERGENCY STOP ACTIVE' : '✅ Bots Running Normally'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant={emergencyStop ? 'default' : 'destructive'} 
+                        size="sm" 
+                        onClick={handleToggleEmergencyStop}
+                        disabled={togglingEmergencyStop}
+                        className="gap-2"
+                      >
+                        {togglingEmergencyStop ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : emergencyStop ? (
+                          <Play className="w-4 h-4" />
+                        ) : (
+                          <Pause className="w-4 h-4" />
+                        )}
+                        {emergencyStop ? 'Resume Bots' : 'Emergency Stop'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleManualBotRun}
+                        disabled={runningBots || emergencyStop}
+                        className="gap-2"
+                      >
+                        {runningBots ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                        Run Now
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {emergencyStop 
+                      ? 'All trading bots are halted. Click "Resume Bots" to allow them to trade again.'
+                      : 'Bots run automatically every minute via scheduled job. Use "Emergency Stop" to halt all trading immediately.'}
+                  </p>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    {bots.filter(b => b.is_active).length} active bots running
+                    {bots.filter(b => b.is_active).length} active bots configured
                   </p>
                   <Button variant="outline" size="sm" onClick={() => setShowNewBot(!showNewBot)} className="gap-2">
                     <Plus className="w-4 h-4" />

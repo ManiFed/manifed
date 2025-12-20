@@ -17,7 +17,6 @@ import {
   Target,
   MessageSquare,
   BarChart3,
-  Zap,
 } from "lucide-react";
 import trumpPortrait from "@/assets/trump-portrait.png";
 
@@ -83,15 +82,6 @@ export default function Landing() {
       link: "/auth?mode=signup",
       available: true,
       badge: "1 credit",
-    },
-    {
-      title: "Quester",
-      description: "Automated streak keeper.",
-      icon: Zap,
-      gradient: "bg-gradient-to-br from-yellow-500 to-amber-600",
-      link: "/auth?mode=signup",
-      available: true,
-      badge: "Auto-Trade",
     },
   ];
 

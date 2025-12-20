@@ -169,7 +169,7 @@ export default function About() {
                   <li><strong className="text-foreground">P2P Loans:</strong> Peer-to-peer lending backed by Manifold positions</li>
                   <li><strong className="text-foreground">Treasury Bonds:</strong> Fixed-income instruments with guaranteed yields</li>
                   <li><strong className="text-foreground">AI Trading Tools:</strong> Arbitrage scanner, market analysis, and automated trading</li>
-                  <li><strong className="text-foreground">Quester:</strong> Automated daily quest completion for passive income</li>
+                  
                   <li><strong className="text-foreground">Memecoins:</strong> Create and trade tokens on our AMM</li>
                 </ul>
                 <p>

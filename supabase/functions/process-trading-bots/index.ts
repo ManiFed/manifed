@@ -346,6 +346,21 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Check emergency stop first
+    const { data: emergencyStop } = await supabase
+      .from("trading_bot_settings")
+      .select("setting_value")
+      .eq("setting_key", "emergency_stop")
+      .single();
+
+    if (emergencyStop?.setting_value === "true") {
+      console.log("EMERGENCY STOP ACTIVE - Bots halted");
+      return new Response(
+        JSON.stringify({ message: "Emergency stop active - all bots halted", botsProcessed: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get all active bots
     const { data: bots, error: botsError } = await supabase
       .from("trading_bots")

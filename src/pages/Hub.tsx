@@ -9,7 +9,7 @@ import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
 import { DonationButton } from '@/components/DonationButton';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, CreditCard, Brain, Zap } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, CreditCard, Brain } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -389,29 +389,6 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Quester */}
-            <Link to="/quester" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center">
-                      <Zap className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="active">Auto-Trade</Badge>
-                  </div>
-                  <CardTitle className="text-xl mt-4">Quester</CardTitle>
-                  <CardDescription>
-                    Automated daily trading bot. M$10/month or free with subscription.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Open Quester
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
 
             {/* Miscellaneous */}
             <Collapsible>
