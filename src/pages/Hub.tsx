@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserBalance } from '@/hooks/useUserBalance';
-import { WalletPopover } from '@/components/WalletPopover';
 import { DonationButton } from '@/components/DonationButton';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, Target } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, Target } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -31,12 +29,6 @@ interface Profile {
 }
 
 export default function Hub() {
-  const {
-    balance,
-    totalInvested,
-    isLoading: balanceLoading,
-    fetchBalance
-  } = useUserBalance();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [loanCount, setLoanCount] = useState(0);
@@ -45,6 +37,7 @@ export default function Hub() {
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string>('');
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
+  const [totalInvested, setTotalInvested] = useState(0);
 
   useEffect(() => {
     fetchHubData();
@@ -101,23 +94,27 @@ export default function Hub() {
         .eq('status', 'active');
       setBonds(bondData || []);
 
-      // Fetch investment count
+      // Fetch investment count and total invested
       const { count } = await supabase
         .from('investments')
         .select('*', { count: 'exact', head: true })
         .eq('investor_user_id', user.id);
       setLoanCount(count || 0);
 
+      // Calculate total invested from active investments
+      const { data: investmentData } = await supabase
+        .from('investments')
+        .select('amount')
+        .eq('investor_user_id', user.id);
+      const investedTotal = investmentData?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+      setTotalInvested(investedTotal);
+
       // Generate notifications
       const notifs: string[] = [];
       if (bondData?.some(b => new Date(b.maturity_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))) {
         notifs.push('You have bonds maturing soon!');
       }
-      if (!settings?.manifold_username) {
-        notifs.push('Connect your Manifold account to start trading');
-      }
       setNotifications(notifs);
-      await fetchBalance();
     } catch (error) {
       console.error('Error fetching hub data:', error);
     } finally {
@@ -130,10 +127,9 @@ export default function Hub() {
     window.location.href = '/';
   };
 
-  const totalValue = balance + totalInvested;
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
 
-  if (isLoading || balanceLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -172,7 +168,6 @@ export default function Hub() {
                 </div>
               )}
               <DonationButton />
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />
@@ -209,21 +204,7 @@ export default function Hub() {
             <BarChart3 className="w-5 h-5 text-primary" />
             Portfolio Overview
           </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card className="glass">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Wallet className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Available</p>
-                    <p className="text-xl font-bold text-foreground">M${balance.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="glass">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -231,8 +212,8 @@ export default function Hub() {
                     <TrendingUp className="w-5 h-5 text-success" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Total Value</p>
-                    <p className="text-xl font-bold text-foreground">M${(totalValue + bondValue).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Total Portfolio</p>
+                    <p className="text-xl font-bold text-foreground">M${(totalInvested + bondValue).toLocaleString()}</p>
                   </div>
                 </div>
               </CardContent>
