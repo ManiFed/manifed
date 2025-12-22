@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock } from 'lucide-react';
+import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -60,6 +60,25 @@ interface ProductSuggestion {
   created_at: string;
 }
 
+interface ArbitrageOpportunity {
+  id: string;
+  market_1_id: string;
+  market_1_question: string;
+  market_1_url: string;
+  market_1_prob: number;
+  market_1_position: string;
+  market_2_id: string;
+  market_2_question: string;
+  market_2_url: string;
+  market_2_prob: number;
+  market_2_position: string;
+  expected_profit: number;
+  confidence: string;
+  status: string;
+  ai_analysis: string | null;
+  created_at: string;
+}
+
 const TERM_LABELS: Record<number, string> = {
   4: '4 Week T-Bond',
   13: '3 Month T-Bond',
@@ -84,6 +103,7 @@ export default function TreasuryAdmin() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [bots, setBots] = useState<TradingBot[]>([]);
   const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
+  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
   
   // New rate form
   const [newRate, setNewRate] = useState({ term_weeks: 4, annual_yield: 6, monthly_yield: 0.5 });
@@ -106,6 +126,23 @@ export default function TreasuryAdmin() {
 
   // Suggestions
   const [processingSuggestion, setProcessingSuggestion] = useState<string | null>(null);
+
+  // Arbitrage
+  const [showNewArbitrage, setShowNewArbitrage] = useState(false);
+  const [processingArbitrage, setProcessingArbitrage] = useState<string | null>(null);
+  const [newArbitrage, setNewArbitrage] = useState({
+    market_1_question: '',
+    market_1_url: '',
+    market_1_prob: 50,
+    market_1_position: 'YES',
+    market_2_question: '',
+    market_2_url: '',
+    market_2_prob: 50,
+    market_2_position: 'NO',
+    expected_profit: 5,
+    confidence: 'medium',
+    ai_analysis: '',
+  });
 
   useEffect(() => {
     checkAdminAndFetchData();
@@ -171,6 +208,14 @@ export default function TreasuryAdmin() {
           .order('created_at', { ascending: false })
           .limit(50);
         if (suggestionsData) setSuggestions(suggestionsData as ProductSuggestion[]);
+
+        // Fetch arbitrage opportunities
+        const { data: arbitrageData } = await supabase
+          .from('public_arbitrage_opportunities')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (arbitrageData) setArbitrageOpportunities(arbitrageData as ArbitrageOpportunity[]);
 
         // Fetch emergency stop status
         const { data: stopData } = await supabase
@@ -486,6 +531,90 @@ export default function TreasuryAdmin() {
     }
   };
 
+  // Arbitrage handlers
+  const handleCreateArbitrage = async () => {
+    if (!newArbitrage.market_1_question.trim() || !newArbitrage.market_2_question.trim()) {
+      toast({ title: 'Invalid', description: 'Please enter both market questions', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Extract market IDs from URLs if possible
+      const market1Id = newArbitrage.market_1_url.split('/').pop() || `m1_${Date.now()}`;
+      const market2Id = newArbitrage.market_2_url.split('/').pop() || `m2_${Date.now()}`;
+
+      const { error } = await supabase.from('public_arbitrage_opportunities').insert({
+        market_1_id: market1Id,
+        market_1_question: newArbitrage.market_1_question,
+        market_1_url: newArbitrage.market_1_url,
+        market_1_prob: newArbitrage.market_1_prob / 100,
+        market_1_position: newArbitrage.market_1_position,
+        market_2_id: market2Id,
+        market_2_question: newArbitrage.market_2_question,
+        market_2_url: newArbitrage.market_2_url,
+        market_2_prob: newArbitrage.market_2_prob / 100,
+        market_2_position: newArbitrage.market_2_position,
+        expected_profit: newArbitrage.expected_profit,
+        confidence: newArbitrage.confidence,
+        ai_analysis: newArbitrage.ai_analysis || null,
+        status: 'active',
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Opportunity Created', description: 'Arbitrage opportunity is now visible to users.' });
+      setNewArbitrage({
+        market_1_question: '',
+        market_1_url: '',
+        market_1_prob: 50,
+        market_1_position: 'YES',
+        market_2_question: '',
+        market_2_url: '',
+        market_2_prob: 50,
+        market_2_position: 'NO',
+        expected_profit: 5,
+        confidence: 'medium',
+        ai_analysis: '',
+      });
+      setShowNewArbitrage(false);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create opportunity', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteArbitrage = async (id: string) => {
+    setProcessingArbitrage(id);
+    try {
+      const { error } = await supabase.from('public_arbitrage_opportunities').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Deleted' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete opportunity', variant: 'destructive' });
+    } finally {
+      setProcessingArbitrage(null);
+    }
+  };
+
+  const handleUpdateArbitrageStatus = async (id: string, status: string) => {
+    setProcessingArbitrage(id);
+    try {
+      const { error } = await supabase
+        .from('public_arbitrage_opportunities')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: 'Updated', description: `Opportunity marked as ${status}` });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    } finally {
+      setProcessingArbitrage(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -536,7 +665,7 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
             <TabsTrigger value="rates" className="gap-2">
               <TrendingUp className="w-4 h-4" />
               Rates
@@ -548,6 +677,10 @@ export default function TreasuryAdmin() {
             <TabsTrigger value="loans" className="gap-2">
               <Users className="w-4 h-4" />
               Loans
+            </TabsTrigger>
+            <TabsTrigger value="arbitrage" className="gap-2">
+              <Zap className="w-4 h-4" />
+              Arbitrage
             </TabsTrigger>
             <TabsTrigger value="bots" className="gap-2">
               <Bot className="w-4 h-4" />
@@ -1059,6 +1192,135 @@ export default function TreasuryAdmin() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Arbitrage Tab */}
+          <TabsContent value="arbitrage">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  Public Arbitrage Opportunities
+                </CardTitle>
+                <CardDescription>
+                  Create and manage arbitrage opportunities that users can execute with one-time API keys.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {arbitrageOpportunities.filter(a => a.status === 'active').length} active opportunities
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewArbitrage(!showNewArbitrage)} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Opportunity
+                  </Button>
+                </div>
+
+                {showNewArbitrage && (
+                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                    <h4 className="font-medium">Create Arbitrage Opportunity</h4>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <Label>Market 1 Question</Label>
+                        <Input placeholder="e.g., Will X happen?" value={newArbitrage.market_1_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_question: e.target.value })} />
+                        <Label>Market 1 URL</Label>
+                        <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_1_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_url: e.target.value })} />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Label>Prob %</Label>
+                            <Input type="number" value={newArbitrage.market_1_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_prob: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div className="flex-1">
+                            <Label>Position</Label>
+                            <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_1_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_position: e.target.value })}>
+                              <option value="YES">YES</option>
+                              <option value="NO">NO</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <Label>Market 2 Question</Label>
+                        <Input placeholder="e.g., Will Y happen?" value={newArbitrage.market_2_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_question: e.target.value })} />
+                        <Label>Market 2 URL</Label>
+                        <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_2_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_url: e.target.value })} />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Label>Prob %</Label>
+                            <Input type="number" value={newArbitrage.market_2_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_prob: parseInt(e.target.value) || 0 })} />
+                          </div>
+                          <div className="flex-1">
+                            <Label>Position</Label>
+                            <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_2_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_position: e.target.value })}>
+                              <option value="YES">YES</option>
+                              <option value="NO">NO</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Expected Profit %</Label>
+                        <Input type="number" value={newArbitrage.expected_profit} onChange={(e) => setNewArbitrage({ ...newArbitrage, expected_profit: parseFloat(e.target.value) || 0 })} />
+                      </div>
+                      <div>
+                        <Label>Confidence</Label>
+                        <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.confidence} onChange={(e) => setNewArbitrage({ ...newArbitrage, confidence: e.target.value })}>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>AI Analysis (optional)</Label>
+                      <Textarea placeholder="Explain why this is a valid arbitrage opportunity..." value={newArbitrage.ai_analysis} onChange={(e) => setNewArbitrage({ ...newArbitrage, ai_analysis: e.target.value })} rows={3} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleCreateArbitrage}>Create Opportunity</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowNewArbitrage(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {arbitrageOpportunities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No opportunities yet</div>
+                  ) : (
+                    arbitrageOpportunities.map(opp => (
+                      <div key={opp.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant={opp.status === 'active' ? 'success' : opp.status === 'executed' ? 'secondary' : 'destructive'}>{opp.status}</Badge>
+                              <Badge variant={opp.confidence === 'high' ? 'success' : opp.confidence === 'medium' ? 'pending' : 'secondary'}>{opp.confidence}</Badge>
+                              <span className="text-sm font-medium text-success">+{(opp.expected_profit * 100).toFixed(1)}%</span>
+                            </div>
+                            <p className="text-sm font-medium">{opp.market_1_question}</p>
+                            <p className="text-xs text-muted-foreground">vs {opp.market_2_question}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {opp.market_1_url && (
+                              <Button variant="ghost" size="icon" asChild>
+                                <a href={opp.market_1_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /></a>
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateArbitrageStatus(opp.id, opp.status === 'active' ? 'expired' : 'active')} disabled={processingArbitrage === opp.id}>
+                              {opp.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteArbitrage(opp.id)} disabled={processingArbitrage === opp.id}>
+                              {processingArbitrage === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

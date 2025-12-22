@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Landmark, FileText, Clock, TrendingUp, Wallet, ArrowRight, Loader2, AlertCircle, CheckCircle, LogOut, Store } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useUserBalance } from '@/hooks/useUserBalance';
+import { TransactionModal } from '@/components/TransactionModal';
 import { format, addWeeks } from 'date-fns';
 interface BondRate {
   term_weeks: number;
@@ -51,27 +51,22 @@ export default function Bonds() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const {
-    balance,
-    fetchBalance
-  } = useUserBalance();
+  
+  // Transaction modal state
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactionCode, setTransactionCode] = useState("");
+  const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
+  const [transactionAmount, setTransactionAmount] = useState(0);
   useEffect(() => {
     checkAuthAndFetchData();
   }, []);
   const checkAuthAndFetchData = async () => {
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
 
       // Fetch bond rates
-      const {
-        data: ratesData
-      } = await supabase.from('bond_rates').select('*').order('term_weeks', {
+      const { data: ratesData } = await supabase.from('bond_rates').select('*').order('term_weeks', {
         ascending: true
       });
       if (ratesData) {
@@ -86,19 +81,12 @@ export default function Bonds() {
         setRates(latestRates);
       }
       if (user) {
-        const {
-          data: settings
-        } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
-        setHasApiKey(!!settings?.manifold_api_key);
-        const {
-          data: bondsData
-        } = await supabase.from('bonds').select('*').eq('user_id', user.id).order('created_at', {
+        const { data: bondsData } = await supabase.from('bonds').select('*').eq('user_id', user.id).order('created_at', {
           ascending: false
         });
         if (bondsData) {
           setUserBonds(bondsData as Bond[]);
         }
-        await fetchBalance();
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -118,30 +106,33 @@ export default function Bonds() {
       return;
     }
 
-    if (purchaseAmount > balance) {
-      toast({
-        title: 'Insufficient Balance',
-        description: `You need M$${purchaseAmount.toFixed(2)} to make this purchase`,
-        variant: 'destructive'
-      });
-      return;
-    }
     setIsPurchasing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('purchase-bond-treasury', {
-        body: { amount: purchaseAmount, termWeeks: selectedTerm }
+      // Create pending transaction for bond purchase
+      const { data, error } = await supabase.functions.invoke('create-pending-transaction', {
+        body: {
+          amount: purchaseAmount,
+          transactionType: 'bond_purchase',
+          metadata: {
+            termWeeks: selectedTerm,
+            annualYield: selectedRate?.annual_yield || 6,
+          }
+        }
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Show transaction modal
+      setTransactionCode(data.transactionCode);
+      setTransactionExpiresAt(data.expiresAt);
+      setTransactionAmount(data.amount);
+      setShowTransactionModal(true);
+
       toast({
-        title: 'Bond Purchased!',
-        description: data.message || `Bond purchased successfully. Returns M$${data.totalReturn?.toFixed(2)} at maturity.`
+        title: 'Transaction Created',
+        description: 'Follow the instructions to complete your bond purchase.',
       });
-      await checkAuthAndFetchData();
-      setAmount('');
-      setSelectedTerm(null);
     } catch (error) {
       console.error('Error purchasing bond:', error);
       toast({
@@ -276,66 +267,56 @@ export default function Bonds() {
                       Investment Amount
                     </CardTitle>
                     <CardDescription>
-                      Your ManiFed balance: M${balance.toLocaleString()}
+                      Enter the amount you want to invest in this bond.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {!hasApiKey ? <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                      <p className="text-muted-foreground">How it works</p>
+                      <p className="text-foreground text-xs mt-1">
+                        Enter your investment amount and click "Purchase Bond". You'll receive a transaction code to send mana to @ManiFed on Manifold.
+                      </p>
+                    </div>
+                    
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">M$</span>
+                      <Input type="number" placeholder="Enter amount..." value={amount} onChange={e => setAmount(e.target.value)} className="pl-10 h-12 text-lg bg-secondary/50" min={minimumAmount} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Minimum: M${minimumAmount.toLocaleString()} (ensures M$10+/month interest) • No fee
+                    </p>
+
+                    {purchaseAmount >= minimumAmount && <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-3">
+                        <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-foreground">Connect Your Manifold Account</p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              You need to connect your Manifold account to purchase bonds.
-                            </p>
-                            <Link to="/settings">
-                              <Button variant="outline" size="sm" className="mt-3">
-                                Go to Settings
-                              </Button>
-                            </Link>
+                            <p className="text-sm text-muted-foreground">Monthly Interest</p>
+                            <p className="text-xl font-bold text-success">M${monthlyInterest.toFixed(2)}/month</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-muted-foreground">Total Interest ({termMonths.toFixed(0)} months)</p>
+                            <p className="text-lg font-semibold text-success">+M${totalInterest.toFixed(2)}</p>
                           </div>
                         </div>
-                      </div> : <>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">M$</span>
-                          <Input type="number" placeholder="Enter amount..." value={amount} onChange={e => setAmount(e.target.value)} className="pl-10 h-12 text-lg bg-secondary/50" min={minimumAmount} />
+                        <div className="pt-2 border-t border-success/20">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">Principal returned at maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})</p>
+                            <p className="font-semibold text-foreground">M${purchaseAmount.toFixed(2)}</p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Minimum: M${minimumAmount.toLocaleString()} (ensures M$10+/month interest) • No fee
+                      </div>}
+                    
+                    {purchaseAmount > 0 && purchaseAmount < minimumAmount && (
+                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <p className="text-sm text-destructive">
+                          Amount must be at least M${minimumAmount.toLocaleString()} to ensure M$10+ monthly interest payment.
                         </p>
+                      </div>
+                    )}
 
-                        {purchaseAmount >= minimumAmount && <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-muted-foreground">Monthly Interest</p>
-                                <p className="text-xl font-bold text-success">M${monthlyInterest.toFixed(2)}/month</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">Total Interest ({termMonths.toFixed(0)} months)</p>
-                                <p className="text-lg font-semibold text-success">+M${totalInterest.toFixed(2)}</p>
-                              </div>
-                            </div>
-                            <div className="pt-2 border-t border-success/20">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">Principal returned at maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})</p>
-                                <p className="font-semibold text-foreground">M${purchaseAmount.toFixed(2)}</p>
-                              </div>
-                            </div>
-                          </div>}
-                        
-                        {purchaseAmount > 0 && purchaseAmount < minimumAmount && (
-                          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                            <p className="text-sm text-destructive">
-                              Amount must be at least M${minimumAmount.toLocaleString()} to ensure M$10+ monthly interest payment.
-                            </p>
-                          </div>
-                        )}
-
-                        <Button variant="default" className="w-full gap-2" onClick={handlePurchaseBond} disabled={isPurchasing || purchaseAmount < minimumAmount || purchaseAmount > balance}>
-                          {isPurchasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                          Purchase Bond
-                        </Button>
-                      </>}
+                    <Button variant="default" className="w-full gap-2" onClick={handlePurchaseBond} disabled={isPurchasing || purchaseAmount < minimumAmount}>
+                      {isPurchasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                      Purchase Bond
+                    </Button>
                   </CardContent>
                 </Card>}
             </div>
@@ -403,5 +384,25 @@ export default function Bonds() {
             </div>
           </div>}
       </main>
+
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={showTransactionModal}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setAmount('');
+          setSelectedTerm(null);
+        }}
+        transactionCode={transactionCode}
+        amount={transactionAmount}
+        expiresAt={transactionExpiresAt}
+        transactionType="bond_purchase"
+        onSuccess={() => {
+          setShowTransactionModal(false);
+          setAmount('');
+          setSelectedTerm(null);
+          checkAuthAndFetchData();
+        }}
+      />
     </div>;
 }
