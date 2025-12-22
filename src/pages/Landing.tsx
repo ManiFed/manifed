@@ -273,8 +273,8 @@ export default function Landing() {
 
       {/* Floating Glass Island Navigation Bar */}
       <header className="sticky top-4 z-50 mx-4 md:mx-8">
-        <div className="max-w-6xl mx-auto bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
-          <div className="flex items-center justify-between h-20 px-6">
+        <div className="max-w-6xl mx-auto bg-background/40 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
+          <div className="flex items-center justify-between py-4 px-6">
             <BouncingLogo />
             
             {/* Main Navigation */}
