@@ -6,16 +6,10 @@ verify_jwt = false
 [functions.manifold-user]
 verify_jwt = false
 
-[functions.managram]
-verify_jwt = true
-
 [functions.process-repayments]
 verify_jwt = false
 
 [functions.cancel-loan]
-verify_jwt = true
-
-[functions.save-api-key]
 verify_jwt = true
 
 [functions.process-bond-maturity]
@@ -36,35 +30,20 @@ verify_jwt = true
 [functions.purchase-bond-treasury]
 verify_jwt = true
 
-[functions.arbitrage-scan]
-verify_jwt = true
-
-[functions.ai-arbitrage]
-verify_jwt = true
-
-[functions.market-agent]
-verify_jwt = true
-
-[functions.create-checkout]
-verify_jwt = true
-
-[functions.check-subscription]
-verify_jwt = true
-
-[functions.customer-portal]
-verify_jwt = true
-
-[functions.increment-usage]
-verify_jwt = true
-
 [functions.create-donation]
 verify_jwt = false
 
-[functions.comment-maker]
-verify_jwt = true
-
-[functions.mispriced-scanner]
-verify_jwt = true
-
 [functions.process-trading-bots]
 verify_jwt = false
+
+[functions.create-pending-transaction]
+verify_jwt = true
+
+[functions.verify-transactions]
+verify_jwt = false
+
+[functions.execute-arbitrage]
+verify_jwt = true
+
+[functions.admin-arbitrage-scan]
+verify_jwt = true

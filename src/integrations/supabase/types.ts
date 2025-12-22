@@ -757,6 +757,54 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_transactions: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          from_manifold_user_id: string | null
+          from_manifold_username: string | null
+          id: string
+          metadata: Json | null
+          related_id: string | null
+          status: string
+          transaction_code: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          from_manifold_user_id?: string | null
+          from_manifold_username?: string | null
+          id?: string
+          metadata?: Json | null
+          related_id?: string | null
+          status?: string
+          transaction_code: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          from_manifold_user_id?: string | null
+          from_manifold_username?: string | null
+          id?: string
+          metadata?: Json | null
+          related_id?: string | null
+          status?: string
+          transaction_code?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_suggestions: {
         Row: {
           admin_notes: string | null
@@ -832,6 +880,69 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      public_arbitrage_opportunities: {
+        Row: {
+          ai_analysis: string | null
+          confidence: string
+          created_at: string
+          executed_at: string | null
+          executed_by: string | null
+          expected_profit: number
+          id: string
+          market_1_id: string
+          market_1_position: string
+          market_1_prob: number
+          market_1_question: string
+          market_1_url: string
+          market_2_id: string
+          market_2_position: string
+          market_2_prob: number
+          market_2_question: string
+          market_2_url: string
+          status: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          confidence: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expected_profit: number
+          id?: string
+          market_1_id: string
+          market_1_position: string
+          market_1_prob: number
+          market_1_question: string
+          market_1_url: string
+          market_2_id: string
+          market_2_position: string
+          market_2_prob: number
+          market_2_question: string
+          market_2_url: string
+          status?: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          confidence?: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expected_profit?: number
+          id?: string
+          market_1_id?: string
+          market_1_position?: string
+          market_1_prob?: number
+          market_1_question?: string
+          market_1_url?: string
+          market_2_id?: string
+          market_2_position?: string
+          market_2_prob?: number
+          market_2_question?: string
+          market_2_url?: string
+          status?: string
         }
         Relationships: []
       }
