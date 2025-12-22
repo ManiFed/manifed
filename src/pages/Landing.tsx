@@ -227,7 +227,7 @@ function BouncingLogo() {
       <img 
         src={manifedLogo} 
         alt="ManiFed" 
-        className={`h-10 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
+        className={`h-14 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
       />
     </Link>
   );
