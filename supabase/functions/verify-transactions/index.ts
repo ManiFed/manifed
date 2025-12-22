@@ -72,10 +72,12 @@ serve(async (req) => {
     // Process each pending transaction
     for (const pending of pendingTxns || []) {
       try {
-        // Find matching Manifold transaction by message containing the code
+        // Find matching Manifold transaction by message containing the code (supports both account codes and transaction codes)
         const matchingTxn = transactions.find(txn => {
           const message = txn.data?.message || '';
-          return message.toLowerCase().includes(pending.transaction_code.toLowerCase());
+          // Check for transaction code OR account code (MF-XXXXXXXX format)
+          return message.toLowerCase().includes(pending.transaction_code.toLowerCase()) ||
+                 (pending.transaction_code.startsWith('MF-') && message.includes(pending.transaction_code));
         });
 
         if (!matchingTxn) {

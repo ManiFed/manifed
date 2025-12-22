@@ -505,6 +505,51 @@ export type Database = {
         }
         Relationships: []
       }
+      fintech_subscriptions: {
+        Row: {
+          created_at: string
+          discount_percent: number | null
+          expires_at: string | null
+          gifted_by: string | null
+          id: string
+          is_active: boolean
+          is_gifted: boolean
+          mana_price: number
+          plan_type: string
+          started_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent?: number | null
+          expires_at?: string | null
+          gifted_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_gifted?: boolean
+          mana_price?: number
+          plan_type?: string
+          started_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number | null
+          expires_at?: string | null
+          gifted_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_gifted?: boolean
+          mana_price?: number
+          plan_type?: string
+          started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       investments: {
         Row: {
           amount: number
@@ -979,6 +1024,39 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_rates: {
+        Row: {
+          created_at: string
+          id: string
+          is_on_sale: boolean
+          mana_price: number
+          plan_type: string
+          sale_ends_at: string | null
+          sale_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_on_sale?: boolean
+          mana_price: number
+          plan_type: string
+          sale_ends_at?: string | null
+          sale_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_on_sale?: boolean
+          mana_price?: number
+          plan_type?: string
+          sale_ends_at?: string | null
+          sale_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trading_bot_settings: {
         Row: {
           id: string
@@ -1106,6 +1184,7 @@ export type Database = {
       }
       user_balances: {
         Row: {
+          account_code: string | null
           balance: number
           created_at: string
           id: string
@@ -1114,6 +1193,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_code?: string | null
           balance?: number
           created_at?: string
           id?: string
@@ -1122,6 +1202,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_code?: string | null
           balance?: number
           created_at?: string
           id?: string
@@ -1172,6 +1253,7 @@ export type Database = {
           manifold_username: string | null
           updated_at: string
           user_id: string
+          withdrawal_username: string | null
         }
         Insert: {
           created_at?: string
@@ -1181,6 +1263,7 @@ export type Database = {
           manifold_username?: string | null
           updated_at?: string
           user_id: string
+          withdrawal_username?: string | null
         }
         Update: {
           created_at?: string
@@ -1190,6 +1273,7 @@ export type Database = {
           manifold_username?: string | null
           updated_at?: string
           user_id?: string
+          withdrawal_username?: string | null
         }
         Relationships: []
       }
