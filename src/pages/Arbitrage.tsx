@@ -173,12 +173,54 @@ export default function Arbitrage() {
   });
   const scanHistoryIdRef = useRef<string | null>(null);
 
+  // Permission states
+  const [canScan, setCanScan] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   // Collapsible sections
   const [showQuestionable, setShowQuestionable] = useState(false);
   const [showInvalid, setShowInvalid] = useState(false);
+  
   useEffect(() => {
     checkApiKey();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user is admin or moderator (can scan)
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', ['admin', 'moderator']);
+
+      if (roleData && roleData.length > 0) {
+        setCanScan(true);
+        setUserRole(roleData[0].role);
+        setIsPremium(true); // Admins/mods get full access
+        return;
+      }
+
+      // Check if user has active fintech subscription (premium)
+      const { data: subData } = await supabase
+        .from('fintech_subscriptions')
+        .select('is_active, expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (subData?.is_active) {
+        const isActive = !subData.expires_at || new Date(subData.expires_at) > new Date();
+        setIsPremium(isActive);
+      }
+    } catch (e) {
+      console.error('Permission check failed:', e);
+    }
+  };
   const checkApiKey = async () => {
     const {
       data: {
@@ -819,7 +861,20 @@ export default function Arbitrage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!hasApiKey && <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+            {/* Scanning Restriction Notice */}
+            {!canScan && (
+              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <Users className="w-4 h-4" />
+                  Viewing Mode Only
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Scanning is restricted to moderators and admins. You can view {isPremium ? 'full' : 'limited'} results from public scans.
+                </p>
+              </div>
+            )}
+
+            {!hasApiKey && canScan && <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="w-4 h-4" />
                   API Key Required
@@ -951,15 +1006,31 @@ export default function Arbitrage() {
               </div>}
 
             <div className="flex flex-wrap items-center gap-4">
-              <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
-                {isScanning ? <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Scanning All Markets...
-                  </> : <>
-                    <Play className="w-4 h-4" />
-                    Start Full Scan
-                  </>}
-              </Button>
+              {canScan ? (
+                <Button onClick={handleScan} disabled={isScanning || !hasApiKey} className="gap-2" size="lg">
+                  {isScanning ? <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Scanning All Markets...
+                    </> : <>
+                      <Play className="w-4 h-4" />
+                      Start Full Scan
+                    </>}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Badge variant={isPremium ? "default" : "secondary"}>
+                    {isPremium ? "Premium Viewer" : "Free Viewer"}
+                  </Badge>
+                  {!isPremium && (
+                    <Link to="/fintech">
+                      <Button variant="outline" size="sm" className="gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Upgrade for Full Access
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              )}
 
               {stats.lastScanTime && <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />

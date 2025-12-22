@@ -344,7 +344,7 @@ export default function CreateLoan() {
             Describe your trading strategy and funding needs. Investors will review and fund your request.
           </p>
           <p className="text-sm text-warning mt-2">
-            Note: A 2% transaction fee is charged to borrowers on funded loans.
+            Note: A 0.5% transaction fee is charged to borrowers on funded loans.
           </p>
         </div>
 
