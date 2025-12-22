@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, FileText, Shield, ArrowRight, Sparkles, Landmark } from "lucide-react";
-import manifedLogo from "@/assets/manifed-logo.png";
+import manifedLogo from "@/assets/manifed-logo-new.png";
 
 // 3D Graph Animation with Axes and Camera Panning
 function RisingChartBackground() {
@@ -227,9 +227,8 @@ function BouncingLogo() {
       <img 
         src={manifedLogo} 
         alt="ManiFed" 
-        className={`w-12 h-12 rounded-lg transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
+        className={`h-10 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
       />
-      <span className="font-display text-xl font-bold text-foreground hidden sm:block">ManiFed</span>
     </Link>
   );
 }
@@ -272,10 +271,10 @@ export default function Landing() {
     <div className="min-h-screen relative overflow-hidden">
       <RisingChartBackground />
 
-      {/* Horizontal Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+      {/* Floating Glass Island Navigation Bar */}
+      <header className="sticky top-4 z-50 mx-4 md:mx-8">
+        <div className="max-w-6xl mx-auto bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
+          <div className="flex items-center justify-between h-16 px-6">
             <BouncingLogo />
             
             {/* Main Navigation */}
@@ -317,9 +316,11 @@ export default function Landing() {
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation */}
-        <div className="md:hidden border-t border-border px-4 py-2 overflow-x-auto">
+      {/* Mobile Navigation */}
+      <div className="md:hidden sticky top-20 z-40 mx-4 mt-2">
+        <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-xl px-4 py-2 overflow-x-auto">
           <div className="flex gap-2">
             <Link to="/bonds">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">Treasury</Button>
@@ -335,8 +336,7 @@ export default function Landing() {
             </Link>
           </div>
         </div>
-      </header>
-
+      </div>
       <main className="relative z-10">
         {/* Hero Section with Parallax */}
         <section 
@@ -464,7 +464,7 @@ export default function Landing() {
           <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src={manifedLogo} alt="ManiFed" className="w-8 h-8 rounded" />
+                <img src={manifedLogo} alt="ManiFed" className="h-8" />
                 <span className="font-display font-semibold text-foreground">ManiFed</span>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-serif">

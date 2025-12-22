@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, PlusCircle, LayoutDashboard, Landmark, LogOut } from 'lucide-react';
+import { TrendingUp, PlusCircle, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WalletPopover } from '@/components/WalletPopover';
 import { useUserBalance } from '@/hooks/useUserBalance';
+import manifedLogo from '@/assets/manifed-logo-new.png';
 const navItems = [{
   path: '/marketplace',
   label: 'Marketplace',
@@ -57,15 +58,11 @@ export function Header() {
       navigate('/');
     }
   };
-  return <header className="sticky top-0 z-50 glass border-b border-border/50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+  return <header className="sticky top-4 z-50 mx-4 md:mx-8">
+      <div className="max-w-6xl mx-auto bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
+        <div className="flex items-center justify-between h-16 px-6">
           <Link to="/hub" className="flex items-center gap-3">
-            
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-gradient">ManiFed Loans</h1>
-              
-            </div>
+            <img src={manifedLogo} alt="ManiFed" className="h-10" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -91,20 +88,6 @@ export function Header() {
             </Button>
           </div>
         </div>
-
-        {/* Mobile Navigation */}
-        <nav className="md:hidden flex items-center gap-1 pb-3 -mx-1 overflow-x-auto">
-          {navItems.map(item => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          return <Link key={item.path} to={item.path}>
-                <Button variant={isActive ? 'secondary' : 'ghost'} size="sm" className={cn('gap-2 shrink-0', isActive && 'bg-secondary text-foreground')}>
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                </Button>
-              </Link>;
-        })}
-        </nav>
       </div>
     </header>;
 }
