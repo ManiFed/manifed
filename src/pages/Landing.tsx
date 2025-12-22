@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, FileText, Shield, ArrowRight, Sparkles, Landmark } from "lucide-react";
 import manifedLogo from "@/assets/manifed-logo.png";
 
-// 3D Rising Chart Animation Component
+// 3D Graph Animation with Axes and Camera Panning
 function RisingChartBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -25,57 +25,171 @@ function RisingChartBackground() {
     window.addEventListener('resize', resize);
 
     let animationFrame: number;
-    let offset = 0;
+    let time = 0;
+
+    // Generate smooth chart data points
+    const generateChartData = (offset: number): number[] => {
+      const points: number[] = [];
+      for (let i = 0; i < 200; i++) {
+        // Upward trending line with some variation
+        const trend = i * 2.5;
+        const wave = Math.sin(i * 0.05 + offset) * 20;
+        const noise = Math.sin(i * 0.2 + offset * 2) * 10;
+        points.push(trend + wave + noise);
+      }
+      return points;
+    };
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw multiple ascending lines
-      const lines = 8;
-      for (let i = 0; i < lines; i++) {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Camera rotation for 3D effect
+      const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
+      const cameraAngleY = Math.cos(time * 0.2) * 0.15;
+      
+      // 3D projection helper
+      const project3D = (x: number, y: number, z: number) => {
+        const scale = 0.8;
+        const px = x * Math.cos(cameraAngleY) - z * Math.sin(cameraAngleY);
+        const pz = x * Math.sin(cameraAngleY) + z * Math.cos(cameraAngleY);
+        const py = y * Math.cos(cameraAngleX) - pz * Math.sin(cameraAngleX);
+        return {
+          x: centerX + px * scale,
+          y: centerY - py * scale + 100,
+        };
+      };
+      
+      // Draw grid floor
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
+      ctx.lineWidth = 1;
+      
+      const gridSize = 400;
+      const gridStep = 40;
+      
+      for (let i = -gridSize; i <= gridSize; i += gridStep) {
+        // X lines
+        const p1 = project3D(i, 0, -gridSize);
+        const p2 = project3D(i, 0, gridSize);
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(59, 130, 246, ${0.03 + (i * 0.02)})`;
-        ctx.lineWidth = 2;
-        
-        const baseY = canvas.height - (i * 60);
-        const amplitude = 30 + (i * 10);
-        const frequency = 0.005 + (i * 0.001);
-        const speed = offset * (0.5 + i * 0.1);
-        
-        ctx.moveTo(0, baseY);
-        
-        for (let x = 0; x < canvas.width; x += 5) {
-          const y = baseY - (x * 0.15) + Math.sin((x * frequency) + speed) * amplitude;
-          ctx.lineTo(x, y);
-        }
-        
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
         
-        // Add glow effect
+        // Z lines
+        const p3 = project3D(-gridSize, 0, i);
+        const p4 = project3D(gridSize, 0, i);
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(59, 130, 246, ${0.01 + (i * 0.01)})`;
-        ctx.lineWidth = 8;
-        ctx.moveTo(0, baseY);
-        for (let x = 0; x < canvas.width; x += 5) {
-          const y = baseY - (x * 0.15) + Math.sin((x * frequency) + speed) * amplitude;
-          ctx.lineTo(x, y);
-        }
+        ctx.moveTo(p3.x, p3.y);
+        ctx.lineTo(p4.x, p4.y);
         ctx.stroke();
       }
-
-      // Draw floating dots
-      for (let i = 0; i < 20; i++) {
-        const x = ((i * 97 + offset * 0.5) % canvas.width);
-        const y = canvas.height - (x * 0.2) + Math.sin(x * 0.01 + offset) * 50 - (i * 30);
-        const size = 2 + Math.sin(offset + i) * 1;
+      
+      // Draw axes
+      ctx.lineWidth = 2;
+      
+      // X axis (horizontal)
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+      const xAxisStart = project3D(-gridSize, 0, 0);
+      const xAxisEnd = project3D(gridSize, 0, 0);
+      ctx.beginPath();
+      ctx.moveTo(xAxisStart.x, xAxisStart.y);
+      ctx.lineTo(xAxisEnd.x, xAxisEnd.y);
+      ctx.stroke();
+      
+      // Y axis (vertical - price)
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+      const yAxisStart = project3D(0, 0, 0);
+      const yAxisEnd = project3D(0, 400, 0);
+      ctx.beginPath();
+      ctx.moveTo(yAxisStart.x, yAxisStart.y);
+      ctx.lineTo(yAxisEnd.x, yAxisEnd.y);
+      ctx.stroke();
+      
+      // Z axis (depth)
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+      const zAxisStart = project3D(0, 0, -gridSize);
+      const zAxisEnd = project3D(0, 0, gridSize);
+      ctx.beginPath();
+      ctx.moveTo(zAxisStart.x, zAxisStart.y);
+      ctx.lineTo(zAxisEnd.x, zAxisEnd.y);
+      ctx.stroke();
+      
+      // Draw the main rising line
+      const chartData = generateChartData(time);
+      const scrollOffset = time * 50;
+      
+      // Main line with glow
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(34, 197, 94, 0.5)';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      
+      let first = true;
+      for (let i = 0; i < chartData.length; i++) {
+        const x = (i - 100) * 4 - (scrollOffset % 800);
+        const y = chartData[i];
+        const z = 0;
         
+        if (x < -gridSize || x > gridSize) continue;
+        
+        const p = project3D(x, y, z);
+        
+        if (first) {
+          ctx.moveTo(p.x, p.y);
+          first = false;
+        } else {
+          ctx.lineTo(p.x, p.y);
+        }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      
+      // Draw candlestick markers at intervals
+      for (let i = 0; i < chartData.length; i += 15) {
+        const x = (i - 100) * 4 - (scrollOffset % 800);
+        if (x < -gridSize || x > gridSize) continue;
+        
+        const y = chartData[i];
+        const p = project3D(x, y, 0);
+        
+        // Draw marker dot
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
         ctx.beginPath();
-        ctx.fillStyle = `rgba(59, 130, 246, ${0.2 + Math.sin(offset + i) * 0.1})`;
-        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw vertical line to base
+        const base = project3D(x, 0, 0);
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(base.x, base.y);
+        ctx.stroke();
+      }
+      
+      // Floating particles
+      for (let i = 0; i < 15; i++) {
+        const angle = time * 0.5 + i * (Math.PI * 2 / 15);
+        const radius = 200 + Math.sin(time + i) * 50;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const y = 200 + Math.sin(time * 2 + i) * 100;
+        
+        const p = project3D(x, y, z);
+        const size = 2 + Math.sin(time + i) * 1;
+        
+        ctx.fillStyle = `rgba(59, 130, 246, ${0.2 + Math.sin(time + i) * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      offset += 0.02;
+      time += 0.008;
       animationFrame = requestAnimationFrame(draw);
     };
 
@@ -91,7 +205,7 @@ function RisingChartBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.7 }}
     />
   );
 }
@@ -136,7 +250,7 @@ export default function Landing() {
     },
     {
       title: "P2P Loans",
-      description: "Peer-to-peer marketplace for prediction market loans. 2% fee on funded loans.",
+      description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
       icon: TrendingUp,
       link: "/marketplace",
       free: true,
@@ -234,15 +348,10 @@ export default function Landing() {
               Manifold's decentralized financial institution. Treasury bonds, peer-to-peer lending, 
               and premium fintech tools for the prediction market ecosystem.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Link to="/auth?mode=signup">
-                <Button size="lg" className="font-serif text-lg px-8 py-6 bg-foreground text-background hover:bg-foreground/90">
-                  Start Trading <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
-              <Link to="/about">
-                <Button variant="outline" size="lg" className="font-serif text-lg px-8 py-6">
-                  Learn More
+                <Button size="lg" className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90">
+                  Get Started <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </div>
