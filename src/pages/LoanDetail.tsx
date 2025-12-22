@@ -70,14 +70,13 @@ export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [investAmount, setInvestAmount] = useState("");
-  const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Transaction modal state
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [transactionCode, setTransactionCode] = useState("");
@@ -421,7 +420,8 @@ export default function LoanDetail() {
                   <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
                     <p className="text-muted-foreground">How it works</p>
                     <p className="text-foreground text-xs mt-1">
-                      Enter your investment amount and click "Fund This Loan". You'll receive a transaction code to send mana to @ManiFed on Manifold.
+                      Enter your investment amount and click "Fund This Loan". You'll receive a transaction code to send
+                      mana to @ManiFed on Manifold.
                     </p>
                   </div>
 
@@ -434,18 +434,9 @@ export default function LoanDetail() {
                       onChange={(e) => setInvestAmount(e.target.value)}
                       className="bg-secondary/50"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">Min: M$10 | Max: M${remainingAmount.toLocaleString()}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Payment Message (Optional)</p>
-                    <Textarea
-                      placeholder="Add a message for the borrower..."
-                      value={investMessage}
-                      onChange={(e) => setInvestMessage(e.target.value)}
-                      className="bg-secondary/50"
-                      rows={2}
-                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Min: M$10 | Max: M${remainingAmount.toLocaleString()}
+                    </p>
                   </div>
 
                   {investAmount && parseFloat(investAmount) > 0 && (
@@ -463,13 +454,7 @@ export default function LoanDetail() {
                     </div>
                   )}
 
-                  <Button
-                    variant="glow"
-                    className="w-full"
-                    size="lg"
-                    onClick={handleInvest}
-                    disabled={isInvesting}
-                  >
+                  <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
                     {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Fund This Loan
                   </Button>
