@@ -9,7 +9,7 @@ import { useUserBalance } from '@/hooks/useUserBalance';
 import { WalletPopover } from '@/components/WalletPopover';
 import { DonationButton } from '@/components/DonationButton';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, CreditCard, Brain } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, Wallet, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, Target } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -45,8 +45,6 @@ export default function Hub() {
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string>('');
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
-  const [mfaiCreditsUsed, setMfaiCreditsUsed] = useState(0);
-  const [mfaiCreditsLimit, setMfaiCreditsLimit] = useState(15);
 
   useEffect(() => {
     fetchHubData();
@@ -76,6 +74,7 @@ export default function Hub() {
         .eq('user_id', user.id)
         .maybeSingle();
       
+      // Fetch profile for verified badge - continued
       if (profile?.equipped_badge) {
         const { data: badgeItem } = await supabase
           .from('market_items')
@@ -83,25 +82,6 @@ export default function Hub() {
           .eq('id', profile.equipped_badge)
           .maybeSingle();
         setHasVerifiedBadge(badgeItem?.category === 'badge');
-      }
-
-      // Fetch subscription for MFAI credits
-      const { data: subscription } = await supabase
-        .from('user_subscriptions')
-        .select('status, mfai_credits_used')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (subscription) {
-        setMfaiCreditsUsed(subscription.mfai_credits_used || 0);
-        // Set limit based on subscription status
-        const limits: Record<string, number> = {
-          'free': 15,
-          'basic': 50,
-          'pro': 100,
-          'premium': 200,
-        };
-        setMfaiCreditsLimit(limits[subscription.status] || 15);
       }
 
       // Fetch recent transactions
@@ -136,10 +116,6 @@ export default function Hub() {
       if (!settings?.manifold_username) {
         notifs.push('Connect your Manifold account to start trading');
       }
-      const creditLimits: Record<string, number> = { 'free': 15, 'basic': 50, 'pro': 100, 'premium': 200 };
-      if (subscription && subscription.mfai_credits_used >= (creditLimits[subscription.status] || 15) * 0.8) {
-        notifs.push('You\'re running low on MFAI credits. Consider upgrading!');
-      }
       setNotifications(notifs);
       await fetchBalance();
     } catch (error) {
@@ -156,7 +132,6 @@ export default function Hub() {
 
   const totalValue = balance + totalInvested;
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
-  const mfaiCreditsRemaining = mfaiCreditsLimit - mfaiCreditsUsed;
 
   if (isLoading || balanceLoading) {
     return (
@@ -197,12 +172,6 @@ export default function Hub() {
                 </div>
               )}
               <DonationButton />
-              <Link to="/subscription">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  <span className="hidden sm:inline">Plans</span>
-                </Button>
-              </Link>
               <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
@@ -296,20 +265,6 @@ export default function Hub() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="glass">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-violet-500/10">
-                    <Brain className="w-5 h-5 text-violet-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">MFAI Credits</p>
-                    <p className="text-xl font-bold text-foreground">{mfaiCreditsRemaining}/{mfaiCreditsLimit}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </section>
 
@@ -365,24 +320,24 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* ManiFed AI */}
-            <Link to="/mfai" className="group">
+            {/* Arbitrage Scanner */}
+            <Link to="/public-arbitrage" className="group">
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <Brain className="w-6 h-6 text-white" />
+                      <Target className="w-6 h-6 text-white" />
                     </div>
-                    <Badge variant="active">AI-Powered</Badge>
+                    <Badge variant="active">Free</Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">ManiFed AI</CardTitle>
+                  <CardTitle className="text-xl mt-4">Arbitrage Scanner</CardTitle>
                   <CardDescription>
-                    AI tools: Arbitrage Scanner, Mispriced Markets, Market Agent, Comment Maker.
+                    Admin-verified arbitrage opportunities. Execute with your own API key.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    Open MFAI Hub
+                    View Opportunities
                     <ArrowUpRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>

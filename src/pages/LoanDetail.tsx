@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useUserBalance } from "@/hooks/useUserBalance";
+import { TransactionModal } from "@/components/TransactionModal";
 import {
   ArrowLeft,
   Clock,
@@ -73,12 +73,15 @@ export default function LoanDetail() {
   const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { balance, fetchBalance, totalInvested } = useUserBalance();
+  
+  // Transaction modal state
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactionCode, setTransactionCode] = useState("");
+  const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
 
   useEffect(() => {
     fetchLoanData();
@@ -117,14 +120,6 @@ export default function LoanDetail() {
       if (!user) return;
 
       setCurrentUserId(user.id);
-
-      const { data } = await supabase
-        .from("user_manifold_settings")
-        .select("manifold_api_key, manifold_username")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      setHasApiKey(!!data?.manifold_api_key);
     } catch (error) {
       console.error("Error fetching settings:", error);
     }
@@ -212,20 +207,11 @@ export default function LoanDetail() {
       });
       return;
     }
-    if (!hasApiKey) {
-      toast({
-        title: "API Key Required",
-        description: "Please connect your Manifold account in Settings first",
-        variant: "destructive",
-      });
-      return;
-    }
 
-    // CHECK MANIFED BALANCE BEFORE INVESTING
-    if (amount > balance) {
+    if (amount > remainingAmount) {
       toast({
-        title: "Insufficient ManiFed Balance",
-        description: `You need to deposit M$${(amount - balance).toLocaleString()} more to make this investment. Click on your wallet to deposit.`,
+        title: "Amount too high",
+        description: `Maximum investment for this loan is M$${remainingAmount.toLocaleString()}`,
         variant: "destructive",
       });
       return;
@@ -233,61 +219,44 @@ export default function LoanDetail() {
 
     setIsInvesting(true);
     try {
-      // Get user info for recording investment
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: settings } = await supabase
-        .from("user_manifold_settings")
-        .select("manifold_username")
-        .eq("user_id", user.id)
-        .single();
-
-      // Call the managram function to send funds to borrower (API key fetched server-side)
-      const { data, error } = await supabase.functions.invoke("managram", {
+      // Create pending transaction
+      const { data, error } = await supabase.functions.invoke("create-pending-transaction", {
         body: {
-          action: "invest",
           amount: amount,
-          recipientUsername: loan.borrower_username,
-          message:
-            investMessage || `${loan.title} investment. Pay it back or Kristi Noem & goons are going to come for you`,
-          loanId: loan.id,
+          transactionType: "loan_funding",
+          relatedId: loan.id,
+          metadata: {
+            loanTitle: loan.title,
+            borrowerUsername: loan.borrower_username,
+            message: investMessage,
+          },
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      // Record the investment in the database
-      const { error: investError } = await supabase.from("investments").insert({
-        loan_id: loan.id,
-        investor_user_id: user.id,
-        investor_username: settings?.manifold_username || "Anonymous",
-        amount: amount,
-        message: investMessage,
-      });
-
-      if (investError) throw investError;
-
-      // Note: loan funded_amount is automatically updated by database trigger
-
-      // Refresh balance from server (edge function already updated it)
-      await fetchBalance();
+      // Show transaction modal
+      setTransactionCode(data.transactionCode);
+      setTransactionExpiresAt(data.expiresAt);
+      setShowTransactionModal(true);
 
       toast({
-        title: "Investment Successful!",
-        description: `You invested M$${amount.toLocaleString()} in this loan`,
+        title: "Transaction Created",
+        description: "Follow the instructions to complete your investment.",
       });
 
       setInvestAmount("");
       setInvestMessage("");
-      fetchLoanData(); // Refresh loan data
     } catch (error) {
       console.error("Investment error:", error);
       toast({
-        title: "Investment Failed",
+        title: "Failed to create transaction",
         description: error instanceof Error ? error.message : "Failed to process investment",
         variant: "destructive",
       });
@@ -450,28 +419,12 @@ export default function LoanDetail() {
                   <CardTitle className="text-lg">Invest in this Loan</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {!hasApiKey && (
-                    <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 text-sm">
-                      <p className="text-warning font-medium">Connect Manifold Account</p>
-                      <p className="text-muted-foreground">
-                        Go to{" "}
-                        <Link to="/settings" className="text-primary hover:underline">
-                          Settings
-                        </Link>{" "}
-                        to connect.
-                      </p>
-                    </div>
-                  )}
-
-                  {hasApiKey && (
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                      <p className="text-muted-foreground">Your ManiFed Balance</p>
-                      <p className="text-xl font-bold text-foreground">M${balance.toLocaleString()}</p>
-                      {balance < 10 && (
-                        <p className="text-warning text-xs mt-1">Deposit funds via the wallet icon in the header</p>
-                      )}
-                    </div>
-                  )}
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                    <p className="text-muted-foreground">How it works</p>
+                    <p className="text-foreground text-xs mt-1">
+                      Enter your investment amount and click "Fund This Loan". You'll receive a transaction code to send mana to @ManiFed on Manifold.
+                    </p>
+                  </div>
 
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
@@ -482,7 +435,7 @@ export default function LoanDetail() {
                       onChange={(e) => setInvestAmount(e.target.value)}
                       className="bg-secondary/50"
                     />
-                    <p className="text-xs text-muted-foreground mt-2">Min: M$10</p>
+                    <p className="text-xs text-muted-foreground mt-2">Min: M$10 | Max: M${remainingAmount.toLocaleString()}</p>
                   </div>
 
                   <div>
@@ -516,7 +469,7 @@ export default function LoanDetail() {
                     className="w-full"
                     size="lg"
                     onClick={handleInvest}
-                    disabled={isInvesting || !hasApiKey || balance < 10}
+                    disabled={isInvesting}
                   >
                     {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Fund This Loan
@@ -548,6 +501,20 @@ export default function LoanDetail() {
           </div>
         </div>
       </main>
+
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={showTransactionModal}
+        onClose={() => setShowTransactionModal(false)}
+        transactionCode={transactionCode}
+        amount={parseFloat(investAmount) || 0}
+        expiresAt={transactionExpiresAt}
+        transactionType="loan_funding"
+        onSuccess={() => {
+          setShowTransactionModal(false);
+          fetchLoanData();
+        }}
+      />
     </div>
   );
 }

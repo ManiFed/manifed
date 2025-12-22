@@ -26,6 +26,7 @@ import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
 import CommentMaker from "./pages/CommentMaker";
 import MispricedScanner from "./pages/MispricedScanner";
+import PublicArbitrage from "./pages/PublicArbitrage";
 
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
@@ -88,6 +89,7 @@ const App = () => (
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
           <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
+          <Route path="/public-arbitrage" element={<PublicArbitrage />} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/about" element={<About />} />
