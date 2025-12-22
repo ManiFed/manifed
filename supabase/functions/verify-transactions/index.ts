@@ -26,10 +26,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
   try {
     console.log("[VERIFY-TRANSACTIONS] Starting verification process...");
@@ -40,7 +37,7 @@ serve(async (req) => {
     if (!txnResponse.ok) {
       const errorText = await txnResponse.text();
       console.error("[VERIFY-TRANSACTIONS] Manifold API error:", errorText);
-      throw new Error(`Failed to fetch Manifold transactions: ${txnResponse.status}`);
+      throw new Error(`Failed to fetch Manifold transactions: ${txnResponse.status}. Deep state broke API so sorry!`);
     }
 
     const transactions: ManifoldTransaction[] = await txnResponse.json();
@@ -48,10 +45,10 @@ serve(async (req) => {
 
     // Get pending transactions that haven't expired
     const { data: pendingTxns, error: pendingError } = await supabase
-      .from('pending_transactions')
-      .select('*')
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString());
+      .from("pending_transactions")
+      .select("*")
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString());
 
     if (pendingError) {
       console.error("[VERIFY-TRANSACTIONS] Error fetching pending:", pendingError);
@@ -71,11 +68,13 @@ serve(async (req) => {
     for (const pending of pendingTxns || []) {
       try {
         // Find matching Manifold transaction by message containing the code (supports both account codes and transaction codes)
-        const matchingTxn = transactions.find(txn => {
-          const message = txn.data?.message || '';
+        const matchingTxn = transactions.find((txn) => {
+          const message = txn.data?.message || "";
           // Check for transaction code OR account code (MF-XXXXXXXX format)
-          return message.toLowerCase().includes(pending.transaction_code.toLowerCase()) ||
-                 (pending.transaction_code.startsWith('MF-') && message.includes(pending.transaction_code));
+          return (
+            message.toLowerCase().includes(pending.transaction_code.toLowerCase()) ||
+            (pending.transaction_code.startsWith("MF-") && message.includes(pending.transaction_code))
+          );
         });
 
         if (!matchingTxn) {
@@ -83,48 +82,56 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(`[VERIFY-TRANSACTIONS] Found match for ${pending.transaction_code} from @${matchingTxn.fromUsername}`);
+        console.log(
+          `[VERIFY-TRANSACTIONS] Found match for ${pending.transaction_code} from @${matchingTxn.fromUsername}`,
+        );
 
         // Check if amount matches
         if (matchingTxn.amount < pending.amount) {
-          console.log(`[VERIFY-TRANSACTIONS] Amount mismatch. Expected: ${pending.amount}, Got: ${matchingTxn.amount}. Refunding...`);
-          
+          console.log(
+            `[VERIFY-TRANSACTIONS] Amount mismatch. Expected: ${pending.amount}, Got: ${matchingTxn.amount}. Refunding...`,
+          );
+
           // Refund the wrong amount
-          await refundTransaction(matchingTxn.fromUsername, matchingTxn.amount, 
-            `Refund: Wrong amount sent. Expected M$${pending.amount}, got M$${matchingTxn.amount}. Code: ${pending.transaction_code}`);
-          
+          await refundTransaction(
+            matchingTxn.fromUsername,
+            matchingTxn.amount,
+            `Refund: Wrong amount sent. Expected M$${pending.amount}, got M$${matchingTxn.amount}. Code: ${pending.transaction_code}`,
+          );
+
           // Update status to refunded
           await supabase
-            .from('pending_transactions')
-            .update({ 
-              status: 'refunded',
+            .from("pending_transactions")
+            .update({
+              status: "refunded",
               from_manifold_username: matchingTxn.fromUsername,
               from_manifold_user_id: matchingTxn.fromId,
             })
-            .eq('id', pending.id);
-          
+            .eq("id", pending.id);
+
           results.refunded++;
           continue;
         }
 
         // Amount is correct - process based on transaction type
-        console.log(`[VERIFY-TRANSACTIONS] Processing ${pending.transaction_type} for code ${pending.transaction_code}`);
+        console.log(
+          `[VERIFY-TRANSACTIONS] Processing ${pending.transaction_type} for code ${pending.transaction_code}`,
+        );
 
         await processTransaction(supabase, pending, matchingTxn);
-        
+
         // Mark as completed
         await supabase
-          .from('pending_transactions')
-          .update({ 
-            status: 'completed',
+          .from("pending_transactions")
+          .update({
+            status: "completed",
             completed_at: new Date().toISOString(),
             from_manifold_username: matchingTxn.fromUsername,
             from_manifold_user_id: matchingTxn.fromId,
           })
-          .eq('id', pending.id);
+          .eq("id", pending.id);
 
         results.verified++;
-
       } catch (error) {
         console.error(`[VERIFY-TRANSACTIONS] Error processing ${pending.transaction_code}:`, error);
         results.errors++;
@@ -133,10 +140,10 @@ serve(async (req) => {
 
     // Expire old pending transactions
     const { data: expired, error: expireError } = await supabase
-      .from('pending_transactions')
-      .update({ status: 'expired' })
-      .eq('status', 'pending')
-      .lt('expires_at', new Date().toISOString())
+      .from("pending_transactions")
+      .update({ status: "expired" })
+      .eq("status", "pending")
+      .lt("expires_at", new Date().toISOString())
       .select();
 
     if (expired) {
@@ -146,19 +153,21 @@ serve(async (req) => {
 
     console.log("[VERIFY-TRANSACTIONS] Verification complete:", results);
 
-    return new Response(JSON.stringify({
-      success: true,
-      results,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        results,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
     console.error("[VERIFY-TRANSACTIONS] Fatal error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
@@ -166,7 +175,7 @@ async function refundTransaction(toUsername: string, amount: number, message: st
   const response = await fetch("https://api.manifold.markets/v0/managram", {
     method: "POST",
     headers: {
-      "Authorization": `Key ${MANIFED_API_KEY}`,
+      Authorization: `Key ${MANIFED_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -189,9 +198,9 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
   const { transaction_type, related_id, amount, user_id, metadata } = pending;
 
   switch (transaction_type) {
-    case 'loan_funding':
+    case "loan_funding":
       // Record investment in the investments table
-      await supabase.from('investments').insert({
+      await supabase.from("investments").insert({
         loan_id: related_id,
         investor_user_id: user_id,
         investor_username: manifoldTxn.fromUsername,
@@ -200,9 +209,9 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
       });
 
       // Record transaction
-      await supabase.from('transactions').insert({
+      await supabase.from("transactions").insert({
         user_id: user_id,
-        type: 'invest',
+        type: "invest",
         amount: amount,
         description: `Invested M$${amount} in loan`,
         loan_id: related_id,
@@ -211,20 +220,13 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
       console.log(`[VERIFY-TRANSACTIONS] Recorded loan funding: M$${amount} for loan ${related_id}`);
       break;
 
-    case 'loan_repayment':
+    case "loan_repayment":
       // Get loan and investments to distribute repayment
-      const { data: loan } = await supabase
-        .from('loans')
-        .select('*')
-        .eq('id', related_id)
-        .single();
+      const { data: loan } = await supabase.from("loans").select("*").eq("id", related_id).single();
 
       if (!loan) throw new Error(`Loan ${related_id} not found`);
 
-      const { data: investments } = await supabase
-        .from('investments')
-        .select('*')
-        .eq('loan_id', related_id);
+      const { data: investments } = await supabase.from("investments").select("*").eq("loan_id", related_id);
 
       if (!investments?.length) throw new Error(`No investments found for loan ${related_id}`);
 
@@ -242,7 +244,7 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
           await fetch("https://api.manifold.markets/v0/managram", {
             method: "POST",
             headers: {
-              "Authorization": `Key ${MANIFED_API_KEY}`,
+              Authorization: `Key ${MANIFED_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -253,9 +255,9 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
           });
 
           // Record transaction
-          await supabase.from('transactions').insert({
+          await supabase.from("transactions").insert({
             user_id: investment.investor_user_id,
-            type: 'repayment',
+            type: "repayment",
             amount: repaymentAmount,
             description: `Repayment from loan: ${loan.title}`,
             loan_id: related_id,
@@ -264,40 +266,33 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
       }
 
       // Record fee
-      await supabase.from('fee_pool').insert({
+      await supabase.from("fee_pool").insert({
         user_id: user_id,
         amount: amount * feeRate,
-        source: 'loan_repayment',
+        source: "loan_repayment",
       });
 
       // Update loan status
       await supabase
-        .from('loans')
-        .update({ status: 'repaid', updated_at: new Date().toISOString() })
-        .eq('id', related_id);
+        .from("loans")
+        .update({ status: "repaid", updated_at: new Date().toISOString() })
+        .eq("id", related_id);
 
       console.log(`[VERIFY-TRANSACTIONS] Processed loan repayment for loan ${related_id}`);
       break;
 
-    case 'loan_cancellation':
+    case "loan_cancellation":
       // Similar to repayment but return principal only (no interest)
-      const { data: cancelLoan } = await supabase
-        .from('loans')
-        .select('*')
-        .eq('id', related_id)
-        .single();
+      const { data: cancelLoan } = await supabase.from("loans").select("*").eq("id", related_id).single();
 
-      const { data: cancelInvestments } = await supabase
-        .from('investments')
-        .select('*')
-        .eq('loan_id', related_id);
+      const { data: cancelInvestments } = await supabase.from("investments").select("*").eq("loan_id", related_id);
 
       for (const investment of cancelInvestments || []) {
         // Return exact investment amount
         await fetch("https://api.manifold.markets/v0/managram", {
           method: "POST",
           headers: {
-            "Authorization": `Key ${MANIFED_API_KEY}`,
+            Authorization: `Key ${MANIFED_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -307,9 +302,9 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
           }),
         });
 
-        await supabase.from('transactions').insert({
+        await supabase.from("transactions").insert({
           user_id: investment.investor_user_id,
-          type: 'refund',
+          type: "refund",
           amount: Number(investment.amount),
           description: `Loan cancelled - principal returned`,
           loan_id: related_id,
@@ -317,29 +312,26 @@ async function processTransaction(supabase: any, pending: any, manifoldTxn: Mani
       }
 
       await supabase
-        .from('loans')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-        .eq('id', related_id);
+        .from("loans")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", related_id);
 
       console.log(`[VERIFY-TRANSACTIONS] Processed loan cancellation for loan ${related_id}`);
       break;
 
-    case 'bond_purchase':
+    case "bond_purchase":
       // Bonds are held by ManiFed - just record the purchase
       // The bond should already be created, we just confirm the payment
-      await supabase.from('transactions').insert({
+      await supabase.from("transactions").insert({
         user_id: user_id,
-        type: 'bond_purchase',
+        type: "bond_purchase",
         amount: amount,
         description: `Bond purchase confirmed`,
       });
 
       // Update bond status if needed
       if (related_id) {
-        await supabase
-          .from('bonds')
-          .update({ status: 'active' })
-          .eq('id', related_id);
+        await supabase.from("bonds").update({ status: "active" }).eq("id", related_id);
       }
 
       console.log(`[VERIFY-TRANSACTIONS] Confirmed bond purchase for user ${user_id}`);
