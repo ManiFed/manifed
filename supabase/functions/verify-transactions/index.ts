@@ -35,8 +35,7 @@ serve(async (req) => {
     console.log("[VERIFY-TRANSACTIONS] Starting verification process...");
 
     // Fetch ManiFed's recent transactions from Manifold
-    const txnResponse = await fetch("https://api.manifold.markets/v0/txns?limit=100", {
-      headers: { "Authorization": `Key ${MANIFED_API_KEY}` },
+    const txnResponse = await fetch("https://api.manifold.markets/v0/txns?toId=xjkHXOwhziTm0vB63IDHLgJlCUO2"
     });
 
     if (!txnResponse.ok) {
