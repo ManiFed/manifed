@@ -82,6 +82,7 @@ export default function LoanDetail() {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [transactionCode, setTransactionCode] = useState("");
   const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
+  const [transactionAmount, setTransactionAmount] = useState(0);
 
   useEffect(() => {
     fetchLoanData();
@@ -241,18 +242,16 @@ export default function LoanDetail() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      // Show transaction modal
+      // Show transaction modal with the amount from the API response
       setTransactionCode(data.transactionCode);
       setTransactionExpiresAt(data.expiresAt);
+      setTransactionAmount(data.amount);
       setShowTransactionModal(true);
 
       toast({
         title: "Transaction Created",
         description: "Follow the instructions to complete your investment.",
       });
-
-      setInvestAmount("");
-      setInvestMessage("");
     } catch (error) {
       console.error("Investment error:", error);
       toast({
@@ -505,13 +504,19 @@ export default function LoanDetail() {
       {/* Transaction Modal */}
       <TransactionModal
         isOpen={showTransactionModal}
-        onClose={() => setShowTransactionModal(false)}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setInvestAmount("");
+          setInvestMessage("");
+        }}
         transactionCode={transactionCode}
-        amount={parseFloat(investAmount) || 0}
+        amount={transactionAmount}
         expiresAt={transactionExpiresAt}
         transactionType="loan_funding"
         onSuccess={() => {
           setShowTransactionModal(false);
+          setInvestAmount("");
+          setInvestMessage("");
           fetchLoanData();
         }}
       />
