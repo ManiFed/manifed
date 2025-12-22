@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.admin-arbitrage-scan]
 verify_jwt = true
+
+[functions.execute-index-fund]
+verify_jwt = false

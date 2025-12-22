@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Copy, ExternalLink, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Copy, ExternalLink, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -27,6 +28,39 @@ export function TransactionModal({
 }: TransactionModalProps) {
   const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
   const [hasCopied, setHasCopied] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerifyNow = async () => {
+    setIsVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-transactions');
+      
+      if (error) throw error;
+      
+      if (data?.results?.verified > 0) {
+        toast({
+          title: 'Transaction Verified!',
+          description: 'Your payment was confirmed successfully.',
+        });
+        onSuccess?.();
+      } else {
+        toast({
+          title: 'Payment Not Found Yet',
+          description: 'Make sure you sent the mana with the correct code in the message. Try again in a moment.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Verify error:', error);
+      toast({
+        title: 'Verification Failed',
+        description: 'Could not verify at this time. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -153,21 +187,37 @@ export function TransactionModal({
                   <li>Go to Manifold Markets</li>
                   <li>Send M${amount.toLocaleString()} to <span className="font-bold text-primary">@ManiFed</span></li>
                   <li>Include the code <span className="font-mono font-bold text-primary">{transactionCode}</span> in the message</li>
-                  <li>ManiFed will verify your payment within 10 minutes</li>
+                  <li>Click "Verify Payment" below after sending</li>
                 </ol>
               </div>
 
-              {/* Action Button */}
-              <Button asChild className="w-full gap-2">
-                <a 
-                  href={`https://manifold.markets/ManiFed`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <Button asChild className="w-full gap-2" variant="outline">
+                  <a 
+                    href={`https://manifold.markets/ManiFed`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Go to ManiFed on Manifold
+                  </a>
+                </Button>
+                
+                <Button 
+                  onClick={handleVerifyNow} 
+                  disabled={isVerifying}
+                  className="w-full gap-2"
+                  variant="default"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Go to ManiFed on Manifold
-                </a>
-              </Button>
+                  {isVerifying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  {isVerifying ? 'Checking...' : 'Verify Payment Now'}
+                </Button>
+              </div>
             </>
           )}
 

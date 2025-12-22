@@ -59,6 +59,14 @@ export default function Landing() {
     link: "/auth?mode=signup",
     available: true,
     badge: "1 credit"
+  }, {
+    title: "Fintech Tools",
+    description: "Index funds, calibration graphs, and bot building playground.",
+    icon: Coins,
+    gradient: "bg-gradient-to-br from-amber-500 to-yellow-600",
+    link: "/fintech",
+    available: true,
+    badge: "New"
   }];
   return <div className="min-h-screen relative overflow-hidden">
       {/* Ultra Trump Background - Portraits only, no signatures */}
@@ -246,6 +254,11 @@ export default function Landing() {
                 <img alt="ManiFed" className="w-8 h-8 rounded-full" src="/lovable-uploads/b88a4827-379b-4e6a-afc5-6d0dd09697a8.png" />
                 <span className="font-semibold text-foreground">ManiFed</span>
                 <span className="text-muted-foreground">- Manifold's Central Bank</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+                <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link>
+                <span className="text-muted-foreground/50">•</span>
+                <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
               </div>
               <p className="text-sm text-muted-foreground">Powered by Manifold Markets • All loans settled in M$</p>
             </div>
