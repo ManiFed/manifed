@@ -34,14 +34,20 @@ async function decryptApiKey(storedKey: string): Promise<string> {
     return storedKey;
   }
 
-  console.log("Decrypting encrypted API key");
+  if (!ENCRYPTION_KEY) {
+    console.error("API_ENCRYPTION_KEY environment variable is not set!");
+    throw new Error("Encryption key not configured");
+  }
+
+  console.log("Decrypting encrypted API key, key length:", storedKey.length);
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   
-  // Derive key from encryption secret
+  // Derive key from encryption secret - use same method as save-api-key
+  const keyData = encoder.encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32));
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32)),
+    keyData,
     { name: "AES-GCM" },
     false,
     ["decrypt"]
@@ -49,6 +55,8 @@ async function decryptApiKey(storedKey: string): Promise<string> {
   
   // Decode base64 and extract IV + encrypted data
   const combined = Uint8Array.from(atob(storedKey), c => c.charCodeAt(0));
+  console.log("Combined data length:", combined.length, "IV:", combined.slice(0, 12).length, "Encrypted:", combined.slice(12).length);
+  
   const iv = combined.slice(0, 12);
   const encrypted = combined.slice(12);
   
@@ -59,7 +67,9 @@ async function decryptApiKey(storedKey: string): Promise<string> {
     encrypted
   );
   
-  return decoder.decode(decrypted);
+  const result = decoder.decode(decrypted);
+  console.log("Decryption successful, key length:", result.length);
+  return result;
 }
 
 interface ManagramRequest {
