@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { DonationButton } from '@/components/DonationButton';
-import trumpPortrait from '@/assets/trump-portrait.png';
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Activity, Settings, BarChart3, Loader2, Search, Sparkles, Store, CheckCircle, MoreHorizontal, ChevronDown, MessageSquare, Target } from 'lucide-react';
+import manifedLogo from '@/assets/manifed-logo.png';
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Target } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -139,22 +139,15 @@ export default function Hub() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Ultra Trump Background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <img src={trumpPortrait} alt="" className="absolute -right-16 top-40 w-[550px] h-auto opacity-[0.06] rotate-6" />
-        <img src={trumpPortrait} alt="" className="absolute -left-24 bottom-10 w-[400px] h-auto opacity-[0.04] -rotate-12 scale-x-[-1]" />
-        <img src={trumpPortrait} alt="" className="absolute right-1/4 top-3/4 w-[200px] h-auto opacity-[0.025] rotate-45" />
-      </div>
-      
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <img alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png" />
+              <img src={manifedLogo} alt="ManiFed" className="w-10 h-10 rounded-lg" />
               <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Making Manifold Great Again</p>
+                <h1 className="font-display text-lg font-bold text-foreground">ManiFed</h1>
+                <p className="text-xs text-muted-foreground -mt-0.5">Your Financial Hub</p>
               </div>
             </Link>
 
@@ -185,23 +178,18 @@ export default function Hub() {
       <main className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Welcome */}
         <div className="mb-8 animate-slide-up relative">
-          <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              Welcome back{username ? `, @${username}` : ''}
-              {hasVerifiedBadge}
-            </h1>
-          </div>
-          <p className="text-muted-foreground mt-1">
-            Your ManiFed dashboard - The deep state doesn't want you to see these gains! 📈
+          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+            Welcome back{username ? `, @${username}` : ''}
+          </h1>
+          <p className="font-serif text-muted-foreground">
+            Your ManiFed dashboard
           </p>
-          <p className="text-xs text-primary/70 mt-1 italic">"Many people are saying this is the best financial dashboard. Tremendous!" — DJT</p>
-          <img alt="Signature" className="h-10 mt-2 opacity-70" src="/lovable-uploads/d5dd0dd7-cef1-46ac-8a1e-e2f260144ec8.png" />
         </div>
 
         {/* Portfolio Overview */}
         <section className="mb-8 animate-slide-up" style={{ animationDelay: '50ms' }}>
-          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
+          <h2 className="font-display text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-accent" />
             Portfolio Overview
           </h2>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
