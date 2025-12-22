@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink } from 'lucide-react';
+import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink, PieChart, Code, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -144,6 +144,25 @@ export default function TreasuryAdmin() {
     ai_analysis: '',
   });
 
+  // Index Funds
+  const [indexFunds, setIndexFunds] = useState<TradingBot[]>([]);
+  const [showNewIndexFund, setShowNewIndexFund] = useState(false);
+  const [processingIndexFund, setProcessingIndexFund] = useState<string | null>(null);
+  const [newIndexFund, setNewIndexFund] = useState({
+    name: '',
+    description: '',
+    markets: [] as { id: string; question: string; url: string; probability: number; allocation: number }[],
+  });
+  const [newMarketInput, setNewMarketInput] = useState({ question: '', url: '', probability: 50, allocation: 25 });
+  const [editingFund, setEditingFund] = useState<string | null>(null);
+
+  // Bot Strategies
+  const [botStrategies, setBotStrategies] = useState<TradingBot[]>([]);
+  const [showNewStrategy, setShowNewStrategy] = useState(false);
+  const [processingStrategy, setProcessingStrategy] = useState<string | null>(null);
+  const [newStrategy, setNewStrategy] = useState({ name: '', description: '', codeSnippet: '' });
+  const [editingStrategy, setEditingStrategy] = useState<string | null>(null);
+
   useEffect(() => {
     checkAdminAndFetchData();
   }, []);
@@ -216,6 +235,22 @@ export default function TreasuryAdmin() {
           .order('created_at', { ascending: false })
           .limit(50);
         if (arbitrageData) setArbitrageOpportunities(arbitrageData as ArbitrageOpportunity[]);
+
+        // Fetch index funds
+        const { data: indexFundsData } = await supabase
+          .from('trading_bots')
+          .select('*')
+          .eq('strategy', 'index_fund')
+          .order('created_at', { ascending: false });
+        if (indexFundsData) setIndexFunds(indexFundsData as TradingBot[]);
+
+        // Fetch bot strategies for playground
+        const { data: strategiesData } = await supabase
+          .from('trading_bots')
+          .select('*')
+          .eq('strategy', 'playground_strategy')
+          .order('created_at', { ascending: false });
+        if (strategiesData) setBotStrategies(strategiesData as TradingBot[]);
 
         // Fetch emergency stop status
         const { data: stopData } = await supabase
@@ -615,6 +650,157 @@ export default function TreasuryAdmin() {
     }
   };
 
+  // Index Fund handlers
+  const handleAddMarketToFund = () => {
+    if (!newMarketInput.question.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a market question', variant: 'destructive' });
+      return;
+    }
+    const marketId = newMarketInput.url.split('/').pop() || `market_${Date.now()}`;
+    setNewIndexFund(prev => ({
+      ...prev,
+      markets: [...prev.markets, { ...newMarketInput, id: marketId }]
+    }));
+    setNewMarketInput({ question: '', url: '', probability: 50, allocation: 25 });
+  };
+
+  const handleRemoveMarketFromFund = (marketId: string) => {
+    setNewIndexFund(prev => ({
+      ...prev,
+      markets: prev.markets.filter(m => m.id !== marketId)
+    }));
+  };
+
+  const handleCreateIndexFund = async () => {
+    if (!newIndexFund.name.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a fund name', variant: 'destructive' });
+      return;
+    }
+    if (newIndexFund.markets.length === 0) {
+      toast({ title: 'Invalid', description: 'Add at least one market', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('trading_bots').insert({
+        name: newIndexFund.name,
+        description: newIndexFund.description,
+        strategy: 'index_fund',
+        config: { markets: newIndexFund.markets },
+        is_active: true,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Index Fund Created' });
+      setNewIndexFund({ name: '', description: '', markets: [] });
+      setShowNewIndexFund(false);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create index fund', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateIndexFund = async (fundId: string, markets: any[]) => {
+    setProcessingIndexFund(fundId);
+    try {
+      const { error } = await supabase
+        .from('trading_bots')
+        .update({ config: { markets } })
+        .eq('id', fundId);
+
+      if (error) throw error;
+      toast({ title: 'Updated' });
+      setEditingFund(null);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
+    } finally {
+      setProcessingIndexFund(null);
+    }
+  };
+
+  const handleDeleteIndexFund = async (fundId: string) => {
+    setProcessingIndexFund(fundId);
+    try {
+      const { error } = await supabase.from('trading_bots').delete().eq('id', fundId);
+      if (error) throw error;
+      toast({ title: 'Deleted' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+    } finally {
+      setProcessingIndexFund(null);
+    }
+  };
+
+  // Bot Strategy handlers
+  const handleCreateStrategy = async () => {
+    if (!newStrategy.name.trim() || !newStrategy.codeSnippet.trim()) {
+      toast({ title: 'Invalid', description: 'Enter name and code snippet', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('trading_bots').insert({
+        name: newStrategy.name,
+        description: newStrategy.description,
+        strategy: 'playground_strategy',
+        config: { codeSnippet: newStrategy.codeSnippet },
+        is_active: true,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Strategy Created' });
+      setNewStrategy({ name: '', description: '', codeSnippet: '' });
+      setShowNewStrategy(false);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create strategy', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateStrategy = async (strategyId: string, updates: { name?: string; description?: string; codeSnippet?: string }) => {
+    setProcessingStrategy(strategyId);
+    try {
+      const strategy = botStrategies.find(s => s.id === strategyId);
+      if (!strategy) return;
+
+      const { error } = await supabase
+        .from('trading_bots')
+        .update({
+          name: updates.name || strategy.name,
+          description: updates.description || strategy.description,
+          config: { codeSnippet: updates.codeSnippet || (strategy.config as any)?.codeSnippet },
+        })
+        .eq('id', strategyId);
+
+      if (error) throw error;
+      toast({ title: 'Updated' });
+      setEditingStrategy(null);
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
+    } finally {
+      setProcessingStrategy(null);
+    }
+  };
+
+  const handleDeleteStrategy = async (strategyId: string) => {
+    setProcessingStrategy(strategyId);
+    try {
+      const { error } = await supabase.from('trading_bots').delete().eq('id', strategyId);
+      if (error) throw error;
+      toast({ title: 'Deleted' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+    } finally {
+      setProcessingStrategy(null);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -665,30 +851,38 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-4 sm:grid-cols-8 w-full">
             <TabsTrigger value="rates" className="gap-2">
               <TrendingUp className="w-4 h-4" />
-              Rates
+              <span className="hidden sm:inline">Rates</span>
             </TabsTrigger>
             <TabsTrigger value="news" className="gap-2">
               <FileText className="w-4 h-4" />
-              News
+              <span className="hidden sm:inline">News</span>
             </TabsTrigger>
             <TabsTrigger value="loans" className="gap-2">
               <Users className="w-4 h-4" />
-              Loans
+              <span className="hidden sm:inline">Loans</span>
             </TabsTrigger>
             <TabsTrigger value="arbitrage" className="gap-2">
               <Zap className="w-4 h-4" />
-              Arbitrage
+              <span className="hidden sm:inline">Arbitrage</span>
             </TabsTrigger>
             <TabsTrigger value="bots" className="gap-2">
               <Bot className="w-4 h-4" />
-              Bots
+              <span className="hidden sm:inline">Bots</span>
+            </TabsTrigger>
+            <TabsTrigger value="indexfunds" className="gap-2">
+              <PieChart className="w-4 h-4" />
+              <span className="hidden sm:inline">Funds</span>
+            </TabsTrigger>
+            <TabsTrigger value="strategies" className="gap-2">
+              <Code className="w-4 h-4" />
+              <span className="hidden sm:inline">Snippets</span>
             </TabsTrigger>
             <TabsTrigger value="suggestions" className="gap-2">
               <MessageSquare className="w-4 h-4" />
-              Suggestions
+              <span className="hidden sm:inline">Suggest</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1317,6 +1511,216 @@ export default function TreasuryAdmin() {
                             </Button>
                           </div>
                         </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Index Funds Tab */}
+          <TabsContent value="indexfunds">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChart className="w-5 h-5 text-primary" />
+                  Index Funds
+                </CardTitle>
+                <CardDescription>
+                  Create index funds with custom market selections for users to invest in.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{indexFunds.length} funds</p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewIndexFund(!showNewIndexFund)} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Fund
+                  </Button>
+                </div>
+
+                {showNewIndexFund && (
+                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                    <h4 className="font-medium">Create Index Fund</h4>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Fund Name</Label>
+                        <Input placeholder="e.g., AI Tech Index" value={newIndexFund.name} onChange={(e) => setNewIndexFund({ ...newIndexFund, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Input placeholder="Brief description..." value={newIndexFund.description} onChange={(e) => setNewIndexFund({ ...newIndexFund, description: e.target.value })} />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Add Markets</Label>
+                      <div className="grid sm:grid-cols-4 gap-2">
+                        <Input placeholder="Question" value={newMarketInput.question} onChange={(e) => setNewMarketInput({ ...newMarketInput, question: e.target.value })} />
+                        <Input placeholder="URL" value={newMarketInput.url} onChange={(e) => setNewMarketInput({ ...newMarketInput, url: e.target.value })} />
+                        <Input type="number" placeholder="Prob %" value={newMarketInput.probability} onChange={(e) => setNewMarketInput({ ...newMarketInput, probability: parseInt(e.target.value) || 0 })} />
+                        <Button size="sm" onClick={handleAddMarketToFund} className="gap-1"><Plus className="w-3 h-3" />Add</Button>
+                      </div>
+                    </div>
+
+                    {newIndexFund.markets.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Markets ({newIndexFund.markets.length})</Label>
+                        {newIndexFund.markets.map((m, i) => (
+                          <div key={i} className="flex items-center gap-2 p-2 bg-secondary/30 rounded">
+                            <span className="flex-1 text-sm truncate">{m.question}</span>
+                            <Badge variant="secondary">{m.allocation}%</Badge>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveMarketFromFund(m.id)}><Trash2 className="w-3 h-3 text-destructive" /></Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleCreateIndexFund}>Create Fund</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowNewIndexFund(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {indexFunds.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No index funds yet</div>
+                  ) : (
+                    indexFunds.map(fund => (
+                      <div key={fund.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{fund.name}</p>
+                            <p className="text-sm text-muted-foreground">{fund.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {((fund.config as any)?.markets?.length || 0)} markets
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setEditingFund(editingFund === fund.id ? null : fund.id)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteIndexFund(fund.id)} disabled={processingIndexFund === fund.id}>
+                              {processingIndexFund === fund.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+                            </Button>
+                          </div>
+                        </div>
+                        {editingFund === fund.id && (
+                          <div className="mt-4 pt-4 border-t space-y-2">
+                            <p className="text-sm font-medium">Markets in this fund:</p>
+                            {((fund.config as any)?.markets || []).map((m: any, i: number) => (
+                              <div key={i} className="flex items-center gap-2 p-2 bg-background/50 rounded text-sm">
+                                <span className="flex-1 truncate">{m.question}</span>
+                                <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-primary"><ExternalLink className="w-3 h-3" /></a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bot Strategies Tab */}
+          <TabsContent value="strategies">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Code className="w-5 h-5 text-primary" />
+                  Bot Strategy Snippets
+                </CardTitle>
+                <CardDescription>
+                  Create and edit code snippets for the Bot Building Playground.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{botStrategies.length} strategies</p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewStrategy(!showNewStrategy)} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    New Strategy
+                  </Button>
+                </div>
+
+                {showNewStrategy && (
+                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                    <h4 className="font-medium">Create Strategy Snippet</h4>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Strategy Name</Label>
+                        <Input placeholder="e.g., Momentum Trader" value={newStrategy.name} onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Input placeholder="Brief description..." value={newStrategy.description} onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Code Snippet</Label>
+                      <Textarea 
+                        placeholder="// Your strategy code here..."
+                        value={newStrategy.codeSnippet}
+                        onChange={(e) => setNewStrategy({ ...newStrategy, codeSnippet: e.target.value })}
+                        rows={8}
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleCreateStrategy}>Create Strategy</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {botStrategies.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No strategies yet. Default strategies will be used.</div>
+                  ) : (
+                    botStrategies.map(strategy => (
+                      <div key={strategy.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{strategy.name}</p>
+                            <p className="text-sm text-muted-foreground">{strategy.description}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setEditingStrategy(editingStrategy === strategy.id ? null : strategy.id)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteStrategy(strategy.id)} disabled={processingStrategy === strategy.id}>
+                              {processingStrategy === strategy.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+                            </Button>
+                          </div>
+                        </div>
+                        {editingStrategy === strategy.id && (
+                          <div className="mt-4 pt-4 border-t space-y-3">
+                            <div>
+                              <Label>Code Snippet</Label>
+                              <Textarea 
+                                defaultValue={(strategy.config as any)?.codeSnippet || ''}
+                                rows={8}
+                                className="font-mono text-sm"
+                                id={`code-${strategy.id}`}
+                              />
+                            </div>
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                const textarea = document.getElementById(`code-${strategy.id}`) as HTMLTextAreaElement;
+                                handleUpdateStrategy(strategy.id, { codeSnippet: textarea?.value });
+                              }}
+                              disabled={processingStrategy === strategy.id}
+                            >
+                              {processingStrategy === strategy.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                              Save Changes
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
