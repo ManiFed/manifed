@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Landmark, ArrowLeft, Newspaper, Info, Lightbulb, Send, Loader2, CheckCircle
+  Landmark, ArrowLeft, Newspaper, Info, Lightbulb, Send, Loader2, CheckCircle,
+  TrendingUp, Calendar
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -21,8 +22,24 @@ interface TreasuryNewsItem {
   published_at: string;
 }
 
+interface RateHistoryItem {
+  id: string;
+  term_weeks: number;
+  annual_yield: number;
+  monthly_yield: number;
+  effective_date: string;
+}
+
+const TERM_LABELS: Record<number, string> = {
+  4: '4 Week',
+  13: '13 Week',
+  26: '26 Week',
+  52: '52 Week',
+};
+
 export default function About() {
   const [news, setNews] = useState<TreasuryNewsItem[]>([]);
+  const [rateHistory, setRateHistory] = useState<RateHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -42,14 +59,24 @@ export default function About() {
       setIsAuthenticated(!!user);
       setUserId(user?.id || null);
 
+      // Fetch news
       const { data: newsData } = await supabase
         .from('treasury_news')
         .select('*')
-        .order('published_at', { ascending: false })
-        .limit(5);
+        .order('published_at', { ascending: false });
 
       if (newsData) {
         setNews(newsData as TreasuryNewsItem[]);
+      }
+
+      // Fetch rate history
+      const { data: ratesData } = await supabase
+        .from('bond_rates')
+        .select('*')
+        .order('effective_date', { ascending: false });
+
+      if (ratesData) {
+        setRateHistory(ratesData as RateHistoryItem[]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -89,6 +116,11 @@ export default function About() {
       setIsSubmitting(false);
     }
   };
+
+  // Group rate history by date (latest only)
+  const currentRates = [4, 13, 26, 52].map(term => {
+    return rateHistory.find(r => r.term_weeks === term);
+  });
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -134,7 +166,7 @@ export default function About() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-5xl relative z-10">
+      <main className="container mx-auto px-4 py-8 max-w-6xl relative z-10">
         {/* Hero */}
         <div className="text-center mb-12 animate-slide-up">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
@@ -150,149 +182,180 @@ export default function About() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* About Section */}
-          <div className="lg:col-span-2 space-y-6 animate-slide-up" style={{ animationDelay: '50ms' }}>
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Info className="w-5 h-5 text-primary" />
-                  What is ManiFed?
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-muted-foreground">
-                <p>
-                  ManiFed is a decentralized financial ecosystem built on Manifold Markets, the world's largest 
-                  play-money prediction market platform. We provide tools that extend Manifold's capabilities:
-                </p>
-                <ul className="list-disc list-inside space-y-2">
-                  <li><strong className="text-foreground">P2P Loans:</strong> Peer-to-peer lending backed by Manifold positions</li>
-                  <li><strong className="text-foreground">Treasury Bonds:</strong> Fixed-income instruments with guaranteed yields</li>
-                  <li><strong className="text-foreground">AI Trading Tools:</strong> Arbitrage scanner, market analysis, and automated trading</li>
-                  
-                  <li><strong className="text-foreground">Memecoins:</strong> Create and trade tokens on our AMM</li>
-                </ul>
-                <p>
-                  Our mission is to make prediction markets more accessible, profitable, and fun for everyone.
-                  "Many people are saying this is the best DeFi platform. Tremendous financial instruments!"
-                </p>
-              </CardContent>
-            </Card>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left Column - About & News */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* About Section */}
+              <Card className="glass animate-slide-up">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="w-5 h-5 text-primary" />
+                    What is ManiFed?
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-muted-foreground">
+                  <p>
+                    ManiFed is a decentralized financial ecosystem built on Manifold Markets, the world's largest 
+                    play-money prediction market platform. We provide tools that extend Manifold's capabilities:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2">
+                    <li><strong className="text-foreground">P2P Loans:</strong> Peer-to-peer lending backed by Manifold positions</li>
+                    <li><strong className="text-foreground">Treasury Bonds:</strong> Fixed-income instruments with guaranteed yields</li>
+                    <li><strong className="text-foreground">Arbitrage Scanner:</strong> Find mispriced markets and profit</li>
+                    <li><strong className="text-foreground">Memecoins:</strong> Create and trade tokens on our AMM</li>
+                  </ul>
+                  <p>
+                    Our mission is to make prediction markets more accessible, profitable, and fun for everyone.
+                    "Many people are saying this is the best DeFi platform. Tremendous financial instruments!"
+                  </p>
+                </CardContent>
+              </Card>
 
-            {/* News Section */}
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Newspaper className="w-5 h-5 text-primary" />
-                  Latest News
-                </CardTitle>
-                <CardDescription>Official announcements from the Treasury</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : news.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No announcements yet</p>
-                ) : (
-                  <div className="space-y-4">
-                    {news.map(item => (
-                      <div key={item.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                          <Badge variant="secondary">{format(new Date(item.published_at), 'MMM d, yyyy')}</Badge>
+              {/* News Section */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: '50ms' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Newspaper className="w-5 h-5 text-primary" />
+                    Treasury News
+                  </CardTitle>
+                  <CardDescription>Official announcements from the Treasury</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {news.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No announcements yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {news.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          className="p-4 rounded-lg bg-secondary/30 border border-border/50 animate-slide-up"
+                          style={{ animationDelay: `${100 + index * 50}ms` }}
+                        >
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                            <Calendar className="w-4 h-4" />
+                            {format(new Date(item.published_at), 'MMMM d, yyyy')}
+                          </div>
+                          <h3 className="font-medium text-foreground mb-2">{item.title}</h3>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.content}</p>
                         </div>
-                        <h3 className="font-medium text-foreground mb-1">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-3">{item.content}</p>
-                      </div>
-                    ))}
-                    <Link to="/treasury" className="block">
-                      <Button variant="outline" className="w-full">View All News</Button>
-                    </Link>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Suggestion Form */}
-          <div className="space-y-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-primary" />
-                  Suggest a Product
-                </CardTitle>
-                <CardDescription>
-                  Have an idea for a new feature? Let us know!
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {submitted ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-success" />
-                    <h3 className="font-medium text-foreground mb-2">Thank You!</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Your suggestion has been submitted. We'll review it soon!
-                    </p>
-                    <Button variant="outline" onClick={() => setSubmitted(false)}>
-                      Submit Another
-                    </Button>
+            {/* Right Column - Rates & Suggestions */}
+            <div className="space-y-6">
+              {/* Current Rates */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: '100ms' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    Current Bond Rates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[4, 13, 26, 52].map((term) => {
+                      const rate = rateHistory.find(r => r.term_weeks === term);
+                      return (
+                        <div key={term} className="p-3 rounded-lg bg-primary/10 text-center">
+                          <p className="text-xs text-muted-foreground mb-1">{TERM_LABELS[term]}</p>
+                          <p className="text-lg font-bold text-primary">
+                            {rate?.annual_yield || 6}%
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Product Title</Label>
-                      <Input 
-                        placeholder="e.g., Options Trading"
-                        value={suggestion.title}
-                        onChange={(e) => setSuggestion({ ...suggestion, title: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea 
-                        placeholder="Describe your idea and how it would help traders..."
-                        value={suggestion.description}
-                        onChange={(e) => setSuggestion({ ...suggestion, description: e.target.value })}
-                        rows={4}
-                      />
-                    </div>
-                    <Button 
-                      className="w-full gap-2" 
-                      onClick={handleSubmitSuggestion}
-                      disabled={isSubmitting || !isAuthenticated}
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
-                      Submit Suggestion
-                    </Button>
-                    {!isAuthenticated && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to submit a suggestion
+                </CardContent>
+              </Card>
+
+              {/* Suggestion Form */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: '150ms' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-primary" />
+                    Suggest a Product
+                  </CardTitle>
+                  <CardDescription>
+                    Have an idea for a new feature? Let us know!
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {submitted ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="w-12 h-12 mx-auto mb-4 text-success" />
+                      <h3 className="font-medium text-foreground mb-2">Thank You!</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Your suggestion has been submitted. We'll review it soon!
                       </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <Button variant="outline" onClick={() => setSubmitted(false)}>
+                        Submit Another
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Product Title</Label>
+                        <Input 
+                          placeholder="e.g., Options Trading"
+                          value={suggestion.title}
+                          onChange={(e) => setSuggestion({ ...suggestion, title: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Textarea 
+                          placeholder="Describe your idea and how it would help traders..."
+                          value={suggestion.description}
+                          onChange={(e) => setSuggestion({ ...suggestion, description: e.target.value })}
+                          rows={4}
+                        />
+                      </div>
+                      <Button 
+                        className="w-full gap-2" 
+                        onClick={handleSubmitSuggestion}
+                        disabled={isSubmitting || !isAuthenticated}
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                        Submit Suggestion
+                      </Button>
+                      {!isAuthenticated && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to submit a suggestion
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="text-lg">Contact</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>For support or inquiries, reach out on Manifold Markets or Discord.</p>
-                <p className="text-xs italic text-primary/70">
-                  "We have the best customer service. Everyone says so!"
-                </p>
-              </CardContent>
-            </Card>
+              {/* Contact */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: '200ms' }}>
+                <CardHeader>
+                  <CardTitle className="text-lg">Contact</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm text-muted-foreground">
+                  <p>For support or inquiries, reach out on Manifold Markets or Discord.</p>
+                  <p className="text-xs italic text-primary/70">
+                    "We have the best customer service. Everyone says so!"
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
