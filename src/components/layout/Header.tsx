@@ -62,7 +62,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto bg-background/60 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
         <div className="flex items-center justify-between h-16 px-6">
           <Link to="/hub" className="flex items-center gap-3">
-            <img src={manifedLogo} alt="ManiFed" className="h-10" />
+            <img src={manifedLogo} alt="ManiFed" className="h-14" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
