@@ -19,15 +19,12 @@ import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Bonds from "./pages/Bonds";
 import BondMarket from "./pages/BondMarket";
-import TreasuryNews from "./pages/TreasuryNews";
 import TreasuryAdmin from "./pages/TreasuryAdmin";
 import Memecoins from "./pages/Memecoins";
 import Market from "./pages/Market";
 import Arbitrage from "./pages/Arbitrage";
 import MarketAgent from "./pages/MarketAgent";
-import Subscription from "./pages/Subscription";
 import CommentMaker from "./pages/CommentMaker";
-import ManiFedAI from "./pages/ManiFedAI";
 import MispricedScanner from "./pages/MispricedScanner";
 
 import About from "./pages/About";
@@ -86,17 +83,13 @@ const App = () => (
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/bonds" element={<ProtectedRoute><Bonds /></ProtectedRoute>} />
           <Route path="/bond-market" element={<ProtectedRoute><BondMarket /></ProtectedRoute>} />
-          <Route path="/treasury" element={<TreasuryNews />} />
           <Route path="/treasury-admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
           <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
-          <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
-          <Route path="/mfai" element={<ProtectedRoute><ManiFedAI /></ProtectedRoute>} />
-          
           <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />
