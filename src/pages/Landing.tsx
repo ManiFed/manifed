@@ -50,15 +50,18 @@ function RisingChartBackground() {
       const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
       const cameraAngleY = Math.cos(time * 0.2) * 0.15;
       
+      // Dynamic scale based on screen size for full coverage
+      const baseScale = Math.max(canvas.width, canvas.height) / 800;
+      
       // 3D projection helper
       const project3D = (x: number, y: number, z: number) => {
-        const scale = 0.8;
+        const scale = baseScale;
         const px = x * Math.cos(cameraAngleY) - z * Math.sin(cameraAngleY);
         const pz = x * Math.sin(cameraAngleY) + z * Math.cos(cameraAngleY);
         const py = y * Math.cos(cameraAngleX) - pz * Math.sin(cameraAngleX);
         return {
           x: centerX + px * scale,
-          y: centerY - py * scale + 100,
+          y: centerY - py * scale + 50,
         };
       };
       
@@ -204,8 +207,8 @@ function RisingChartBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.7 }}
+      className="fixed inset-0 w-full h-full pointer-events-none z-0"
+      style={{ opacity: 0.85 }}
     />
   );
 }
