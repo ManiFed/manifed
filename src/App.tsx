@@ -27,7 +27,9 @@ import MarketAgent from "./pages/MarketAgent";
 import CommentMaker from "./pages/CommentMaker";
 import MispricedScanner from "./pages/MispricedScanner";
 import PublicArbitrage from "./pages/PublicArbitrage";
-
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Fintech from "./pages/Fintech";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
@@ -92,8 +94,11 @@ const App = () => (
           <Route path="/public-arbitrage" element={<PublicArbitrage />} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
+          <Route path="/mispriced" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
+          <Route path="/fintech" element={<Fintech />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/about" element={<About />} />
-          <Route path="*" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
