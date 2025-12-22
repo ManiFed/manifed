@@ -7,7 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { supabase } from '@/integrations/supabase/client';
 import { DonationButton } from '@/components/DonationButton';
 import manifedLogo from '@/assets/manifed-logo.png';
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Target } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Target, Activity } from 'lucide-react';
 
 interface Transaction {
   id: string;
