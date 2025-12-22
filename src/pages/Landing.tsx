@@ -44,7 +44,7 @@ function RisingChartBackground() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2 + 150;
+      const centerY = canvas.height / 2 + 350;
       
       // Camera rotation for 3D effect
       const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
