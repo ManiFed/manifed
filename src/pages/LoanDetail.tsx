@@ -70,6 +70,7 @@ export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [investAmount, setInvestAmount] = useState("");
+  const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
