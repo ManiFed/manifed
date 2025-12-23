@@ -24,9 +24,10 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
     if (!hasApiKey) {
       toast({
         title: "API Key Required",
-        description: "Please connect your Manifold account in Settings first",
+        description: "Please connect your Manifold account in Settings to withdraw. Go to Settings > Manifold Connection.",
         variant: "destructive",
       });
+      setMode("select");
       return;
     }
 
