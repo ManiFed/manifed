@@ -73,7 +73,7 @@ async function decryptApiKey(storedKey: string): Promise<string> {
 }
 
 interface ManagramRequest {
-  action: "deposit" | "withdraw" | "invest";
+  action: "withdraw" | "invest";
   amount: number;
   message?: string;
   recipientUsername?: string; // For invest action
@@ -175,30 +175,7 @@ serve(async (req) => {
 
     let result;
 
-    if (action === "deposit") {
-      // User sends managram to ManiFed
-      result = await sendManagram(
-        userApiKey,
-        MANIFED_USERNAME,
-        amount,
-        message || `ManiFed deposit from @${userData.username}`
-      );
-
-      if (result.txnId) {
-        // Credit user's ManiFed balance using service role
-        await updateUserBalance(supabase, user.id, amount, "add");
-        
-        // Record transaction
-        await supabase.from("transactions").insert({
-          user_id: user.id,
-          type: "deposit",
-          amount: amount,
-          description: `Deposit from Manifold: M$${amount}`
-        });
-        
-        console.log(`Credited M$${amount} to user ${user.id} ManiFed balance`);
-      }
-    } else if (action === "withdraw") {
+    if (action === "withdraw") {
       // First check if user has sufficient balance
       const { data: balanceData } = await supabase
         .from("user_balances")
@@ -296,7 +273,7 @@ serve(async (req) => {
       }
     } else {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Use: deposit, withdraw, or invest" }),
+        JSON.stringify({ error: "Invalid action. Use: withdraw or invest" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
