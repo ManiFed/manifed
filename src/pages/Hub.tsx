@@ -443,6 +443,7 @@ export default function Hub() {
               </CardContent>
             </Card>
           </div>
+        </div>
       </main>
     </div>
   );
