@@ -14,7 +14,7 @@ function RisingChartBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const resize = () => {
@@ -22,7 +22,7 @@ function RisingChartBackground() {
       canvas.height = window.innerHeight;
     };
     resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener("resize", resize);
 
     let animationFrame: number;
     let time = 0;
@@ -42,17 +42,17 @@ function RisingChartBackground() {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2 + 200;
-      
+
       // Camera rotation for 3D effect
       const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
       const cameraAngleY = Math.cos(time * 0.2) * 0.15;
-      
+
       // Dynamic scale based on screen size for full coverage
       const baseScale = Math.max(canvas.width, canvas.height) / 800;
-      
+
       // 3D projection helper
       const project3D = (x: number, y: number, z: number) => {
         const scale = baseScale;
@@ -64,14 +64,14 @@ function RisingChartBackground() {
           y: centerY - py * scale + 50,
         };
       };
-      
+
       // Draw grid floor
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.08)";
       ctx.lineWidth = 1;
-      
+
       const gridSize = 400;
       const gridStep = 40;
-      
+
       for (let i = -gridSize; i <= gridSize; i += gridStep) {
         // X lines
         const p1 = project3D(i, 0, -gridSize);
@@ -80,7 +80,7 @@ function RisingChartBackground() {
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
-        
+
         // Z lines
         const p3 = project3D(-gridSize, 0, i);
         const p4 = project3D(gridSize, 0, i);
@@ -89,58 +89,58 @@ function RisingChartBackground() {
         ctx.lineTo(p4.x, p4.y);
         ctx.stroke();
       }
-      
+
       // Draw axes
       ctx.lineWidth = 2;
-      
+
       // X axis (horizontal)
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.3)";
       const xAxisStart = project3D(-gridSize, 0, 0);
       const xAxisEnd = project3D(gridSize, 0, 0);
       ctx.beginPath();
       ctx.moveTo(xAxisStart.x, xAxisStart.y);
       ctx.lineTo(xAxisEnd.x, xAxisEnd.y);
       ctx.stroke();
-      
+
       // Y axis (vertical - price)
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+      ctx.strokeStyle = "rgba(34, 197, 94, 0.4)";
       const yAxisStart = project3D(0, 0, 0);
       const yAxisEnd = project3D(0, 400, 0);
       ctx.beginPath();
       ctx.moveTo(yAxisStart.x, yAxisStart.y);
       ctx.lineTo(yAxisEnd.x, yAxisEnd.y);
       ctx.stroke();
-      
+
       // Z axis (depth)
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.2)";
       const zAxisStart = project3D(0, 0, -gridSize);
       const zAxisEnd = project3D(0, 0, gridSize);
       ctx.beginPath();
       ctx.moveTo(zAxisStart.x, zAxisStart.y);
       ctx.lineTo(zAxisEnd.x, zAxisEnd.y);
       ctx.stroke();
-      
+
       // Draw the main rising line
       const chartData = generateChartData(time);
       const scrollOffset = time * 50;
-      
+
       // Main line with glow
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+      ctx.strokeStyle = "rgba(34, 197, 94, 0.6)";
       ctx.lineWidth = 3;
-      ctx.shadowColor = 'rgba(34, 197, 94, 0.5)';
+      ctx.shadowColor = "rgba(34, 197, 94, 0.5)";
       ctx.shadowBlur = 15;
       ctx.beginPath();
-      
+
       let first = true;
       for (let i = 0; i < chartData.length; i++) {
         const x = (i - 100) * 4 - (scrollOffset % 800);
         const y = chartData[i];
         const z = 0;
-        
+
         if (x < -gridSize || x > gridSize) continue;
-        
+
         const p = project3D(x, y, z);
-        
+
         if (first) {
           ctx.moveTo(p.x, p.y);
           first = false;
@@ -150,42 +150,42 @@ function RisingChartBackground() {
       }
       ctx.stroke();
       ctx.shadowBlur = 0;
-      
+
       // Draw candlestick markers at intervals
       for (let i = 0; i < chartData.length; i += 15) {
         const x = (i - 100) * 4 - (scrollOffset % 800);
         if (x < -gridSize || x > gridSize) continue;
-        
+
         const y = chartData[i];
         const p = project3D(x, y, 0);
-        
+
         // Draw marker dot
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
+        ctx.fillStyle = "rgba(34, 197, 94, 0.8)";
         ctx.beginPath();
         ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Draw vertical line to base
         const base = project3D(x, 0, 0);
-        ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+        ctx.strokeStyle = "rgba(34, 197, 94, 0.15)";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(p.x, p.y);
         ctx.lineTo(base.x, base.y);
         ctx.stroke();
       }
-      
+
       // Floating particles
       for (let i = 0; i < 15; i++) {
-        const angle = time * 0.5 + i * (Math.PI * 2 / 15);
+        const angle = time * 0.5 + i * ((Math.PI * 2) / 15);
         const radius = 200 + Math.sin(time + i) * 50;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const y = 200 + Math.sin(time * 2 + i) * 100;
-        
+
         const p = project3D(x, y, z);
         const size = 2 + Math.sin(time + i) * 1;
-        
+
         ctx.fillStyle = `rgba(59, 130, 246, ${0.2 + Math.sin(time + i) * 0.1})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
@@ -200,34 +200,83 @@ function RisingChartBackground() {
 
     return () => {
       cancelAnimationFrame(animationFrame);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener("resize", resize);
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ opacity: 0.85 }}
-    />
+    <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0" style={{ opacity: 0.85 }} />
   );
 }
 
-// Bouncing Logo Component
+// Penguin sledding logo component (hover: sled down into ice pool, then walk back up)
 function BouncingLogo() {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
-    <Link 
-      to="/" 
-      className="flex items-center gap-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <img 
-        src={manifedLogo} 
-        alt="ManiFed" 
-        className={`h-28 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
+    <Link to="/" className="relative inline-flex items-center gap-3 group" aria-label="Go home">
+      {/* Snowy hill */}
+      <div
+        className={[
+          "pointer-events-none absolute",
+          "left-[-52px] top-[64px]",
+          "w-[360px] h-[170px]",
+          "opacity-0 scale-95",
+          "transition-all duration-300 ease-out",
+          "group-hover:opacity-100 group-hover:scale-100",
+        ].join(" ")}
+      >
+        {/* Hill body (a rotated, blurred pill) */}
+        <div
+          className="absolute inset-0 rounded-[999px] bg-white/70 backdrop-blur-sm"
+          style={{
+            transform: "rotate(-14deg) skewX(-10deg)",
+            transformOrigin: "left center",
+            boxShadow: "0 18px 55px rgba(0,0,0,0.14)",
+          }}
+        />
+
+        {/* Subtle highlight ridge */}
+        <div
+          className="absolute left-[32px] top-[52px] w-[260px] h-[60px] rounded-[999px] bg-white/45"
+          style={{
+            transform: "rotate(-14deg) skewX(-10deg)",
+            transformOrigin: "left center",
+            filter: "blur(0.3px)",
+          }}
+        />
+      </div>
+
+      {/* Ice pool at the bottom */}
+      <div
+        className={[
+          "pointer-events-none absolute",
+          "left-[170px] top-[178px]",
+          "w-[120px] h-[46px]",
+          "rounded-[999px]",
+          "bg-sky-200/55",
+          "opacity-0 scale-95",
+          "transition-all duration-300 ease-out",
+          "group-hover:opacity-100 group-hover:scale-100",
+        ].join(" ")}
+        style={{
+          boxShadow: "0 14px 40px rgba(0,0,0,0.10) inset, 0 10px 30px rgba(0,0,0,0.10)",
+          border: "1px solid rgba(255,255,255,0.35)",
+          backdropFilter: "blur(6px)",
+        }}
+      />
+
+      {/* Penguin logo */}
+      <img
+        src={manifedLogo}
+        alt="ManiFed"
+        className={[
+          "relative h-28",
+          "will-change-transform",
+          "transition-transform duration-200",
+          "group-hover:animate-penguin-sled-pool-return",
+        ].join(" ")}
+        style={{
+          transformOrigin: "center center",
+        }}
       />
     </Link>
   );
@@ -238,8 +287,8 @@ export default function Landing() {
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const products = [
@@ -276,7 +325,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto bg-background/40 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
           <div className="flex items-center justify-between py-2 px-6">
             <BouncingLogo />
-            
+
             {/* Main Navigation */}
             <nav className="hidden md:flex items-center gap-1">
               <Link to="/bonds">
@@ -323,23 +372,31 @@ export default function Landing() {
         <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-xl px-4 py-2 overflow-x-auto">
           <div className="flex gap-2">
             <Link to="/bonds">
-              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">Treasury</Button>
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Treasury
+              </Button>
             </Link>
             <Link to="/marketplace">
-              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">P2P Loans</Button>
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                P2P Loans
+              </Button>
             </Link>
             <Link to="/fintech">
-              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">Fintech</Button>
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Fintech
+              </Button>
             </Link>
             <Link to="/credit-search">
-              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">Tools</Button>
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Tools
+              </Button>
             </Link>
           </div>
         </div>
       </div>
       <main className="relative z-10">
         {/* Hero Section with Parallax */}
-        <section 
+        <section
           className="container mx-auto px-4 py-24 md:py-32 text-center relative"
           style={{ transform: `translateY(${scrollY * 0.1}px)` }}
         >
@@ -348,12 +405,15 @@ export default function Landing() {
               The Golden Age of Manifold is Here
             </h1>
             <p className="font-serif text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12">
-              Manifold's decentralized financial institution. Treasury bonds, peer-to-peer lending, 
-              and premium fintech tools for the prediction market ecosystem.
+              Manifold's decentralized financial institution. Treasury bonds, peer-to-peer lending, and premium fintech
+              tools for the prediction market ecosystem.
             </p>
             <div className="flex justify-center">
               <Link to="/auth?mode=signup">
-                <Button size="lg" className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90">
+                <Button
+                  size="lg"
+                  className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90"
+                >
                   Get Started <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
@@ -362,14 +422,9 @@ export default function Landing() {
         </section>
 
         {/* Products Grid */}
-        <section 
-          className="container mx-auto px-4 py-16"
-          style={{ transform: `translateY(${scrollY * 0.05}px)` }}
-        >
+        <section className="container mx-auto px-4 py-16" style={{ transform: `translateY(${scrollY * 0.05}px)` }}>
           <div className="text-center mb-12 animate-slide-up">
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Our Products
-            </h2>
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Our Products</h2>
             <p className="font-serif text-muted-foreground max-w-xl mx-auto">
               Financial instruments designed for the prediction market ecosystem
             </p>
@@ -377,8 +432,8 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {products.map((product, index) => (
-              <Card 
-                key={product.title} 
+              <Card
+                key={product.title}
                 className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
@@ -441,16 +496,24 @@ export default function Landing() {
             <CardContent className="p-6">
               <div className="text-center">
                 <h3 className="font-display font-semibold text-foreground mb-2">Questions or Need Help?</h3>
-                <p className="font-serif text-sm text-muted-foreground mb-4">
-                  Reach out to us anytime:
-                </p>
+                <p className="font-serif text-sm text-muted-foreground mb-4">Reach out to us anytime:</p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent hover:underline font-serif">
+                  <a
+                    href="https://manifold.markets/ManiFed"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                  >
                     <Landmark className="w-4 h-4" />
                     @ManiFed on Manifold
                   </a>
                   <span className="hidden sm:inline text-muted-foreground">•</span>
-                  <a target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent hover:underline font-serif" href="https://discord.com/users/1443255374089289840">
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                    href="https://discord.com/users/1443255374089289840"
+                  >
                     Discord: @manifed
                   </a>
                 </div>
@@ -468,11 +531,17 @@ export default function Landing() {
                 <span className="font-display font-semibold text-foreground">ManiFed</span>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-serif">
-                <Link to="/terms" className="text-muted-foreground hover:text-accent transition-colors">Terms of Service</Link>
+                <Link to="/terms" className="text-muted-foreground hover:text-accent transition-colors">
+                  Terms of Service
+                </Link>
                 <span className="text-muted-foreground/50">•</span>
-                <Link to="/privacy" className="text-muted-foreground hover:text-accent transition-colors">Privacy Policy</Link>
+                <Link to="/privacy" className="text-muted-foreground hover:text-accent transition-colors">
+                  Privacy Policy
+                </Link>
                 <span className="text-muted-foreground/50">•</span>
-                <Link to="/about" className="text-muted-foreground hover:text-accent transition-colors">About</Link>
+                <Link to="/about" className="text-muted-foreground hover:text-accent transition-colors">
+                  About
+                </Link>
               </div>
               <p className="font-serif text-sm text-muted-foreground">All transactions in M$</p>
             </div>
