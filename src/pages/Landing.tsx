@@ -345,7 +345,7 @@ export default function Landing() {
         >
           <div className="animate-slide-up max-w-4xl mx-auto">
             <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold italic text-foreground mb-8 leading-tight">
-              The Golden Age of Manifold is Here
+              The <span className="text-amber-400">Golden</span> Age of Manifold is Here
             </h1>
             <p className="font-serif text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12">
               Manifold's decentralized financial institution. Treasury bonds, peer-to-peer lending, 
