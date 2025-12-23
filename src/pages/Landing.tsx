@@ -209,21 +209,78 @@ function RisingChartBackground() {
   );
 }
 
-// Bouncing Logo Component
+// Penguin sledding logo component (hover: sled down into ice pool, then walk back up)
 function BouncingLogo() {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <Link
       to="/"
-      className="flex items-center gap-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className="relative inline-flex items-center gap-3 group"
+      aria-label="Go home"
     >
+      {/* Snowy hill */}
+      <div
+        className={[
+          "pointer-events-none absolute",
+          "left-[-52px] top-[64px]",
+          "w-[360px] h-[170px]",
+          "opacity-0 scale-95",
+          "transition-all duration-300 ease-out",
+          "group-hover:opacity-100 group-hover:scale-100",
+        ].join(" ")}
+      >
+        {/* Hill body (a rotated, blurred pill) */}
+        <div
+          className="absolute inset-0 rounded-[999px] bg-white/70 backdrop-blur-sm"
+          style={{
+            transform: "rotate(-14deg) skewX(-10deg)",
+            transformOrigin: "left center",
+            boxShadow: "0 18px 55px rgba(0,0,0,0.14)",
+          }}
+        />
+
+        {/* Subtle highlight ridge */}
+        <div
+          className="absolute left-[32px] top-[52px] w-[260px] h-[60px] rounded-[999px] bg-white/45"
+          style={{
+            transform: "rotate(-14deg) skewX(-10deg)",
+            transformOrigin: "left center",
+            filter: "blur(0.3px)",
+          }}
+        />
+      </div>
+
+      {/* Ice pool at the bottom */}
+      <div
+        className={[
+          "pointer-events-none absolute",
+          "left-[170px] top-[178px]",
+          "w-[120px] h-[46px]",
+          "rounded-[999px]",
+          "bg-sky-200/55",
+          "opacity-0 scale-95",
+          "transition-all duration-300 ease-out",
+          "group-hover:opacity-100 group-hover:scale-100",
+        ].join(" ")}
+        style={{
+          boxShadow: "0 14px 40px rgba(0,0,0,0.10) inset, 0 10px 30px rgba(0,0,0,0.10)",
+          border: "1px solid rgba(255,255,255,0.35)",
+          backdropFilter: "blur(6px)",
+        }}
+      />
+
+      {/* Penguin logo */}
       <img
         src={manifedLogo}
         alt="ManiFed"
-        className={`h-28 transition-transform duration-300 ${isHovered ? "animate-bounce-subtle" : ""}`}
+        className={[
+          "relative h-28",
+          "will-change-transform",
+          "transition-transform duration-200",
+          "group-hover:animate-penguin-sled-pool-return",
+        ].join(" ")}
+        style={{
+          transformOrigin: "center center",
+        }}
       />
     </Link>
   );
