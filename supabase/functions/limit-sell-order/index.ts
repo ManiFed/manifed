@@ -222,6 +222,20 @@ serve(async (req) => {
         ? sharesHeld * (1 - targetExitPrice)
         : sharesHeld * targetExitPrice;
 
+      // Check if user has enough balance BEFORE attempting to place order
+      if (userData.balance < cashRequired) {
+        console.error(`[limit-sell-order] Insufficient balance: has ${userData.balance}, needs ${cashRequired}`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Insufficient balance',
+            details: `You need Ṁ${Math.ceil(cashRequired)} to place this order, but you only have Ṁ${Math.floor(userData.balance)}. Please add more mana to your Manifold account.`,
+            required: Math.ceil(cashRequired),
+            available: Math.floor(userData.balance)
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Expected profit = N × (Yₜ - Y₀) for YES position
       const expectedProfit = positionType === 'YES'
         ? sharesHeld * (targetExitPrice - entryPrice)

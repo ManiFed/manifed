@@ -46,6 +46,7 @@ export default function AdvancedOrders() {
   // Limit Sell Order state
   const [position, setPosition] = useState<Position | null>(null);
   const [market, setMarket] = useState<Market | null>(null);
+  const [userBalance, setUserBalance] = useState<number>(0);
   const [targetExitPrice, setTargetExitPrice] = useState("");
   const [limitSellOrders, setLimitSellOrders] = useState<LimitSellOrder[]>([]);
 
@@ -100,6 +101,7 @@ export default function AdvancedOrders() {
 
       setMarket(data.market);
       setPosition(data.position);
+      setUserBalance(data.user?.balance || 0);
 
       toast({ title: 'Position loaded', description: `Found ${data.position.hasYesShares ? 'YES' : 'NO'} shares` });
     } catch (error) {
@@ -137,7 +139,12 @@ export default function AdvancedOrders() {
       });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        // Show detailed error message if available
+        const errorMsg = data.details || data.error;
+        toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
+        return;
+      }
 
       toast({ title: 'Success', description: data.message });
       setPosition(null);
@@ -209,6 +216,8 @@ export default function AdvancedOrders() {
       ? sharesHeld * (targetPrice - entryPrice)
       : sharesHeld * ((1 - targetPrice) - (1 - entryPrice));
 
+    const hasEnoughBalance = userBalance >= cashRequired;
+
     return {
       positionType,
       sharesHeld,
@@ -216,7 +225,8 @@ export default function AdvancedOrders() {
       cashRequired,
       expectedProfit,
       oppositeOutcome: positionType === 'YES' ? 'NO' : 'YES',
-      limitPrice: positionType === 'YES' ? 1 - targetPrice : targetPrice
+      limitPrice: positionType === 'YES' ? 1 - targetPrice : targetPrice,
+      hasEnoughBalance
     };
   };
 
@@ -311,18 +321,29 @@ export default function AdvancedOrders() {
                     <span className="text-muted-foreground">Will place:</span>
                     <span>{preview.oppositeOutcome} limit @ {(preview.limitPrice * 100).toFixed(0)}%</span>
                     <span className="text-muted-foreground">Cash required:</span>
-                    <span>M${preview.cashRequired.toFixed(2)}</span>
+                    <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : ''}>
+                      Ṁ{preview.cashRequired.toFixed(2)}
+                    </span>
+                    <span className="text-muted-foreground">Your balance:</span>
+                    <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : 'text-green-400'}>
+                      Ṁ{userBalance.toFixed(2)}
+                    </span>
                     <span className="text-muted-foreground">Expected profit:</span>
                     <span className={preview.expectedProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      M${preview.expectedProfit.toFixed(2)}
+                      Ṁ{preview.expectedProfit.toFixed(2)}
                     </span>
                   </div>
+                  {!preview.hasEnoughBalance && (
+                    <p className="text-sm text-red-400 mt-2">
+                      ⚠️ Insufficient balance. You need Ṁ{Math.ceil(preview.cashRequired - userBalance)} more to place this order.
+                    </p>
+                  )}
                 </div>
               )}
 
               <Button 
                 onClick={placeLimitSellOrder} 
-                disabled={isLoading || !preview}
+                disabled={isLoading || !preview || !preview.hasEnoughBalance}
                 className="w-full font-serif"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
