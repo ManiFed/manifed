@@ -20,17 +20,6 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<"select" | "withdraw">("select");
 
-  const handleWithdraw = async () => {
-    if (!hasApiKey) {
-      toast({
-        title: "API Key Required",
-        description: "Please connect your Manifold account in Settings to withdraw. Go to Settings > Manifold Connection.",
-        variant: "destructive",
-      });
-      setMode("select");
-      return;
-    }
-
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount < 10) {
       toast({
@@ -76,7 +65,7 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
       console.error("Withdraw error:", error);
       toast({
         title: "Withdrawal Failed",
-        description: error instanceof Error ? error.message : "Failed to process withdrawal",
+        description: error instanceof Error ? error.message : "Failed to process withdrawal. The Deep State is at it again.",
         variant: "destructive",
       });
     } finally {
@@ -131,11 +120,6 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
                   Withdraw
                 </Button>
               </div>
-              {!hasApiKey && (
-                <p className="text-xs text-warning text-center">
-                  Connect your Manifold API key in Settings to withdraw
-                </p>
-              )}
               <p className="text-xs text-muted-foreground text-center">Minimum transaction: M$10</p>
             </div>
           ) : (
