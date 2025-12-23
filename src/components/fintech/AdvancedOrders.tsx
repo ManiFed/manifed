@@ -4,9 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, TrendingDown, Target, AlertCircle, X, RefreshCw, ExternalLink } from "lucide-react";
+import { Loader2, Target, X, RefreshCw, ExternalLink, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -40,20 +38,6 @@ interface LimitSellOrder {
   created_at: string;
 }
 
-interface ConditionalBuyOrder {
-  id: string;
-  market_id: string;
-  market_question: string;
-  market_url: string;
-  target_probability: number;
-  trigger_direction: string;
-  amount: number;
-  outcome: string;
-  status: string;
-  current_probability: number;
-  created_at: string;
-}
-
 export default function AdvancedOrders() {
   const [apiKey, setApiKey] = useState("");
   const [marketUrl, setMarketUrl] = useState("");
@@ -64,14 +48,6 @@ export default function AdvancedOrders() {
   const [market, setMarket] = useState<Market | null>(null);
   const [targetExitPrice, setTargetExitPrice] = useState("");
   const [limitSellOrders, setLimitSellOrders] = useState<LimitSellOrder[]>([]);
-  
-  // Conditional Buy Order state
-  const [conditionalMarket, setConditionalMarket] = useState<Market | null>(null);
-  const [targetProbability, setTargetProbability] = useState("");
-  const [triggerDirection, setTriggerDirection] = useState<"above" | "below">("below");
-  const [buyAmount, setBuyAmount] = useState("");
-  const [buyOutcome, setBuyOutcome] = useState<"YES" | "NO">("YES");
-  const [conditionalOrders, setConditionalOrders] = useState<ConditionalBuyOrder[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -79,24 +55,16 @@ export default function AdvancedOrders() {
 
   const fetchOrders = async () => {
     try {
-      // Fetch limit sell orders
       const { data: limitData } = await supabase.functions.invoke('limit-sell-order', {
         body: { action: 'get-orders' }
       });
       if (limitData?.orders) setLimitSellOrders(limitData.orders);
-
-      // Fetch conditional buy orders
-      const { data: conditionalData } = await supabase.functions.invoke('conditional-buy-order', {
-        body: { action: 'get-orders' }
-      });
-      if (conditionalData?.orders) setConditionalOrders(conditionalData.orders);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     }
   };
 
   const extractMarketId = (url: string): string | null => {
-    // Handle various Manifold URL formats
     const patterns = [
       /manifold\.markets\/[^/]+\/([a-zA-Z0-9-]+)/,
       /^([a-zA-Z0-9-]+)$/
@@ -175,6 +143,7 @@ export default function AdvancedOrders() {
       setPosition(null);
       setMarket(null);
       setTargetExitPrice("");
+      setApiKey(""); // Clear API key after use
       fetchOrders();
     } catch (error) {
       toast({ 
@@ -187,96 +156,14 @@ export default function AdvancedOrders() {
     }
   };
 
-  const loadConditionalMarket = async () => {
-    if (!marketUrl) {
-      toast({ title: 'Enter market URL', variant: 'destructive' });
+  const cancelOrder = async (orderId: string) => {
+    if (!apiKey) {
+      toast({ title: 'API key required', description: 'Enter your API key to cancel orders', variant: 'destructive' });
       return;
     }
-
-    const marketId = extractMarketId(marketUrl);
-    if (!marketId) {
-      toast({ title: 'Invalid URL', variant: 'destructive' });
-      return;
-    }
-
-    setIsLoading(true);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('conditional-buy-order', {
-        body: { action: 'get-market', marketId }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      setConditionalMarket(data.market);
-      toast({ title: 'Market loaded', description: `Current: ${(data.market.probability * 100).toFixed(1)}%` });
-    } catch (error) {
-      toast({ 
-        title: 'Error', 
-        description: error instanceof Error ? error.message : 'Failed to load market', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const createConditionalOrder = async () => {
-    if (!apiKey || !conditionalMarket || !targetProbability || !buyAmount) {
-      toast({ title: 'Missing fields', variant: 'destructive' });
-      return;
-    }
-
-    const target = parseFloat(targetProbability) / 100;
-    const amount = parseFloat(buyAmount);
-
-    if (target <= 0 || target >= 1) {
-      toast({ title: 'Invalid probability', description: 'Must be between 1-99%', variant: 'destructive' });
-      return;
-    }
-
-    if (amount < 1) {
-      toast({ title: 'Invalid amount', description: 'Must be at least M$1', variant: 'destructive' });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('conditional-buy-order', {
-        body: { 
-          action: 'create-order', 
-          apiKey, 
-          marketId: conditionalMarket.id,
-          targetProbability: target,
-          triggerDirection,
-          amount,
-          outcome: buyOutcome
-        }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast({ title: 'Success', description: data.message });
-      setConditionalMarket(null);
-      setTargetProbability("");
-      setBuyAmount("");
-      fetchOrders();
-    } catch (error) {
-      toast({ 
-        title: 'Error', 
-        description: error instanceof Error ? error.message : 'Failed to create order', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const cancelOrder = async (type: 'limit' | 'conditional', orderId: string) => {
-    try {
-      const endpoint = type === 'limit' ? 'limit-sell-order' : 'conditional-buy-order';
-      const { data, error } = await supabase.functions.invoke(endpoint, {
+      const { data, error } = await supabase.functions.invoke('limit-sell-order', {
         body: { action: 'cancel-order', orderId, apiKey }
       });
 
@@ -297,8 +184,6 @@ export default function AdvancedOrders() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       pending: 'bg-yellow-500/20 text-yellow-400',
-      monitoring: 'bg-blue-500/20 text-blue-400',
-      triggered: 'bg-purple-500/20 text-purple-400',
       filled: 'bg-green-500/20 text-green-400',
       cancelled: 'bg-muted text-muted-foreground',
       failed: 'bg-destructive/20 text-destructive',
@@ -306,7 +191,6 @@ export default function AdvancedOrders() {
     return <Badge className={variants[status] || 'bg-muted'}>{status}</Badge>;
   };
 
-  // Calculate preview values for limit sell
   const calculatePreview = () => {
     if (!position || !targetExitPrice || !market) return null;
     
@@ -345,10 +229,10 @@ export default function AdvancedOrders() {
         <CardHeader>
           <CardTitle className="font-display">Manifold API Key</CardTitle>
           <CardDescription className="font-serif">
-            Required for placing orders. Your key is stored securely.
+            Required for placing orders on your behalf.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Input
             type="password"
             value={apiKey}
@@ -356,324 +240,146 @@ export default function AdvancedOrders() {
             placeholder="Enter your Manifold API key..."
             className="font-serif"
           />
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm font-serif text-amber-500">
+              <strong>Privacy Notice:</strong> We do NOT store your API key. It is only used temporarily to execute your order and is cleared immediately after.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="limit-sell" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="limit-sell" className="gap-2 font-serif">
-            <Target className="w-4 h-4" />
+      {/* Limit Sell Order Creation */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="font-display flex items-center gap-2">
+            <Target className="w-5 h-5" />
             Limit Sell Orders
-          </TabsTrigger>
-          <TabsTrigger value="conditional" className="gap-2 font-serif">
-            <TrendingUp className="w-4 h-4" />
-            Conditional Buys
-          </TabsTrigger>
-        </TabsList>
+          </CardTitle>
+          <CardDescription className="font-serif">
+            Exit your position by placing an opposite limit order. When the market reaches your target price,
+            you'll hold equal YES and NO shares, locking in profit regardless of resolution.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="font-serif">Market URL or ID</Label>
+            <div className="flex gap-2">
+              <Input
+                value={marketUrl}
+                onChange={(e) => setMarketUrl(e.target.value)}
+                placeholder="https://manifold.markets/..."
+                className="font-serif flex-1"
+              />
+              <Button onClick={loadPosition} disabled={isLoading || !apiKey} className="font-serif">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Position'}
+              </Button>
+            </div>
+          </div>
 
-        <TabsContent value="limit-sell" className="space-y-6">
-          {/* Limit Sell Order Creation */}
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="font-display">Create Limit Sell Order</CardTitle>
-              <CardDescription className="font-serif">
-                Exit your position by placing an opposite limit order. When the market reaches your target price,
-                you'll hold equal YES and NO shares, locking in profit regardless of resolution.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="font-serif">Market URL or ID</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={marketUrl}
-                    onChange={(e) => setMarketUrl(e.target.value)}
-                    placeholder="https://manifold.markets/..."
-                    className="font-serif flex-1"
-                  />
-                  <Button onClick={loadPosition} disabled={isLoading || !apiKey} className="font-serif">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Position'}
-                  </Button>
+          {market && position && (
+            <>
+              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                <p className="font-serif text-sm text-muted-foreground">Market</p>
+                <p className="font-serif font-medium">{market.question}</p>
+                <div className="flex gap-4 text-sm">
+                  <span>Current: <strong>{(market.probability * 100).toFixed(1)}%</strong></span>
+                  <span>
+                    Position: <strong>{position.hasYesShares ? 'YES' : 'NO'}</strong> 
+                    {' '}({(position.hasYesShares ? position.yesShares : position.noShares).toFixed(2)} shares)
+                  </span>
                 </div>
               </div>
 
-              {market && position && (
-                <>
-                  <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                    <p className="font-serif text-sm text-muted-foreground">Market</p>
-                    <p className="font-serif font-medium">{market.question}</p>
-                    <div className="flex gap-4 text-sm">
-                      <span>Current: <strong>{(market.probability * 100).toFixed(1)}%</strong></span>
-                      <span>
-                        Position: <strong>{position.hasYesShares ? 'YES' : 'NO'}</strong> 
-                        {' '}({(position.hasYesShares ? position.yesShares : position.noShares).toFixed(2)} shares)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-serif">Target Exit Price (%)</Label>
-                    <Input
-                      type="number"
-                      value={targetExitPrice}
-                      onChange={(e) => setTargetExitPrice(e.target.value)}
-                      placeholder={position.hasYesShares ? "e.g. 70 (sell when YES reaches 70%)" : "e.g. 30 (sell when NO reaches 30%)"}
-                      min="1"
-                      max="99"
-                      className="font-serif"
-                    />
-                  </div>
-
-                  {preview && (
-                    <div className="p-4 rounded-lg bg-accent/10 border border-accent/20 space-y-2">
-                      <p className="font-serif font-medium text-accent">Order Preview</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm font-serif">
-                        <span className="text-muted-foreground">Will place:</span>
-                        <span>{preview.oppositeOutcome} limit @ {(preview.limitPrice * 100).toFixed(0)}%</span>
-                        <span className="text-muted-foreground">Cash required:</span>
-                        <span>M${preview.cashRequired.toFixed(2)}</span>
-                        <span className="text-muted-foreground">Expected profit:</span>
-                        <span className={preview.expectedProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          M${preview.expectedProfit.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <Button 
-                    onClick={placeLimitSellOrder} 
-                    disabled={isLoading || !preview}
-                    className="w-full font-serif"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Place Limit Sell Order
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Limit Sell Orders List */}
-          <Card className="glass">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-display">Your Limit Sell Orders</CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchOrders} className="gap-2">
-                <RefreshCw className="w-4 h-4" /> Refresh
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {limitSellOrders.length === 0 ? (
-                <p className="text-muted-foreground font-serif text-center py-4">No limit sell orders yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {limitSellOrders.map((order) => (
-                    <div key={order.id} className="p-3 rounded-lg bg-muted/30 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-serif text-sm flex-1">{order.market_question}</p>
-                        {getStatusBadge(order.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs font-serif text-muted-foreground">
-                        <span>{order.position_type} @ {(order.target_exit_price * 100).toFixed(0)}%</span>
-                        <span>Profit: M${order.expected_profit.toFixed(2)}</span>
-                        {order.status === 'pending' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-xs"
-                            onClick={() => cancelOrder('limit', order.id)}
-                          >
-                            <X className="w-3 h-3 mr-1" /> Cancel
-                          </Button>
-                        )}
-                        <a href={order.market_url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="conditional" className="space-y-6">
-          {/* Conditional Buy Order Creation */}
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="font-display">Create Conditional Buy Order</CardTitle>
-              <CardDescription className="font-serif">
-                Set up an order that automatically executes when a market reaches your target probability.
-                Perfect for buying dips or breakouts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="font-serif">Market URL or ID</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={marketUrl}
-                    onChange={(e) => setMarketUrl(e.target.value)}
-                    placeholder="https://manifold.markets/..."
-                    className="font-serif flex-1"
-                  />
-                  <Button onClick={loadConditionalMarket} disabled={isLoading} className="font-serif">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Market'}
-                  </Button>
-                </div>
+                <Label className="font-serif">Target Exit Price (%)</Label>
+                <Input
+                  type="number"
+                  value={targetExitPrice}
+                  onChange={(e) => setTargetExitPrice(e.target.value)}
+                  placeholder={position.hasYesShares ? "e.g. 70 (sell when YES reaches 70%)" : "e.g. 30 (sell when NO reaches 30%)"}
+                  min="1"
+                  max="99"
+                  className="font-serif"
+                />
               </div>
 
-              {conditionalMarket && (
-                <>
-                  <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                    <p className="font-serif text-sm text-muted-foreground">Market</p>
-                    <p className="font-serif font-medium">{conditionalMarket.question}</p>
-                    <p className="text-sm">
-                      Current probability: <strong>{(conditionalMarket.probability * 100).toFixed(1)}%</strong>
-                    </p>
+              {preview && (
+                <div className="p-4 rounded-lg bg-accent/10 border border-accent/20 space-y-2">
+                  <p className="font-serif font-medium text-accent">Order Preview</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm font-serif">
+                    <span className="text-muted-foreground">Will place:</span>
+                    <span>{preview.oppositeOutcome} limit @ {(preview.limitPrice * 100).toFixed(0)}%</span>
+                    <span className="text-muted-foreground">Cash required:</span>
+                    <span>M${preview.cashRequired.toFixed(2)}</span>
+                    <span className="text-muted-foreground">Expected profit:</span>
+                    <span className={preview.expectedProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      M${preview.expectedProfit.toFixed(2)}
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-serif">Trigger Direction</Label>
-                      <Select value={triggerDirection} onValueChange={(v) => setTriggerDirection(v as "above" | "below")}>
-                        <SelectTrigger className="font-serif">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="below" className="font-serif">
-                            <span className="flex items-center gap-2">
-                              <TrendingDown className="w-4 h-4" /> Goes below
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="above" className="font-serif">
-                            <span className="flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4" /> Goes above
-                            </span>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="font-serif">Target Probability (%)</Label>
-                      <Input
-                        type="number"
-                        value={targetProbability}
-                        onChange={(e) => setTargetProbability(e.target.value)}
-                        placeholder="e.g. 40"
-                        min="1"
-                        max="99"
-                        className="font-serif"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-serif">Buy Outcome</Label>
-                      <Select value={buyOutcome} onValueChange={(v) => setBuyOutcome(v as "YES" | "NO")}>
-                        <SelectTrigger className="font-serif">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="YES" className="font-serif">YES</SelectItem>
-                          <SelectItem value="NO" className="font-serif">NO</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="font-serif">Amount (M$)</Label>
-                      <Input
-                        type="number"
-                        value={buyAmount}
-                        onChange={(e) => setBuyAmount(e.target.value)}
-                        placeholder="e.g. 100"
-                        min="1"
-                        className="font-serif"
-                      />
-                    </div>
-                  </div>
-
-                  {targetProbability && buyAmount && (
-                    <div className="p-4 rounded-lg bg-accent/10 border border-accent/20 space-y-2">
-                      <p className="font-serif font-medium text-accent">Order Summary</p>
-                      <p className="text-sm font-serif">
-                        Buy M${buyAmount} of <strong>{buyOutcome}</strong> when probability goes{' '}
-                        <strong>{triggerDirection}</strong> <strong>{targetProbability}%</strong>
-                      </p>
-                      {parseFloat(targetProbability) / 100 === conditionalMarket.probability && (
-                        <div className="flex items-center gap-2 text-yellow-400 text-xs">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>Current price matches target - will execute immediately!</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <Button 
-                    onClick={createConditionalOrder} 
-                    disabled={isLoading || !targetProbability || !buyAmount || !apiKey}
-                    className="w-full font-serif"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Create Conditional Order
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Conditional Orders List */}
-          <Card className="glass">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-display">Your Conditional Orders</CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchOrders} className="gap-2">
-                <RefreshCw className="w-4 h-4" /> Refresh
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {conditionalOrders.length === 0 ? (
-                <p className="text-muted-foreground font-serif text-center py-4">No conditional orders yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {conditionalOrders.map((order) => (
-                    <div key={order.id} className="p-3 rounded-lg bg-muted/30 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-serif text-sm flex-1">{order.market_question}</p>
-                        {getStatusBadge(order.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs font-serif text-muted-foreground">
-                        <span>
-                          {order.trigger_direction} {(order.target_probability * 100).toFixed(0)}% → Buy {order.outcome}
-                        </span>
-                        <span>M${order.amount}</span>
-                        {order.current_probability && (
-                          <span>Current: {(order.current_probability * 100).toFixed(1)}%</span>
-                        )}
-                        {order.status === 'monitoring' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-xs"
-                            onClick={() => cancelOrder('conditional', order.id)}
-                          >
-                            <X className="w-3 h-3 mr-1" /> Cancel
-                          </Button>
-                        )}
-                        <a href={order.market_url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+              <Button 
+                onClick={placeLimitSellOrder} 
+                disabled={isLoading || !preview}
+                className="w-full font-serif"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Place Limit Sell Order
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Limit Sell Orders List */}
+      <Card className="glass">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="font-display">Your Limit Sell Orders</CardTitle>
+          <Button variant="ghost" size="sm" onClick={fetchOrders} className="gap-2">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {limitSellOrders.length === 0 ? (
+            <p className="text-muted-foreground font-serif text-center py-4">No limit sell orders yet</p>
+          ) : (
+            <div className="space-y-3">
+              {limitSellOrders.map((order) => (
+                <div key={order.id} className="p-3 rounded-lg bg-muted/30 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-serif text-sm flex-1">{order.market_question}</p>
+                    {getStatusBadge(order.status)}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-serif text-muted-foreground">
+                    <span>{order.position_type} @ {(order.target_exit_price * 100).toFixed(0)}%</span>
+                    <span>Profit: M${order.expected_profit.toFixed(2)}</span>
+                    {order.status === 'pending' && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={() => cancelOrder(order.id)}
+                      >
+                        <X className="w-3 h-3 mr-1" /> Cancel
+                      </Button>
+                    )}
+                    <a 
+                      href={order.market_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="ml-auto"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
