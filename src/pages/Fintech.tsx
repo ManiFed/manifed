@@ -14,6 +14,7 @@ import Footer from "@/components/layout/Footer";
 import IndexFunds from "@/components/fintech/IndexFunds";
 import CalibrationGraph from "@/components/fintech/CalibrationGraph";
 import BotPlayground from "@/components/fintech/BotPlayground";
+import AdvancedOrders from "@/components/fintech/AdvancedOrders";
 import manifedLogo from "@/assets/manifed-logo.png";
 
 interface SubscriptionRate {
@@ -305,10 +306,14 @@ export default function Fintech() {
             </div>
 
             <Tabs defaultValue="index-funds" className="space-y-6">
-              <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
+              <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4">
                 <TabsTrigger value="index-funds" className="gap-2 font-serif">
                   <TrendingUp className="w-4 h-4" />
                   Index Funds
+                </TabsTrigger>
+                <TabsTrigger value="advanced-orders" className="gap-2 font-serif">
+                  <Sparkles className="w-4 h-4" />
+                  Orders
                 </TabsTrigger>
                 <TabsTrigger value="calibration" className="gap-2 font-serif">
                   <BarChart3 className="w-4 h-4" />
@@ -322,6 +327,10 @@ export default function Fintech() {
 
               <TabsContent value="index-funds">
                 <IndexFunds />
+              </TabsContent>
+
+              <TabsContent value="advanced-orders">
+                <AdvancedOrders />
               </TabsContent>
 
               <TabsContent value="calibration">

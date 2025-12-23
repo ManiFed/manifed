@@ -50,3 +50,12 @@ verify_jwt = true
 
 [functions.execute-index-fund]
 verify_jwt = false
+
+[functions.limit-sell-order]
+verify_jwt = true
+
+[functions.conditional-buy-order]
+verify_jwt = true
+
+[functions.monitor-conditional-orders]
+verify_jwt = false

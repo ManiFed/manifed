@@ -475,6 +475,66 @@ export type Database = {
           },
         ]
       }
+      conditional_buy_orders: {
+        Row: {
+          amount: number
+          bet_id: string | null
+          created_at: string
+          current_probability: number | null
+          filled_at: string | null
+          id: string
+          last_checked_at: string | null
+          market_id: string
+          market_question: string
+          market_url: string
+          outcome: string
+          status: string
+          target_probability: number
+          trigger_direction: string
+          triggered_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bet_id?: string | null
+          created_at?: string
+          current_probability?: number | null
+          filled_at?: string | null
+          id?: string
+          last_checked_at?: string | null
+          market_id: string
+          market_question: string
+          market_url: string
+          outcome: string
+          status?: string
+          target_probability: number
+          trigger_direction: string
+          triggered_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bet_id?: string | null
+          created_at?: string
+          current_probability?: number | null
+          filled_at?: string | null
+          id?: string
+          last_checked_at?: string | null
+          market_id?: string
+          market_question?: string
+          market_url?: string
+          outcome?: string
+          status?: string
+          target_probability?: number
+          trigger_direction?: string
+          triggered_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fee_pool: {
         Row: {
           amount: number
@@ -587,6 +647,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      limit_sell_orders: {
+        Row: {
+          cash_required: number
+          created_at: string
+          entry_price: number
+          expected_profit: number
+          expires_at: string | null
+          filled_at: string | null
+          id: string
+          limit_order_id: string | null
+          market_id: string
+          market_question: string
+          market_url: string
+          position_type: string
+          shares_held: number
+          status: string
+          target_exit_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cash_required: number
+          created_at?: string
+          entry_price: number
+          expected_profit: number
+          expires_at?: string | null
+          filled_at?: string | null
+          id?: string
+          limit_order_id?: string | null
+          market_id: string
+          market_question: string
+          market_url: string
+          position_type: string
+          shares_held: number
+          status?: string
+          target_exit_price: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cash_required?: number
+          created_at?: string
+          entry_price?: number
+          expected_profit?: number
+          expires_at?: string | null
+          filled_at?: string | null
+          id?: string
+          limit_order_id?: string | null
+          market_id?: string
+          market_question?: string
+          market_url?: string
+          position_type?: string
+          shares_held?: number
+          status?: string
+          target_exit_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       loans: {
         Row: {
