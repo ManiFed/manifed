@@ -54,7 +54,7 @@
     --gradient-primary: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 50%));
     --gradient-card: linear-gradient(145deg, hsl(222 47% 16%), hsl(222 47% 12%));
     --gradient-glow: radial-gradient(ellipse at center, hsl(199 89% 48% / 0.15), transparent 70%);
-
+    
     --shadow-glow: 0 0 40px hsl(199 89% 48% / 0.2);
     --shadow-card: 0 4px 24px hsl(222 47% 4% / 0.5);
     --shadow-elevated: 0 8px 32px hsl(222 47% 4% / 0.6);
@@ -113,7 +113,7 @@
     --gradient-primary: linear-gradient(135deg, hsl(222 47% 11%), hsl(222 40% 25%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 20% 98%));
     --gradient-glow: radial-gradient(ellipse at center, hsl(199 89% 48% / 0.1), transparent 70%);
-
+    
     --shadow-glow: 0 0 40px hsl(199 89% 48% / 0.15);
     --shadow-card: 0 4px 24px hsl(222 47% 11% / 0.08);
     --shadow-elevated: 0 8px 32px hsl(222 47% 11% / 0.12);
@@ -126,34 +126,29 @@
   }
 
   html {
-    font-family: "Source Serif 4", "Georgia", serif;
+    font-family: 'Source Serif 4', 'Georgia', serif;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image:
+    background-image: 
       radial-gradient(ellipse at top, hsl(199 89% 48% / 0.03), transparent 50%),
       radial-gradient(ellipse at bottom right, hsl(222 47% 20% / 0.05), transparent 50%);
     min-height: 100vh;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: "Playfair Display", "Georgia", serif;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', 'Georgia', serif;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: "Playfair Display", "Georgia", serif;
+    font-family: 'Playfair Display', 'Georgia', serif;
   }
 
   .font-body {
-    font-family: "Source Serif 4", "Georgia", serif;
+    font-family: 'Source Serif 4', 'Georgia', serif;
   }
 
   .text-gradient {
@@ -219,97 +214,21 @@
 }
 
 @keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes bounceSubtle {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-penguin-sled-pool-return {
-    animation: none !important;
-  }
-}
-
-@keyframes penguin-sled-pool-return {
-  /* Start at top of hill */
-  0% {
-    transform: translate(0px, 0px) rotate(0deg) scale(1);
-  }
-
-  /* Sled acceleration */
-  12% {
-    transform: translate(16px, 10px) rotate(8deg) scale(1);
-  }
-
-  /* Mid slope */
-  28% {
-    transform: translate(60px, 34px) rotate(16deg) scale(1);
-  }
-
-  /* Approaching ice pool */
-  48% {
-    transform: translate(120px, 72px) rotate(22deg) scale(1);
-  }
-
-  /* Splash into pool (quick dip + bounce) */
-  60% {
-    transform: translate(150px, 92px) rotate(18deg) scale(0.92);
-  }
-  66% {
-    transform: translate(152px, 88px) rotate(10deg) scale(1.02);
-  }
-
-  /* Turn around to walk back up (small wobble/steps) */
-  74% {
-    transform: translate(135px, 80px) rotate(-8deg) scale(1);
-  }
-  84% {
-    transform: translate(85px, 50px) rotate(-4deg) scale(1);
-  }
-  92% {
-    transform: translate(35px, 18px) rotate(-2deg) scale(1);
-  }
-
-  /* Back to start */
-  100% {
-    transform: translate(0px, 0px) rotate(0deg) scale(1);
-  }
-}
-
-.animate-penguin-sled-pool-return {
-  animation: penguin-sled-pool-return 1400ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
