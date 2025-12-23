@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { DonationButton } from '@/components/DonationButton';
+import { HeaderWallet } from '@/components/HeaderWallet';
+import { useUserBalance } from '@/hooks/useUserBalance';
 import manifedLogo from '@/assets/manifed-logo.png';
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Target, Activity } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -29,6 +31,7 @@ interface Profile {
 }
 
 export default function Hub() {
+  const { balance, fetchBalance } = useUserBalance();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [loanCount, setLoanCount] = useState(0);
@@ -38,7 +41,6 @@ export default function Hub() {
   const [username, setUsername] = useState<string>('');
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
   const [totalInvested, setTotalInvested] = useState(0);
-
   useEffect(() => {
     fetchHubData();
   }, []);
@@ -160,6 +162,7 @@ export default function Hub() {
                   </span>
                 </div>
               )}
+              <HeaderWallet balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
               <DonationButton />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
@@ -289,24 +292,24 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Arbitrage Scanner */}
-            <Link to="/public-arbitrage" className="group">
+            {/* Fintech Tools */}
+            <Link to="/fintech" className="group">
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <Target className="w-6 h-6 text-white" />
+                      <Sparkles className="w-6 h-6 text-white" />
                     </div>
-                    <Badge variant="active">Free</Badge>
+                    <Badge variant="secondary">Premium</Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">Arbitrage Scanner</CardTitle>
+                  <CardTitle className="text-xl mt-4">ManiFed Fintech</CardTitle>
                   <CardDescription>
-                    Admin-verified arbitrage opportunities. Execute with your own API key.
+                    AI-powered tools: Arbitrage Scanner, Index Funds, Advanced Orders, and more.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
-                    View Opportunities
+                    Access Tools
                     <ArrowUpRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
@@ -353,7 +356,7 @@ export default function Hub() {
                       <p className="text-xs text-muted-foreground">See top lenders, traders, and earners.</p>
                     </Link>
 
-                    <Link to="/treasury" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <Link to="/bonds" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                       <div className="flex items-center gap-2 mb-1">
                         <Landmark className="w-4 h-4 text-primary" />
                         <span className="font-medium text-foreground text-sm">Treasury News</span>
@@ -367,6 +370,14 @@ export default function Hub() {
                         <span className="font-medium text-foreground text-sm">About ManiFed</span>
                       </div>
                       <p className="text-xs text-muted-foreground">Learn about our platform and mission.</p>
+                    </Link>
+
+                    <Link to="/public-arbitrage" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Coins className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Free Arb Opportunities</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">View curated arbitrage opportunities.</p>
                     </Link>
 
                     <div className="p-3 rounded-lg bg-secondary/30 opacity-60">

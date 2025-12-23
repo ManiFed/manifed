@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, LineChart, Target, ArrowRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { HeaderWallet } from "@/components/HeaderWallet";
+import { useUserBalance } from "@/hooks/useUserBalance";
 import Footer from "@/components/layout/Footer";
 import manifedLogo from "@/assets/manifed-logo.png";
 
@@ -53,23 +55,17 @@ const fintechProducts = [
     title: 'AI Arbitrage Scanner',
     description: 'AI-powered detection of mispriced correlated markets. Find guaranteed profits.',
     icon: Target,
-    path: '/fintech/arbitrage',
+    path: '/arbitrage',
     color: 'from-rose-500 to-red-500',
-  },
-  {
-    id: 'market-agent',
-    title: 'Market Agent',
-    description: 'Ask AI about any market. Get analysis, predictions, and trade recommendations.',
-    icon: LineChart,
-    path: '/fintech/market-agent',
-    color: 'from-indigo-500 to-violet-500',
   },
 ];
 
 export default function FintechMenu() {
   const navigate = useNavigate();
+  const { balance, fetchBalance } = useUserBalance();
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [subscription, setSubscription] = useState<FintechSubscription | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -85,6 +81,14 @@ export default function FintechMenu() {
         navigate('/auth?redirect=/fintech');
         return;
       }
+
+      // Check API key
+      const { data: settings } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_api_key')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setHasApiKey(!!settings?.manifold_api_key);
 
       // Check if admin
       const { data: roleData } = await supabase
@@ -166,12 +170,15 @@ export default function FintechMenu() {
               <span className="font-display text-lg font-bold text-foreground">ManiFed Fintech</span>
               {isAdmin && <Badge variant="secondary">Admin</Badge>}
             </Link>
-            <Link to="/hub">
-              <Button variant="ghost" size="sm" className="gap-2 font-serif">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <HeaderWallet balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <Link to="/hub">
+                <Button variant="ghost" size="sm" className="gap-2 font-serif">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>

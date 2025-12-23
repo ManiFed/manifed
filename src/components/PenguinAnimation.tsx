@@ -23,18 +23,18 @@ export function PenguinAnimation() {
     
     const SLIDE_DURATION = 2.5;
     const SPLASH_DURATION = 0.8;
-    const WALK_DURATION = 2.0;
+    const WALK_DURATION = 2.5;
     
-    // Penguin position
-    let penguinX = 50;
-    let penguinY = 80;
-    let rotation = 0;
-    
-    const drawPenguin = (x: number, y: number, rot: number, scale: number = 1) => {
+    const drawPenguin = (x: number, y: number, rot: number, scale: number = 1, isWalking: boolean = false, walkPhase: number = 0) => {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rot);
       ctx.scale(scale, scale);
+      
+      // Waddle effect when walking
+      if (isWalking) {
+        ctx.rotate(Math.sin(walkPhase * 10) * 0.1);
+      }
       
       // Body (black)
       ctx.fillStyle = '#1a1a1a';
@@ -70,11 +70,26 @@ export function PenguinAnimation() {
       ctx.closePath();
       ctx.fill();
       
-      // Feet
+      // Feet with walking animation
       ctx.fillStyle = '#ffa500';
+      if (isWalking) {
+        const footOffset = Math.sin(walkPhase * 10) * 3;
+        ctx.beginPath();
+        ctx.ellipse(-6, 20 + footOffset, 5, 3, -0.3, 0, Math.PI * 2);
+        ctx.ellipse(6, 20 - footOffset, 5, 3, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.ellipse(-6, 20, 5, 3, -0.3, 0, Math.PI * 2);
+        ctx.ellipse(6, 20, 5, 3, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Wings/flippers
+      ctx.fillStyle = '#1a1a1a';
       ctx.beginPath();
-      ctx.ellipse(-6, 20, 5, 3, -0.3, 0, Math.PI * 2);
-      ctx.ellipse(6, 20, 5, 3, 0.3, 0, Math.PI * 2);
+      ctx.ellipse(-15, 0, 5, 12, -0.3, 0, Math.PI * 2);
+      ctx.ellipse(15, 0, 5, 12, 0.3, 0, Math.PI * 2);
       ctx.fill();
       
       ctx.restore();
@@ -197,9 +212,9 @@ export function PenguinAnimation() {
         const progress = stateTime / SLIDE_DURATION;
         
         // Curved path down the hill
-        penguinX = 50 + progress * 250;
-        penguinY = 80 + Math.pow(progress, 1.5) * 130;
-        rotation = 0.3 + progress * 0.2;
+        const penguinX = 50 + progress * 250;
+        const penguinY = 80 + Math.pow(progress, 1.5) * 130;
+        const rotation = 0.3 + progress * 0.2;
         
         drawSled(penguinX, penguinY + 10, rotation);
         drawPenguin(penguinX, penguinY - 5, rotation * 0.5);
@@ -221,9 +236,6 @@ export function PenguinAnimation() {
       } else if (state === 'splashing') {
         const progress = stateTime / SPLASH_DURATION;
         
-        penguinX = 320;
-        penguinY = 210 + progress * 20;
-        
         if (progress < 0.5) {
           drawSplash(340, 220, progress * 2);
         }
@@ -238,19 +250,21 @@ export function PenguinAnimation() {
         if (progress >= 1) {
           state = 'walking';
           stateTime = 0;
-          penguinX = 340;
-          penguinY = 230;
         }
       } else if (state === 'walking') {
         const progress = stateTime / WALK_DURATION;
         
         // Walk back up the hill
-        penguinX = 340 - progress * 290;
-        penguinY = 230 - Math.pow(progress, 0.8) * 150;
+        const penguinX = 340 - progress * 290;
+        const penguinY = 230 - Math.pow(progress, 0.8) * 150;
         
-        // Waddle animation
-        const waddle = Math.sin(stateTime * 15) * 0.1;
-        drawPenguin(penguinX, penguinY, waddle);
+        // Draw penguin walking (facing left, so flip)
+        ctx.save();
+        ctx.translate(penguinX, penguinY);
+        ctx.scale(-1, 1); // Flip horizontally
+        ctx.translate(-penguinX, -penguinY);
+        drawPenguin(penguinX, penguinY, 0, 1, true, stateTime);
+        ctx.restore();
         
         // Footprints
         ctx.fillStyle = 'rgba(100, 100, 100, 0.2)';
@@ -265,8 +279,6 @@ export function PenguinAnimation() {
         if (progress >= 1) {
           state = 'sliding';
           stateTime = 0;
-          penguinX = 50;
-          penguinY = 80;
         }
       }
       
