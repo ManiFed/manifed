@@ -11,21 +11,17 @@ import { PenguinAnimation } from "@/components/PenguinAnimation";
 // 3D Graph Animation with Axes and Camera Panning
 function RisingChartBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
     resize();
     window.addEventListener('resize', resize);
-
     let animationFrame: number;
     let time = 0;
 
@@ -41,20 +37,18 @@ function RisingChartBackground() {
       }
       return points;
     };
-
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2 + 200;
-      
+
       // Camera rotation for 3D effect
       const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
       const cameraAngleY = Math.cos(time * 0.2) * 0.15;
-      
+
       // Dynamic scale based on screen size for full coverage
       const baseScale = Math.max(canvas.width, canvas.height) / 800;
-      
+
       // 3D projection helper
       const project3D = (x: number, y: number, z: number) => {
         const scale = baseScale;
@@ -63,17 +57,15 @@ function RisingChartBackground() {
         const py = y * Math.cos(cameraAngleX) - pz * Math.sin(cameraAngleX);
         return {
           x: centerX + px * scale,
-          y: centerY - py * scale + 50,
+          y: centerY - py * scale + 50
         };
       };
-      
+
       // Draw grid floor
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
       ctx.lineWidth = 1;
-      
       const gridSize = 400;
       const gridStep = 40;
-      
       for (let i = -gridSize; i <= gridSize; i += gridStep) {
         // X lines
         const p1 = project3D(i, 0, -gridSize);
@@ -82,7 +74,7 @@ function RisingChartBackground() {
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
-        
+
         // Z lines
         const p3 = project3D(-gridSize, 0, i);
         const p4 = project3D(gridSize, 0, i);
@@ -91,10 +83,10 @@ function RisingChartBackground() {
         ctx.lineTo(p4.x, p4.y);
         ctx.stroke();
       }
-      
+
       // Draw axes
       ctx.lineWidth = 2;
-      
+
       // X axis (horizontal)
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
       const xAxisStart = project3D(-gridSize, 0, 0);
@@ -103,7 +95,7 @@ function RisingChartBackground() {
       ctx.moveTo(xAxisStart.x, xAxisStart.y);
       ctx.lineTo(xAxisEnd.x, xAxisEnd.y);
       ctx.stroke();
-      
+
       // Y axis (vertical - price)
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
       const yAxisStart = project3D(0, 0, 0);
@@ -112,7 +104,7 @@ function RisingChartBackground() {
       ctx.moveTo(yAxisStart.x, yAxisStart.y);
       ctx.lineTo(yAxisEnd.x, yAxisEnd.y);
       ctx.stroke();
-      
+
       // Z axis (depth)
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
       const zAxisStart = project3D(0, 0, -gridSize);
@@ -121,28 +113,24 @@ function RisingChartBackground() {
       ctx.moveTo(zAxisStart.x, zAxisStart.y);
       ctx.lineTo(zAxisEnd.x, zAxisEnd.y);
       ctx.stroke();
-      
+
       // Draw the main rising line
       const chartData = generateChartData(time);
       const scrollOffset = time * 50;
-      
+
       // Main line with glow
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
       ctx.lineWidth = 3;
       ctx.shadowColor = 'rgba(34, 197, 94, 0.5)';
       ctx.shadowBlur = 15;
       ctx.beginPath();
-      
       let first = true;
       for (let i = 0; i < chartData.length; i++) {
-        const x = (i - 100) * 4 - (scrollOffset % 800);
+        const x = (i - 100) * 4 - scrollOffset % 800;
         const y = chartData[i];
         const z = 0;
-        
         if (x < -gridSize || x > gridSize) continue;
-        
         const p = project3D(x, y, z);
-        
         if (first) {
           ctx.moveTo(p.x, p.y);
           first = false;
@@ -152,21 +140,20 @@ function RisingChartBackground() {
       }
       ctx.stroke();
       ctx.shadowBlur = 0;
-      
+
       // Draw candlestick markers at intervals
       for (let i = 0; i < chartData.length; i += 15) {
-        const x = (i - 100) * 4 - (scrollOffset % 800);
+        const x = (i - 100) * 4 - scrollOffset % 800;
         if (x < -gridSize || x > gridSize) continue;
-        
         const y = chartData[i];
         const p = project3D(x, y, 0);
-        
+
         // Draw marker dot
         ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
         ctx.beginPath();
         ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
         ctx.fill();
-        
+
         // Draw vertical line to base
         const base = project3D(x, 0, 0);
         ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
@@ -176,7 +163,7 @@ function RisingChartBackground() {
         ctx.lineTo(base.x, base.y);
         ctx.stroke();
       }
-      
+
       // Floating particles
       for (let i = 0; i < 15; i++) {
         const angle = time * 0.5 + i * (Math.PI * 2 / 15);
@@ -184,93 +171,62 @@ function RisingChartBackground() {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const y = 200 + Math.sin(time * 2 + i) * 100;
-        
         const p = project3D(x, y, z);
         const size = 2 + Math.sin(time + i) * 1;
-        
         ctx.fillStyle = `rgba(59, 130, 246, ${0.2 + Math.sin(time + i) * 0.1})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
         ctx.fill();
       }
-
       time += 0.008;
       animationFrame = requestAnimationFrame(draw);
     };
-
     draw();
-
     return () => {
       cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', resize);
     };
   }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ opacity: 0.85 }}
-    />
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0" style={{
+    opacity: 0.85
+  }} />;
 }
 
 // Bouncing Logo Component
 function BouncingLogo() {
   const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <Link 
-      to="/" 
-      className="flex items-center gap-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <img 
-        src={manifedLogo} 
-        alt="ManiFed" 
-        className={`h-28 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`}
-      />
-    </Link>
-  );
+  return <Link to="/" className="flex items-center gap-3" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+      <img src={manifedLogo} alt="ManiFed" className={`h-28 transition-transform duration-300 ${isHovered ? 'animate-bounce-subtle' : ''}`} />
+    </Link>;
 }
-
 export default function Landing() {
   const [scrollY, setScrollY] = useState(0);
-
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const products = [
-    {
-      title: "Treasury Bonds",
-      description: "Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.",
-      icon: FileText,
-      link: "/bonds",
-      free: true,
-    },
-    {
-      title: "P2P Loans",
-      description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
-      icon: TrendingUp,
-      link: "/marketplace",
-      free: true,
-    },
-    {
-      title: "ManiFed Fintech",
-      description: "Premium AI tools: Arbitrage Scanner, Market Agent, Index Funds, and more.",
-      icon: Sparkles,
-      link: "/fintech",
-      free: false,
-      badge: "Premium",
-    },
-  ];
-
-  return (
-    <div className="min-h-screen relative overflow-hidden">
+  const products = [{
+    title: "Treasury Bonds",
+    description: "Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.",
+    icon: FileText,
+    link: "/bonds",
+    free: true
+  }, {
+    title: "P2P Loans",
+    description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
+    icon: TrendingUp,
+    link: "/marketplace",
+    free: true
+  }, {
+    title: "ManiFed Fintech",
+    description: "Premium AI tools: Arbitrage Scanner, Market Agent, Index Funds, and more.",
+    icon: Sparkles,
+    link: "/fintech",
+    free: false,
+    badge: "Premium"
+  }];
+  return <div className="min-h-screen relative overflow-hidden">
       <RisingChartBackground />
 
       {/* Floating Glass Island Navigation Bar */}
@@ -356,10 +312,9 @@ export default function Landing() {
       </div>
       <main className="relative z-10">
         {/* Hero Section with Parallax */}
-        <section 
-          className="container mx-auto px-4 py-24 md:py-32 text-center relative"
-          style={{ transform: `translateY(${scrollY * 0.1}px)` }}
-        >
+        <section className="container mx-auto px-4 py-24 md:py-32 text-center relative" style={{
+        transform: `translateY(${scrollY * 0.1}px)`
+      }}>
           <div className="animate-slide-up max-w-4xl mx-auto">
             <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold italic text-foreground mb-8 leading-tight">
               The <span className="text-amber-400">Golden</span> Age of Manifold is Here
@@ -378,16 +333,15 @@ export default function Landing() {
             
             {/* Penguin Animation */}
             <div className="mt-12 flex justify-center">
-              <PenguinAnimation />
+              
             </div>
           </div>
         </section>
 
         {/* Products Grid */}
-        <section 
-          className="container mx-auto px-4 py-16"
-          style={{ transform: `translateY(${scrollY * 0.05}px)` }}
-        >
+        <section className="container mx-auto px-4 py-16" style={{
+        transform: `translateY(${scrollY * 0.05}px)`
+      }}>
           <div className="text-center mb-12 animate-slide-up">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
               Our Products
@@ -398,12 +352,9 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {products.map((product, index) => (
-              <Card 
-                key={product.title} 
-                className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
+            {products.map((product, index) => <Card key={product.title} className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1" style={{
+            animationDelay: `${index * 100}ms`
+          }}>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
@@ -411,16 +362,12 @@ export default function Landing() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
-                      {product.badge && (
-                        <Badge variant="secondary" className="text-xs mt-0.5 bg-accent text-accent-foreground">
+                      {product.badge && <Badge variant="secondary" className="text-xs mt-0.5 bg-accent text-accent-foreground">
                           {product.badge}
-                        </Badge>
-                      )}
-                      {product.free && (
-                        <Badge variant="outline" className="text-xs mt-0.5">
+                        </Badge>}
+                      {product.free && <Badge variant="outline" className="text-xs mt-0.5">
                           Free
-                        </Badge>
-                      )}
+                        </Badge>}
                     </div>
                   </div>
                   <p className="font-serif text-sm text-muted-foreground mb-4">{product.description}</p>
@@ -430,8 +377,7 @@ export default function Landing() {
                     </Button>
                   </Link>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </section>
 
@@ -464,7 +410,7 @@ export default function Landing() {
               <div className="text-center">
                 <h3 className="font-display font-semibold text-foreground mb-2">Questions or Need Help?</h3>
                 <p className="font-serif text-sm text-muted-foreground mb-4">
-                  Reach out to us anytime:
+                  Contact the POTUS and Fed Chair at:          
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent hover:underline font-serif">
@@ -501,6 +447,5 @@ export default function Landing() {
           </div>
         </footer>
       </main>
-    </div>
-  );
+    </div>;
 }
