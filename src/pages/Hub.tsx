@@ -24,6 +24,7 @@ interface Bond {
   amount: number;
   maturity_date: string;
   total_return: number;
+}
 
 interface Profile {
   equipped_badge: string | null;
