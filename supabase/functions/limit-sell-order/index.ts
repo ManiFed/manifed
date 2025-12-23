@@ -68,22 +68,36 @@ serve(async (req) => {
       const userData = await meResponse.json();
       console.log(`[limit-sell-order] Got user: ${userData.username}`);
 
-      // Get market info
-      const marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
+      // Get market info - try by slug first, then by ID
+      let marketData: MarketInfo;
+      let contractId: string;
+      
+      // First try to get market by slug
+      let marketResponse = await fetch(`https://api.manifold.markets/v0/slug/${marketId}`);
+      
       if (!marketResponse.ok) {
-        return new Response(
-          JSON.stringify({ error: 'Market not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        // If slug fails, try by ID directly
+        marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
+        if (!marketResponse.ok) {
+          console.error(`[limit-sell-order] Market not found for: ${marketId}`);
+          return new Response(
+            JSON.stringify({ error: 'Market not found. Please check the URL or ID.' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
-      const marketData: MarketInfo = await marketResponse.json();
+      
+      marketData = await marketResponse.json();
+      contractId = marketData.id;
+      console.log(`[limit-sell-order] Found market: ${contractId} - ${marketData.question}`);
 
-      // Get user's position in this market
+      // Get user's position in this market using the contract ID
       const positionResponse = await fetch(
-        `https://api.manifold.markets/v0/market/${marketId}/positions?userId=${userData.id}`
+        `https://api.manifold.markets/v0/market/${contractId}/positions?userId=${userData.id}`
       );
 
       if (!positionResponse.ok) {
+        console.error(`[limit-sell-order] Failed to fetch position: ${await positionResponse.text()}`);
         return new Response(
           JSON.stringify({ error: 'Failed to fetch position' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -105,7 +119,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           market: {
-            id: marketData.id,
+            id: contractId,
             question: marketData.question,
             url: marketData.url,
             probability: marketData.probability
@@ -148,19 +162,26 @@ serve(async (req) => {
       }
       const userData = await meResponse.json();
 
-      // Get market info
-      const marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
+      // Get market info - try by slug first, then by ID
+      let marketData: MarketInfo;
+      let contractId: string;
+      
+      let marketResponse = await fetch(`https://api.manifold.markets/v0/slug/${marketId}`);
       if (!marketResponse.ok) {
-        return new Response(
-          JSON.stringify({ error: 'Market not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
+        if (!marketResponse.ok) {
+          return new Response(
+            JSON.stringify({ error: 'Market not found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
-      const marketData: MarketInfo = await marketResponse.json();
+      marketData = await marketResponse.json();
+      contractId = marketData.id;
 
-      // Get user's position
+      // Get user's position using contract ID
       const positionResponse = await fetch(
-        `https://api.manifold.markets/v0/market/${marketId}/positions?userId=${userData.id}`
+        `https://api.manifold.markets/v0/market/${contractId}/positions?userId=${userData.id}`
       );
       const positions = await positionResponse.json();
       
@@ -217,7 +238,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           amount: Math.floor(cashRequired),
-          contractId: marketId,
+          contractId: contractId,
           outcome: oppositeOutcome,
           limitProb: Math.round(limitProb * 100) / 100 // Round to 2 decimal places
         })
@@ -245,7 +266,7 @@ serve(async (req) => {
         .from('limit_sell_orders')
         .insert({
           user_id: user.id,
-          market_id: marketId,
+          market_id: contractId,
           market_question: marketData.question,
           market_url: marketData.url,
           position_type: positionType,
