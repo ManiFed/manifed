@@ -30,6 +30,11 @@ import PublicArbitrage from "./pages/PublicArbitrage";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Fintech from "./pages/Fintech";
+import FintechMenu from "./pages/FintechMenu";
+import FintechIndexFunds from "./pages/FintechIndexFunds";
+import FintechAdvancedOrders from "./pages/FintechAdvancedOrders";
+import FintechCalibration from "./pages/FintechCalibration";
+import FintechBotBuilder from "./pages/FintechBotBuilder";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
@@ -96,6 +101,11 @@ const App = () => (
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/mispriced" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
           <Route path="/fintech" element={<Fintech />} />
+          <Route path="/fintech/menu" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
+          <Route path="/fintech/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
+          <Route path="/fintech/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
+          <Route path="/fintech/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
+          <Route path="/fintech/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/about" element={<About />} />

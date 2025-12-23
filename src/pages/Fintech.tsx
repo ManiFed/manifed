@@ -146,7 +146,8 @@ export default function Fintech() {
 
       setShowPaywall(false);
       setApiKey("");
-      setHasAccess(true);
+      // Redirect to fintech menu after payment
+      navigate('/fintech/menu');
       checkAccess(); // Refresh subscription data
     } catch (error) {
       console.error('Payment error:', error);
