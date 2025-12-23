@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { WalletPopover } from '@/components/WalletPopover';
 import { useUserBalance } from '@/hooks/useUserBalance';
+import SleddingLogo from "@/components/SleddingLogo";
 import manifedLogo from '@/assets/manifed-logo-new.png';
 const navItems = [{
   path: '/marketplace',
@@ -62,7 +63,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto bg-background/40 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
         <div className="flex items-center justify-between py-2 px-6">
           <Link to="/hub" className="flex items-center gap-3">
-            <img src={manifedLogo} alt="ManiFed" className="h-28" />
+            <SleddingLogo logoSrc={manifedLogo} className="shrink-0" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
