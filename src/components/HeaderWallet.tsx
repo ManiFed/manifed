@@ -19,6 +19,16 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<"select" | "withdraw">("select");
+  const handleWithdraw = async () => {
+    if (!hasApiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please connect your Manifold API key in Settings to withdraw.",
+        variant: "destructive",
+      });
+      setMode("select");
+      return;
+    }
 
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount < 10) {
