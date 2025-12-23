@@ -23,19 +23,22 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Get redirect path from URL params
+  const redirectPath = searchParams.get('redirect') || '/hub';
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate('/hub');
+        navigate(redirectPath);
       }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate('/hub');
+        navigate(redirectPath);
       }
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, redirectPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +58,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/hub`
+            emailRedirectTo: `${window.location.origin}${redirectPath}`
           }
         });
         if (error) throw error;
@@ -95,7 +98,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/hub`
+          redirectTo: `${window.location.origin}${redirectPath}`
         }
       });
       if (error) throw error;
