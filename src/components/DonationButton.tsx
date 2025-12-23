@@ -13,13 +13,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Heart, Loader2, DollarSign, Coins } from 'lucide-react';
+import { Heart, Loader2, DollarSign, Coins, ExternalLink, Copy, Check } from 'lucide-react';
 
 export function DonationButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [usdAmount, setUsdAmount] = useState('5');
   const [manaAmount, setManaAmount] = useState('100');
   const [isLoading, setIsLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleUsdDonate = async () => {
     const amount = parseFloat(usdAmount);
@@ -53,41 +54,12 @@ export function DonationButton() {
     }
   };
 
-  const handleManaDonate = async () => {
-    const amount = parseInt(manaAmount);
-    if (isNaN(amount) || amount < 10) {
-      toast({
-        title: 'Invalid amount',
-        description: 'Minimum donation is M$10',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('managram', {
-        body: { 
-          action: 'deposit',
-          amount: amount,
-          message: `Donation to ManiFed: M$${amount} - Thank you for Making Manifold Great Again! 🇺🇸`
-        },
-      });
-      if (error) throw error;
-      toast({
-        title: 'Donation Sent!',
-        description: `Thank you for your M$${amount} donation! The deep state fears your generosity.`,
-      });
-      setIsOpen(false);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send mana donation',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCopyMessage = () => {
+    const message = `Donation to ManiFed: M$${manaAmount} - Thank you!`;
+    navigator.clipboard.writeText(message);
+    setCopied(true);
+    toast({ title: 'Copied!', description: 'Donation message copied to clipboard' });
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const quickUsdAmounts = [1, 5, 10, 25];
@@ -108,7 +80,7 @@ export function DonationButton() {
             Support ManiFed
           </DialogTitle>
           <DialogDescription>
-            Your donations help fight the deep state... I mean, cover AI costs. We don't make a profit! 🇺🇸
+            Your donations help cover AI and infrastructure costs. We don't make a profit!
           </DialogDescription>
         </DialogHeader>
 
@@ -199,22 +171,39 @@ export function DonationButton() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Sends M$ directly from your Manifold account via managram
-            </p>
-            <Button
-              variant="glow"
-              className="w-full"
-              onClick={handleManaDonate}
-              disabled={isLoading}
+
+            {/* Instructions for mana donation */}
+            <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+              <p className="text-sm font-medium text-foreground">To donate M$:</p>
+              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Go to <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">@ManiFed on Manifold</a></li>
+                <li>Click "Send Mana" and enter M${manaAmount}</li>
+                <li>Add a message (optional)</li>
+              </ol>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyMessage}
+                  className="flex-1 gap-2"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  Copy Message
+                </Button>
+              </div>
+            </div>
+
+            <a
+              href="https://manifold.markets/ManiFed"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
             >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Coins className="w-4 h-4 mr-2" />
-              )}
-              Donate M${manaAmount || '0'}
-            </Button>
+              <Button variant="glow" className="w-full gap-2">
+                <ExternalLink className="w-4 h-4" />
+                Go to @ManiFed
+              </Button>
+            </a>
           </TabsContent>
         </Tabs>
       </DialogContent>
