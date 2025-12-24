@@ -20,7 +20,6 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<"select" | "withdraw">("select");
   const handleWithdraw = async () => {
-
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount < 10) {
       toast({
@@ -66,7 +65,8 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
       console.error("Withdraw error:", error);
       toast({
         title: "Withdrawal Failed",
-        description: error instanceof Error ? error.message : "Failed to process withdrawal. The Deep State is at it again.",
+        description:
+          error instanceof Error ? error.message : "Failed to process withdrawal. The Deep State is at it again.",
         variant: "destructive",
       });
     } finally {
@@ -111,12 +111,7 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
                   <Plus className="w-4 h-4" />
                   Deposit
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setMode("withdraw")} 
-                  className="gap-2"
-                  disabled={!hasApiKey}
-                >
+                <Button variant="outline" onClick={() => setMode("withdraw")} className="gap-2" disabled={!hasApiKey}>
                   <Minus className="w-4 h-4" />
                   Withdraw
                 </Button>
@@ -149,15 +144,8 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
                   Max
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Available: M${balance.toLocaleString()}
-              </p>
-              <Button
-                variant="glow"
-                className="w-full"
-                onClick={handleWithdraw}
-                disabled={isProcessing}
-              >
+              <p className="text-xs text-muted-foreground">Available: M${balance.toLocaleString()}</p>
+              <Button variant="glow" className="w-full" onClick={handleWithdraw} disabled={isProcessing}>
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Withdraw
               </Button>
