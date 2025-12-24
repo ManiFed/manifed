@@ -396,7 +396,7 @@ export default function Landing() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
-                      {product.free && (
+                      {product.free === true && (
                         <Badge variant="outline" className="text-xs mt-0.5">
                           Free
                         </Badge>
