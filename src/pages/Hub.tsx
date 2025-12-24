@@ -311,7 +311,7 @@ export default function Hub() {
             </Link>
 
             {/* Fintech Tools */}
-            <Link to="/fintech" className="group">
+            <Link to="/fintech/menu" className="group">
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -487,6 +487,32 @@ export default function Hub() {
                   <div className="p-8 text-center">
                     <Activity className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground">No recent activity</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Notifications */}
+          <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Notifications
+            </h2>
+            <Card className="glass">
+              <CardContent className="p-4">
+                {notifications.length > 0 ? (
+                  <div className="space-y-3">
+                    {notifications.map((notif, i) => (
+                      <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <p className="text-sm text-foreground">{notif}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground">No new notifications</p>
                   </div>
                 )}
               </CardContent>
