@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight, Terminal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
@@ -57,6 +57,14 @@ const fintechProducts = [
     icon: Target,
     path: '/arbitrage',
     color: 'from-rose-500 to-red-500',
+  },
+  {
+    id: 'terminal',
+    title: 'Trading Terminal',
+    description: 'Fast keyboard-driven trading with command syntax and custom hotkeys.',
+    icon: Terminal,
+    path: '/terminal',
+    color: 'from-emerald-600 to-green-500',
   },
 ];
 
