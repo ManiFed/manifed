@@ -367,6 +367,28 @@ export default function Hub() {
                     </Link>
 
                     <Link
+                      to="/leaderboard"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Trophy className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Leaderboard</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">See top lenders, traders, and earners.</p>
+                    </Link>
+
+                    <Link
+                      to="/bonds"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Landmark className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Treasury News</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Official announcements and treasury updates.</p>
+                    </Link>
+
+                    <Link
                       to="/about"
                       className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
                     >
@@ -374,7 +396,29 @@ export default function Hub() {
                         <FileText className="w-4 h-4 text-primary" />
                         <span className="font-medium text-foreground text-sm">About ManiFed</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">Learn about our platform and view recent updates.</p>
+                      <p className="text-xs text-muted-foreground">Learn about our platform and mission.</p>
+                    </Link>
+
+                    <Link
+                      to="/public-arbitrage"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Coins className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-foreground text-sm">Free Arb Opportunities</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">View curated arbitrage opportunities.</p>
+                    </Link>
+
+                    <Link
+                      to="/terminal"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Terminal className="w-4 h-4 text-emerald-500" />
+                        <span className="font-medium text-foreground text-sm">Trading Terminal</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Keyboard-driven fast trading interface.</p>
                     </Link>
 
                     <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
@@ -443,32 +487,6 @@ export default function Hub() {
                   <div className="p-8 text-center">
                     <Activity className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground">No recent activity</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Notifications */}
-          <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-primary" />
-              Notifications
-            </h2>
-            <Card className="glass">
-              <CardContent className="p-4">
-                {notifications.length > 0 ? (
-                  <div className="space-y-3">
-                    {notifications.map((notif, i) => (
-                      <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                        <p className="text-sm text-foreground">{notif}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                    <p className="text-sm text-muted-foreground">No new notifications</p>
                   </div>
                 )}
               </CardContent>
