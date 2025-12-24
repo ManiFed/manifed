@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink, PieChart, Code, Edit } from 'lucide-react';
+import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink, PieChart, Code, Edit, CreditCard, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -851,7 +851,7 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="rates" className="space-y-6">
-          <TabsList className="grid grid-cols-4 sm:grid-cols-8 w-full">
+          <TabsList className="grid grid-cols-5 sm:grid-cols-9 w-full">
             <TabsTrigger value="rates" className="gap-2">
               <TrendingUp className="w-4 h-4" />
               <span className="hidden sm:inline">Rates</span>
@@ -879,6 +879,10 @@ export default function TreasuryAdmin() {
             <TabsTrigger value="strategies" className="gap-2">
               <Code className="w-4 h-4" />
               <span className="hidden sm:inline">Snippets</span>
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-2">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Subs</span>
             </TabsTrigger>
             <TabsTrigger value="suggestions" className="gap-2">
               <MessageSquare className="w-4 h-4" />
@@ -1621,6 +1625,87 @@ export default function TreasuryAdmin() {
                       </div>
                     ))
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Subscriptions Tab */}
+          <TabsContent value="subscriptions">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  Fintech Subscriptions
+                </CardTitle>
+                <CardDescription>
+                  Manage user subscriptions to ManiFed Fintech. Gift or extend subscriptions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Gift Subscription
+                  </h4>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <Label>User Email</Label>
+                      <Input placeholder="user@example.com" id="gift-email" />
+                    </div>
+                    <div>
+                      <Label>Duration (days)</Label>
+                      <Input type="number" placeholder="30" defaultValue={30} id="gift-days" />
+                    </div>
+                    <div className="flex items-end">
+                      <Button 
+                        className="w-full gap-2"
+                        onClick={async () => {
+                          const email = (document.getElementById('gift-email') as HTMLInputElement)?.value;
+                          const days = parseInt((document.getElementById('gift-days') as HTMLInputElement)?.value) || 30;
+                          if (!email) {
+                            toast({ title: 'Error', description: 'Enter an email', variant: 'destructive' });
+                            return;
+                          }
+                          try {
+                            // Look up user by email in profiles or user_manifold_settings
+                            const { data: profileData } = await supabase
+                              .from('user_manifold_settings')
+                              .select('user_id')
+                              .eq('manifold_username', email)
+                              .maybeSingle();
+                            
+                            const userId = profileData?.user_id || email;
+                            
+                            const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+                            
+                            // Upsert subscription
+                            const { error } = await supabase.from('fintech_subscriptions').upsert({
+                              user_id: userId,
+                              plan_type: 'gifted',
+                              is_active: true,
+                              is_gifted: true,
+                              expires_at: expiresAt,
+                              started_at: new Date().toISOString(),
+                              mana_price: 0,
+                            }, { onConflict: 'user_id' });
+
+                            if (error) throw error;
+                            toast({ title: 'Subscription Gifted', description: `${days} days gifted` });
+                          } catch (error) {
+                            toast({ title: 'Error', description: 'Failed to gift subscription', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        <Gift className="w-4 h-4" />
+                        Gift
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  Active subscriptions are managed via the fintech_subscriptions table. Users can subscribe through the Fintech page with mana payments.
                 </div>
               </CardContent>
             </Card>

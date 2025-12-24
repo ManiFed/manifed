@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -9,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Search, Zap, Key, Settings, Terminal, Youtube, Wifi, WifiOff, Trash2, Plus } from 'lucide-react';
+import { Search, Zap, Key, Settings, Terminal, Youtube, Wifi, WifiOff, Trash2, Plus, ArrowLeft, AlertTriangle, Keyboard, Book, ArrowRight } from 'lucide-react';
 
 interface Market {
   id: string;
@@ -34,7 +35,7 @@ interface Hotkey {
   orderType: 'market' | 'limit-fixed' | 'limit-relative';
   limitPrice?: number;
   relativeOffset?: number;
-  expirationHours?: number;
+  expirationMinutes?: number;
 }
 
 interface Position {
@@ -48,7 +49,124 @@ const STORAGE_KEYS = {
   YOUTUBE_URL: 'manifold_terminal_youtube',
 };
 
-export default function TradingTerminal() {
+// Landing page component
+function TerminalLanding({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
+      <header className="border-b border-gray-800 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Terminal className="w-6 h-6 text-emerald-500" />
+            <span className="text-xl font-bold text-emerald-400 font-mono">ManiFed Terminal</span>
+          </div>
+          <Link to="/fintech/menu">
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Fintech
+            </Button>
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full space-y-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-bold text-white font-mono">Fast Keyboard-Driven Trading</h1>
+            <p className="text-gray-400 text-lg">Execute trades on Manifold Markets with lightning speed using keyboard shortcuts and command syntax.</p>
+          </div>
+
+          <Card className="bg-gray-900/50 border-gray-800 p-6 space-y-6">
+            <div className="flex items-start gap-3">
+              <Key className="w-5 h-5 text-emerald-500 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-white mb-1">API Key Required</h3>
+                <p className="text-sm text-gray-400">
+                  You'll need your Manifold API key to trade. Get it from your Manifold account settings.
+                </p>
+                <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Your key is stored locally in your browser only. We never send it to our servers.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Keyboard className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-white mb-2">Command Syntax</h3>
+                <div className="space-y-2 text-sm font-mono">
+                  <div className="flex gap-4">
+                    <code className="text-emerald-400 w-28">100B</code>
+                    <span className="text-gray-400">Buy 100 mana of YES at market price</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-red-400 w-28">100S</code>
+                    <span className="text-gray-400">Buy 100 mana of NO at market price</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-yellow-400 w-28">100B@45L</code>
+                    <span className="text-gray-400">Limit YES @45% (press L to confirm)</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-yellow-400 w-28">30/100B@45L</code>
+                    <span className="text-gray-400">Limit YES @45%, cancel in 30 min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Zap className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-white mb-1">Auto-Execute Mode</h3>
+                <p className="text-sm text-gray-400">
+                  When enabled, market orders execute instantly. Limit orders require <code className="text-yellow-400">L</code> suffix or Enter key to confirm.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Settings className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-white mb-1">Custom Hotkeys</h3>
+                <p className="text-sm text-gray-400">
+                  Bind keyboard keys to preset orders. Press a single key to execute trades instantly when not in an input field.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Book className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-white mb-1">Keyboard Shortcuts</h3>
+                <div className="text-sm font-mono mt-2">
+                  <div className="flex gap-4">
+                    <code className="text-gray-300 w-28">Cmd/Ctrl+X</code>
+                    <span className="text-gray-400">Sell all positions in active market</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="text-center">
+            <Button 
+              onClick={onEnter}
+              size="lg"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-8"
+            >
+              Enter Terminal
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Main terminal component
+function TerminalMain() {
   const [apiKey, setApiKey] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,7 +177,6 @@ export default function TradingTerminal() {
   const [commandInput, setCommandInput] = useState('');
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const [hotkeys, setHotkeys] = useState<Hotkey[]>([]);
-  const [showHotkeyPanel, setShowHotkeyPanel] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [youtubeInput, setYoutubeInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -200,7 +317,7 @@ export default function TradingTerminal() {
     side: 'YES' | 'NO',
     amount: number,
     limitPrice?: number,
-    expirationHours?: number
+    expirationMinutes?: number
   ) => {
     if (!activeMarket || !apiKey) {
       addLog('Trade', false, 'No market or API key');
@@ -215,8 +332,8 @@ export default function TradingTerminal() {
 
     if (limitPrice !== undefined) {
       body.limitProb = limitPrice / 100;
-      if (expirationHours) {
-        body.expiresAt = Date.now() + expirationHours * 60 * 60 * 1000;
+      if (expirationMinutes) {
+        body.expiresAt = Date.now() + expirationMinutes * 60 * 1000;
       }
     }
 
@@ -234,7 +351,7 @@ export default function TradingTerminal() {
       
       if (response.ok) {
         const orderType = limitPrice ? `Limit @${limitPrice}%` : 'Market';
-        const expiry = expirationHours ? ` (${expirationHours}h)` : '';
+        const expiry = expirationMinutes ? ` (${expirationMinutes}m)` : '';
         addLog(`${side} ${orderType}${expiry}`, true, `${amount}M → ${data.shares?.toFixed(2) || '?'} shares`);
         toast.success(`${side} order placed`);
         fetchPositions();
@@ -248,9 +365,16 @@ export default function TradingTerminal() {
     }
   };
 
-  const sellAllPositions = async () => {
-    if (!activeMarket || !apiKey || positions.length === 0) {
+  const sellAllPositions = useCallback(async () => {
+    if (!activeMarket || !apiKey) {
+      addLog('Sell All', false, 'No market or API key');
+      toast.error('No active market or API key');
+      return;
+    }
+    
+    if (positions.length === 0) {
       addLog('Sell All', false, 'No positions to sell');
+      toast.error('No positions to sell');
       return;
     }
 
@@ -282,39 +406,37 @@ export default function TradingTerminal() {
     }
     fetchPositions();
     toast.success('Sold all positions');
-  };
+  }, [activeMarket, apiKey, positions, addLog]);
 
   const parseAndExecuteCommand = (input: string, forceExecute = false) => {
     const trimmed = input.trim().toUpperCase();
     
-    // Pattern: {hours}/{amount}{B|S}@{price} - limit with expiration
-    const limitWithExpiry = /^(\d+)\/(\d+)(B|S)@(\d+)$/;
-    // Pattern: {amount}{B|S}@{price} - limit without expiration
-    const limitNoExpiry = /^(\d+)(B|S)@(\d+)$/;
+    // Pattern: {minutes}/{amount}{B|S}@{price}L - limit with expiration (L required)
+    const limitWithExpiryL = /^(\d+)\/(\d+)(B|S)@(\d+)L$/;
+    // Pattern: {amount}{B|S}@{price}L - limit without expiration (L required)
+    const limitNoExpiryL = /^(\d+)(B|S)@(\d+)L$/;
     // Pattern: {amount}{B|S} - market order
     const marketOrder = /^(\d+)(B|S)$/;
 
-    let match = trimmed.match(limitWithExpiry);
+    // Check for limit with expiry and L suffix (auto-executes on L)
+    let match = trimmed.match(limitWithExpiryL);
     if (match) {
-      const [, hours, amount, side, price] = match;
-      if (autoExecute || forceExecute) {
-        executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price), parseInt(hours));
-        setCommandInput('');
-      }
+      const [, minutes, amount, side, price] = match;
+      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price), parseInt(minutes));
+      setCommandInput('');
       return true;
     }
 
-    match = trimmed.match(limitNoExpiry);
+    // Check for limit without expiry and L suffix
+    match = trimmed.match(limitNoExpiryL);
     if (match) {
       const [, amount, side, price] = match;
-      // In auto-execute mode, plain limit orders require Enter
-      if (forceExecute) {
-        executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price));
-        setCommandInput('');
-      }
+      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price));
+      setCommandInput('');
       return true;
     }
 
+    // Check for market order
     match = trimmed.match(marketOrder);
     if (match) {
       const [, amount, side] = match;
@@ -325,14 +447,32 @@ export default function TradingTerminal() {
       return true;
     }
 
+    // Legacy patterns (without L suffix, require Enter)
+    const limitWithExpiryNoL = /^(\d+)\/(\d+)(B|S)@(\d+)$/;
+    const limitNoExpiryNoL = /^(\d+)(B|S)@(\d+)$/;
+    
+    match = trimmed.match(limitWithExpiryNoL);
+    if (match && forceExecute) {
+      const [, minutes, amount, side, price] = match;
+      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price), parseInt(minutes));
+      setCommandInput('');
+      return true;
+    }
+
+    match = trimmed.match(limitNoExpiryNoL);
+    if (match && forceExecute) {
+      const [, amount, side, price] = match;
+      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price));
+      setCommandInput('');
+      return true;
+    }
+
     return false;
   };
 
   const handleCommandChange = (value: string) => {
     setCommandInput(value);
-    if (autoExecute) {
-      parseAndExecuteCommand(value);
-    }
+    parseAndExecuteCommand(value);
   };
 
   const handleCommandKeyDown = (e: React.KeyboardEvent) => {
@@ -344,9 +484,10 @@ export default function TradingTerminal() {
   // Global hotkey handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Cmd+X to sell all
+      // Check for Cmd+X or Ctrl+X to sell all
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'x') {
         e.preventDefault();
+        e.stopPropagation();
         sellAllPositions();
         return;
       }
@@ -369,13 +510,13 @@ export default function TradingTerminal() {
           limitPrice = Math.max(1, Math.min(99, limitPrice));
         }
 
-        executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationHours);
+        executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationMinutes);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hotkeys, activeMarket, apiKey]);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [hotkeys, activeMarket, apiKey, sellAllPositions]);
 
   const addHotkey = () => {
     const newHotkey: Hotkey = {
@@ -411,7 +552,7 @@ export default function TradingTerminal() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 font-mono">
-      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
           <div className="flex items-center gap-3">
@@ -429,42 +570,48 @@ export default function TradingTerminal() {
                 {autoExecute ? <Zap className="w-4 h-4 text-yellow-500" /> : 'Auto'}
               </Label>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHotkeyPanel(!showHotkeyPanel)}
-              className="text-gray-400 hover:text-white"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Link to="/fintech/menu">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Exit
+              </Button>
+            </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Panel - Market & Trading */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* API Key */}
-            {!apiKey && (
-              <Card className="bg-gray-900/50 border-gray-800 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Key className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-400">Manifold API Key</span>
+        {/* API Key Warning */}
+        {!apiKey && (
+          <Card className="bg-yellow-900/20 border-yellow-800/50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Key className="w-4 h-4 text-yellow-500" />
+                  <span className="font-semibold text-yellow-400">API Key Required</span>
                 </div>
+                <p className="text-sm text-gray-400 mb-3">
+                  Enter your Manifold API key to enable trading. Your key is stored <span className="text-emerald-400">locally in your browser only</span> — we never send it to our servers.
+                </p>
                 <div className="flex gap-2">
                   <Input
                     type="password"
                     value={apiKeyInput}
                     onChange={(e) => setApiKeyInput(e.target.value)}
                     placeholder="Enter API key..."
-                    className="bg-gray-800 border-gray-700 text-white font-mono"
+                    className="bg-gray-800 border-gray-700 text-white font-mono max-w-md"
                   />
                   <Button onClick={saveApiKey} className="bg-emerald-600 hover:bg-emerald-700">
                     Save
                   </Button>
                 </div>
-              </Card>
-            )}
+              </div>
+            </div>
+          </Card>
+        )}
 
+        <div className="flex gap-4">
+          {/* Main Trading Area */}
+          <div className="flex-1 space-y-4">
             {/* Market Search */}
             <div className="relative">
               <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
@@ -538,7 +685,7 @@ export default function TradingTerminal() {
                 value={commandInput}
                 onChange={(e) => handleCommandChange(e.target.value)}
                 onKeyDown={handleCommandKeyDown}
-                placeholder={activeMarket && apiKey ? "100B = Buy YES, 100S = Buy NO, 1/100B@45 = Limit order..." : "Select a market first..."}
+                placeholder={activeMarket && apiKey ? "100B = Buy YES, 100S = Buy NO, 100B@45L = Limit order..." : "Select a market first..."}
                 disabled={!activeMarket || !apiKey}
                 className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4"
               />
@@ -550,42 +697,11 @@ export default function TradingTerminal() {
             {/* Command Reference */}
             <div className="text-xs text-gray-500 space-y-1">
               <div><span className="text-gray-400">100B</span> Buy 100M YES • <span className="text-gray-400">100S</span> Buy 100M NO</div>
-              <div><span className="text-gray-400">100B@45</span> Limit YES @45% • <span className="text-gray-400">1/100B@45</span> Limit with 1h expiry</div>
+              <div><span className="text-gray-400">100B@45L</span> Limit YES @45% • <span className="text-gray-400">30/100B@45L</span> Limit with 30min cancel</div>
               <div><span className="text-gray-400">Cmd+X</span> Sell all positions</div>
             </div>
 
-            {/* YouTube Embed */}
-            <Card className="bg-gray-900/50 border-gray-800 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Youtube className="w-4 h-4 text-red-500" />
-                <span className="text-sm text-gray-400">Embed Video</span>
-              </div>
-              <div className="flex gap-2 mb-3">
-                <Input
-                  value={youtubeInput}
-                  onChange={(e) => setYoutubeInput(e.target.value)}
-                  placeholder="YouTube URL..."
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
-                <Button onClick={saveYoutube} size="sm" className="bg-red-600 hover:bg-red-700">
-                  Embed
-                </Button>
-              </div>
-              {embedUrl && (
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <iframe
-                    src={embedUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              )}
-            </Card>
-          </div>
-
-          {/* Right Panel - Logs & Config */}
-          <div className="space-y-4">
+            {/* Logs & Config Tabs */}
             <Tabs defaultValue="logs" className="w-full">
               <TabsList className="w-full bg-gray-900 border border-gray-800">
                 <TabsTrigger value="logs" className="flex-1 data-[state=active]:bg-gray-800">
@@ -601,7 +717,7 @@ export default function TradingTerminal() {
 
               <TabsContent value="logs" className="mt-2">
                 <Card className="bg-gray-900/50 border-gray-800">
-                  <ScrollArea className="h-[500px] p-3">
+                  <ScrollArea className="h-[300px] p-3">
                     {executionLogs.length === 0 ? (
                       <div className="text-gray-500 text-sm text-center py-8">
                         No executions yet
@@ -636,7 +752,7 @@ export default function TradingTerminal() {
 
               <TabsContent value="hotkeys" className="mt-2">
                 <Card className="bg-gray-900/50 border-gray-800 p-3">
-                  <ScrollArea className="h-[500px]">
+                  <ScrollArea className="h-[300px]">
                     <div className="space-y-3">
                       {hotkeys.map((hotkey) => (
                         <div key={hotkey.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2">
@@ -718,9 +834,9 @@ export default function TradingTerminal() {
                           {hotkey.orderType !== 'market' && (
                             <Input
                               type="number"
-                              value={hotkey.expirationHours || ''}
-                              onChange={(e) => updateHotkey(hotkey.id, { expirationHours: parseInt(e.target.value) || undefined })}
-                              placeholder="Expiration (hours)"
+                              value={hotkey.expirationMinutes || ''}
+                              onChange={(e) => updateHotkey(hotkey.id, { expirationMinutes: parseInt(e.target.value) || undefined })}
+                              placeholder="Expiration (minutes)"
                               className="bg-gray-700 border-gray-600"
                             />
                           )}
@@ -755,6 +871,7 @@ export default function TradingTerminal() {
                         Save
                       </Button>
                     </div>
+                    <p className="text-xs text-gray-500 mt-2">Stored locally in your browser only.</p>
                   </div>
                   {apiKey && (
                     <Button
@@ -774,8 +891,54 @@ export default function TradingTerminal() {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* YouTube Side Panel */}
+          <div className="w-96 flex-shrink-0 space-y-4">
+            <Card className="bg-gray-900/50 border-gray-800 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Youtube className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-gray-400">Video Panel</span>
+              </div>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  value={youtubeInput}
+                  onChange={(e) => setYoutubeInput(e.target.value)}
+                  placeholder="YouTube URL..."
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+                <Button onClick={saveYoutube} size="sm" className="bg-red-600 hover:bg-red-700">
+                  Embed
+                </Button>
+              </div>
+              {embedUrl ? (
+                <div className="aspect-video rounded-lg overflow-hidden">
+                  <iframe
+                    src={embedUrl}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
+                  Paste a YouTube URL above
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+// Main export with landing page
+export default function TradingTerminal() {
+  const [showTerminal, setShowTerminal] = useState(false);
+
+  if (!showTerminal) {
+    return <TerminalLanding onEnter={() => setShowTerminal(true)} />;
+  }
+
+  return <TerminalMain />;
 }
