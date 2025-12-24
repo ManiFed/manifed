@@ -1,15 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { supabase } from '@/integrations/supabase/client';
-import { DonationButton } from '@/components/DonationButton';
-import { HeaderWallet } from '@/components/HeaderWallet';
-import { useUserBalance } from '@/hooks/useUserBalance';
-import manifedLogo from '@/assets/manifed-logo.png';
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { supabase } from "@/integrations/supabase/client";
+import { DonationButton } from "@/components/DonationButton";
+import { HeaderWallet } from "@/components/HeaderWallet";
+import { useUserBalance } from "@/hooks/useUserBalance";
+import manifedLogo from "@/assets/manifed-logo.png";
+import {
+  Landmark,
+  TrendingUp,
+  FileText,
+  Coins,
+  ArrowUpRight,
+  ArrowDownRight,
+  Bell,
+  LogOut,
+  Trophy,
+  Settings,
+  BarChart3,
+  Loader2,
+  Search,
+  Sparkles,
+  Store,
+  MoreHorizontal,
+  ChevronDown,
+  Activity,
+  Terminal,
+} from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -38,7 +58,7 @@ export default function Hub() {
   const [notifications, setNotifications] = useState<string[]>([]);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState<string>('');
+  const [username, setUsername] = useState<string>("");
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
   const [totalInvested, setTotalInvested] = useState(0);
   useEffect(() => {
@@ -47,16 +67,18 @@ export default function Hub() {
 
   const fetchHubData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Fetch manifold settings
       const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_username, manifold_api_key')
-        .eq('user_id', user.id)
+        .from("user_manifold_settings")
+        .select("manifold_username, manifold_api_key")
+        .eq("user_id", user.id)
         .maybeSingle();
-      
+
       setHasApiKey(!!settings?.manifold_api_key);
       if (settings?.manifold_username) {
         setUsername(settings.manifold_username);
@@ -64,61 +86,57 @@ export default function Hub() {
 
       // Fetch profile for verified badge
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('equipped_badge')
-        .eq('user_id', user.id)
+        .from("profiles")
+        .select("equipped_badge")
+        .eq("user_id", user.id)
         .maybeSingle();
-      
+
       // Fetch profile for verified badge - continued
       if (profile?.equipped_badge) {
         const { data: badgeItem } = await supabase
-          .from('market_items')
-          .select('category')
-          .eq('id', profile.equipped_badge)
+          .from("market_items")
+          .select("category")
+          .eq("id", profile.equipped_badge)
           .maybeSingle();
-        setHasVerifiedBadge(badgeItem?.category === 'badge');
+        setHasVerifiedBadge(badgeItem?.category === "badge");
       }
 
       // Fetch recent transactions
       const { data: transactionData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(5);
       setTransactions(transactionData || []);
 
       // Fetch active bonds
-      const { data: bondData } = await supabase
-        .from('bonds')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active');
+      const { data: bondData } = await supabase.from("bonds").select("*").eq("user_id", user.id).eq("status", "active");
       setBonds(bondData || []);
 
       // Fetch investment count and total invested
       const { count } = await supabase
-        .from('investments')
-        .select('*', { count: 'exact', head: true })
-        .eq('investor_user_id', user.id);
+        .from("investments")
+        .select("*", { count: "exact", head: true })
+        .eq("investor_user_id", user.id);
       setLoanCount(count || 0);
 
       // Calculate total invested from active investments
       const { data: investmentData } = await supabase
-        .from('investments')
-        .select('amount')
-        .eq('investor_user_id', user.id);
+        .from("investments")
+        .select("amount")
+        .eq("investor_user_id", user.id);
       const investedTotal = investmentData?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
       setTotalInvested(investedTotal);
 
       // Generate notifications
       const notifs: string[] = [];
-      if (bondData?.some(b => new Date(b.maturity_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))) {
-        notifs.push('You have bonds maturing soon!');
+      if (bondData?.some((b) => new Date(b.maturity_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))) {
+        notifs.push("You have bonds maturing soon!");
       }
       setNotifications(notifs);
     } catch (error) {
-      console.error('Error fetching hub data:', error);
+      console.error("Error fetching hub data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +144,7 @@ export default function Hub() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
@@ -182,15 +200,13 @@ export default function Hub() {
         {/* Welcome */}
         <div className="mb-8 animate-slide-up relative">
           <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-            Welcome back{username ? `, @${username}` : ''}
+            Welcome back{username ? `, @${username}` : ""}
           </h1>
-          <p className="font-serif text-muted-foreground">
-            Your ManiFed dashboard
-          </p>
+          <p className="font-serif text-muted-foreground">Your ManiFed dashboard</p>
         </div>
 
         {/* Portfolio Overview */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: '50ms' }}>
+        <section className="mb-8 animate-slide-up" style={{ animationDelay: "50ms" }}>
           <h2 className="font-display text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-accent" />
             Portfolio Overview
@@ -204,7 +220,9 @@ export default function Hub() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Total Portfolio</p>
-                    <p className="text-xl font-bold text-foreground">M${(totalInvested + bondValue).toLocaleString()}</p>
+                    <p className="text-xl font-bold text-foreground">
+                      M${(totalInvested + bondValue).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -241,7 +259,7 @@ export default function Hub() {
         </section>
 
         {/* Products Grid */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <section className="mb-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
           <h2 className="text-lg font-semibold text-foreground mb-4">Products</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* P2P Loans */}
@@ -316,7 +334,6 @@ export default function Hub() {
               </Card>
             </Link>
 
-
             {/* Miscellaneous */}
             <Collapsible>
               <Card className="glass h-full">
@@ -328,9 +345,7 @@ export default function Hub() {
                     <Badge variant="secondary">More</Badge>
                   </div>
                   <CardTitle className="text-xl mt-4">Miscellaneous</CardTitle>
-                  <CardDescription>
-                    Additional tools and features.
-                  </CardDescription>
+                  <CardDescription>Additional tools and features.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <CollapsibleTrigger asChild>
@@ -340,59 +355,35 @@ export default function Hub() {
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-4 space-y-3">
-                    <Link to="/credit-search" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <Link
+                      to="/credit-search"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <Search className="w-4 h-4 text-primary" />
                         <span className="font-medium text-foreground text-sm">Credit Search</span>
                       </div>
                       <p className="text-xs text-muted-foreground">Check creditworthiness of any Manifold user.</p>
                     </Link>
-                    
-                    <Link to="/leaderboard" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Trophy className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-foreground text-sm">Leaderboard</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">See top lenders, traders, and earners.</p>
-                    </Link>
 
-                    <Link to="/bonds" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Landmark className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-foreground text-sm">Treasury News</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Official announcements and treasury updates.</p>
-                    </Link>
-
-                    <Link to="/about" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <Link
+                      to="/about"
+                      className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="w-4 h-4 text-primary" />
                         <span className="font-medium text-foreground text-sm">About ManiFed</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">Learn about our platform and mission.</p>
-                    </Link>
-
-                    <Link to="/public-arbitrage" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Coins className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-foreground text-sm">Free Arb Opportunities</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">View curated arbitrage opportunities.</p>
-                    </Link>
-
-                    <Link to="/terminal" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Terminal className="w-4 h-4 text-emerald-500" />
-                        <span className="font-medium text-foreground text-sm">Trading Terminal</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Keyboard-driven fast trading interface.</p>
+                      <p className="text-xs text-muted-foreground">Learn about our platform and view recent updates.</p>
                     </Link>
 
                     <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
                       <div className="flex items-center gap-2 mb-1">
                         <Store className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium text-foreground text-sm">ManiFed Shop</span>
-                        <Badge variant="secondary" className="text-xs">Soon</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          Soon
+                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">Buy verified badges and site themes.</p>
                     </div>
@@ -405,28 +396,34 @@ export default function Hub() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Activity Feed */}
-          <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: '150ms' }}>
+          <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: "150ms" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
                 Recent Activity
               </h2>
               <Link to="/portfolio">
-                <Button variant="ghost" size="sm">View All</Button>
+                <Button variant="ghost" size="sm">
+                  View All
+                </Button>
               </Link>
             </div>
             <Card className="glass">
               <CardContent className="p-0">
                 {transactions.length > 0 ? (
                   <div className="divide-y divide-border/50">
-                    {transactions.map(tx => {
-                      const isPositive = tx.type === 'deposit' || tx.type === 'repayment' || tx.type === 'loan_received' || tx.type === 'bond_maturity';
+                    {transactions.map((tx) => {
+                      const isPositive =
+                        tx.type === "deposit" ||
+                        tx.type === "repayment" ||
+                        tx.type === "loan_received" ||
+                        tx.type === "bond_maturity";
                       const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
                       return (
                         <div key={tx.id} className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${isPositive ? 'bg-success/10' : 'bg-muted'}`}>
-                              <Icon className={`w-4 h-4 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
+                            <div className={`p-2 rounded-lg ${isPositive ? "bg-success/10" : "bg-muted"}`}>
+                              <Icon className={`w-4 h-4 ${isPositive ? "text-success" : "text-muted-foreground"}`} />
                             </div>
                             <div>
                               <p className="font-medium text-foreground text-sm">{tx.description || tx.type}</p>
@@ -435,8 +432,8 @@ export default function Hub() {
                               </p>
                             </div>
                           </div>
-                          <p className={`font-semibold ${tx.amount >= 0 ? 'text-success' : 'text-foreground'}`}>
-                            {tx.amount >= 0 ? '+' : ''}M${Math.abs(tx.amount).toLocaleString()}
+                          <p className={`font-semibold ${tx.amount >= 0 ? "text-success" : "text-foreground"}`}>
+                            {tx.amount >= 0 ? "+" : ""}M${Math.abs(tx.amount).toLocaleString()}
                           </p>
                         </div>
                       );
@@ -453,7 +450,7 @@ export default function Hub() {
           </div>
 
           {/* Notifications */}
-          <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
             <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-primary" />
               Notifications
