@@ -250,11 +250,10 @@ export default function Landing() {
     },
     {
       title: "ManiFed Fintech",
-      description: "Premium AI tools: Arbitrage Scanner, Market Agent, Index Funds, and more.",
+      description: "Premium tools: Trading Terminal, Index Funds, Arbitrage Opportunities, and more.",
       icon: Sparkles,
       link: "/fintech/menu",
       free: false,
-      badge: "Premium",
     },
   ];
   return (
