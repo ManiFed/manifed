@@ -9,7 +9,7 @@ import { DonationButton } from '@/components/DonationButton';
 import { HeaderWallet } from '@/components/HeaderWallet';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import manifedLogo from '@/assets/manifed-logo.png';
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity } from 'lucide-react';
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -378,6 +378,14 @@ export default function Hub() {
                         <span className="font-medium text-foreground text-sm">Free Arb Opportunities</span>
                       </div>
                       <p className="text-xs text-muted-foreground">View curated arbitrage opportunities.</p>
+                    </Link>
+
+                    <Link to="/terminal" className="block p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Terminal className="w-4 h-4 text-emerald-500" />
+                        <span className="font-medium text-foreground text-sm">Trading Terminal</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Keyboard-driven fast trading interface.</p>
                     </Link>
 
                     <div className="p-3 rounded-lg bg-secondary/30 opacity-60">
