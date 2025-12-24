@@ -279,31 +279,16 @@ export default function Landing() {
                   P2P Loans
                 </Button>
               </Link>
-              <Link to="/fintech">
+              <Link to="/auth?redirect=/fintech/menu">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  ManiFed Fintech
+                  Fintech
                 </Button>
               </Link>
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="font-serif gap-1">
-                    <MoreHorizontal className="w-4 h-4" />
-                    More
-                    <ChevronDown className="w-3 h-3" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="absolute top-full mt-2 right-0 bg-background/95 backdrop-blur-xl border border-border/50 rounded-lg p-2 min-w-[150px] shadow-lg">
-                  <Link to="/credit-search" className="block px-3 py-2 text-sm hover:bg-secondary/50 rounded">
-                    Tools
-                  </Link>
-                  <Link to="/about" className="block px-3 py-2 text-sm hover:bg-secondary/50 rounded">
-                    About
-                  </Link>
-                  <Link to="/public-arbitrage" className="block px-3 py-2 text-sm hover:bg-secondary/50 rounded">
-                    Free Arb Opps
-                  </Link>
-                </CollapsibleContent>
-              </Collapsible>
+              <Link to="/auth?redirect=/about">
+                <Button variant="ghost" size="sm" className="font-serif">
+                  About
+                </Button>
+              </Link>
             </nav>
 
             {/* Auth Buttons */}
