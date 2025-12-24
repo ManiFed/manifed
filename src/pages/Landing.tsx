@@ -283,7 +283,7 @@ export default function Landing() {
                   Fintech
                 </Button>
               </Link>
-              <Link to="/auth?redirect=/about">
+              <Link to="/about">
                 <Button variant="ghost" size="sm" className="font-serif">
                   About
                 </Button>
