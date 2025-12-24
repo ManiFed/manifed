@@ -20,7 +20,6 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<"select" | "withdraw">("select");
   const handleWithdraw = async () => {
-    }
 
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount < 10) {
