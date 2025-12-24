@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight, Terminal } from "lucide-react";
+import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
@@ -19,52 +19,38 @@ interface FintechSubscription {
 
 const fintechProducts = [
   {
-    id: 'index-funds',
-    title: 'Index Funds',
-    description: 'Batch trades on curated market groups. Execute diversified bets with one click.',
-    icon: TrendingUp,
-    path: '/fintech/index-funds',
-    color: 'from-blue-500 to-cyan-500',
+    id: "index-funds",
+    title: "Index Funds",
+    description: "Batch trades on curated market groups. Execute diversified bets with one click.",
+    path: "/fintech/index-funds",
+    color: "from-blue-500 to-cyan-500",
   },
   {
-    id: 'advanced-orders',
-    title: 'Advanced Orders',
-    description: 'Limit sell orders with automatic profit-taking. Set and forget your exit strategy.',
-    icon: Sparkles,
-    path: '/fintech/advanced-orders',
-    color: 'from-purple-500 to-pink-500',
+    id: "advanced-orders",
+    title: "Limit Sells",
+    path: "/fintech/advanced-orders",
+    color: "from-purple-500 to-pink-500",
   },
   {
-    id: 'calibration',
-    title: 'Calibration Analysis',
-    description: 'Analyze your prediction accuracy. Find your edge and improve your forecasting.',
-    icon: BarChart3,
-    path: '/fintech/calibration',
-    color: 'from-emerald-500 to-teal-500',
+    id: "calibration",
+    title: "Calibration Graphs",
+    path: "/fintech/calibration",
+    color: "from-emerald-500 to-teal-500",
   },
   {
-    id: 'bot-builder',
-    title: 'Bot Builder',
-    description: 'Create and test custom trading strategies. Backtest against historical data.',
+    id: "bot-builder",
+    title: "Bot Builder",
     icon: Bot,
-    path: '/fintech/bot-builder',
-    color: 'from-orange-500 to-amber-500',
+    path: "/fintech/bot-builder",
+    color: "from-orange-500 to-amber-500",
   },
   {
-    id: 'arbitrage',
-    title: 'AI Arbitrage Scanner',
-    description: 'AI-powered detection of mispriced correlated markets. Find guaranteed profits.',
+    id: "arbitrage",
+    title: "AI Arbitrage Scanner",
+    description: "AI-powered detection of mispriced correlated markets. Find guaranteed profits.",
     icon: Target,
-    path: '/arbitrage',
-    color: 'from-rose-500 to-red-500',
-  },
-  {
-    id: 'terminal',
-    title: 'Trading Terminal',
-    description: 'Fast keyboard-driven trading with command syntax and custom hotkeys.',
-    icon: Terminal,
-    path: '/terminal',
-    color: 'from-emerald-600 to-green-500',
+    path: "/arbitrage",
+    color: "from-rose-500 to-red-500",
   },
 ];
 
@@ -83,27 +69,29 @@ export default function FintechMenu() {
 
   const checkAccess = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        navigate('/auth?redirect=/fintech');
+        navigate("/auth?redirect=/fintech");
         return;
       }
 
       // Check API key
       const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_api_key')
-        .eq('user_id', user.id)
+        .from("user_manifold_settings")
+        .select("manifold_api_key")
+        .eq("user_id", user.id)
         .maybeSingle();
       setHasApiKey(!!settings?.manifold_api_key);
 
       // Check if admin
       const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
         .maybeSingle();
 
       if (roleData) {
@@ -115,25 +103,24 @@ export default function FintechMenu() {
 
       // Check subscription
       const { data: subData } = await supabase
-        .from('fintech_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("fintech_subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (subData) {
         setSubscription(subData);
-        const isActive = subData.is_active && 
-          (!subData.expires_at || new Date(subData.expires_at) > new Date());
+        const isActive = subData.is_active && (!subData.expires_at || new Date(subData.expires_at) > new Date());
         setHasAccess(isActive);
-        
+
         if (!isActive) {
-          navigate('/fintech');
+          navigate("/fintech");
         }
       } else {
-        navigate('/fintech');
+        navigate("/fintech");
       }
     } catch (error) {
-      console.error('Access check error:', error);
+      console.error("Access check error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -197,7 +184,7 @@ export default function FintechMenu() {
           <p className="font-serif text-muted-foreground">Advanced prediction market analysis and trading tools</p>
           {subscription?.expires_at && (
             <Badge variant="outline" className="mt-2 font-serif">
-              {subscription.is_gifted ? 'Gifted • ' : ''}
+              {subscription.is_gifted ? "Gifted • " : ""}
               Expires: {new Date(subscription.expires_at).toLocaleDateString()}
             </Badge>
           )}
@@ -208,7 +195,9 @@ export default function FintechMenu() {
             <Link key={product.id} to={product.path} className="group">
               <Card className="glass h-full hover:border-accent/50 transition-all hover:-translate-y-1">
                 <CardHeader>
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${product.color} flex items-center justify-center mb-3`}>
+                  <div
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${product.color} flex items-center justify-center mb-3`}
+                  >
                     <product.icon className="w-6 h-6 text-white" />
                   </div>
                   <CardTitle className="font-display text-xl">{product.title}</CardTitle>
