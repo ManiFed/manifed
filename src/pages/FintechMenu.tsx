@@ -19,11 +19,13 @@ interface FintechSubscription {
 
 const fintechProducts = [
   {
-    id: 'trading-terminal'
-    title: 'Trading Terminal'
-    description: "Trade with exceptional speed on real-time markets. ManiFed Fintech's flagship product."
-    path: '/terminal'
-  }
+    id: 'trading-terminal',
+    title: 'Trading Terminal',
+    description: "Trade with exceptional speed on real-time markets. ManiFed Fintech's flagship product.",
+    icon: Target,
+    path: '/terminal',
+    color: 'from-amber-500 to-orange-500',
+  },
   {
     id: 'index-funds',
     title: 'Index Funds',
