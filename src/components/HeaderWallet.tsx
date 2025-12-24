@@ -9,6 +9,7 @@ import { DepositPopup } from "./DepositPopup";
 
 interface HeaderWalletProps {
   balance: number;
+  hasApiKey: boolean;
   onBalanceChange: () => void;
 }
 
