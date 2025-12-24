@@ -122,6 +122,8 @@ export default function About() {
     return rateHistory.find(r => r.term_weeks === term);
   });
 
+  return (
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
