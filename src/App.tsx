@@ -36,6 +36,7 @@ import FintechAdvancedOrders from "./pages/FintechAdvancedOrders";
 import FintechCalibration from "./pages/FintechCalibration";
 import FintechBotBuilder from "./pages/FintechBotBuilder";
 import About from "./pages/About";
+import TradingTerminal from "./pages/TradingTerminal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -109,6 +110,7 @@ const App = () => (
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/about" element={<About />} />
+          <Route path="/terminal" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
