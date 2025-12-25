@@ -1,84 +1,86 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { Loader2, Sun, Moon, LogOut, ArrowLeft, Palette, Copy, User, Wallet } from 'lucide-react';
-import manifedLogo from '@/assets/manifed-logo.png';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Loader2, Sun, Moon, LogOut, ArrowLeft, Palette, Copy, User, Wallet } from "lucide-react";
+import manifedLogo from "@/assets/manifed-logo.png";
 
 export default function Settings() {
   const [isFetching, setIsFetching] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingDeposit, setIsCheckingDeposit] = useState(false);
-  
+
   // Theme settings
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
   // Account settings
-  const [accountCode, setAccountCode] = useState<string>('');
-  const [withdrawalUsername, setWithdrawalUsername] = useState<string>('');
-  const [manifoldUsername, setManifoldUsername] = useState<string>('');
+  const [accountCode, setAccountCode] = useState<string>("");
+  const [withdrawalUsername, setWithdrawalUsername] = useState<string>("");
+  const [manifoldUsername, setManifoldUsername] = useState<string>("");
 
   useEffect(() => {
     fetchSettings();
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('light', theme === 'light');
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.classList.toggle("light", theme === "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
   const fetchSettings = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Fetch profile settings (theme)
       const { data: profileData } = await supabase
-        .from('profiles')
-        .select('theme')
-        .eq('user_id', user.id)
+        .from("profiles")
+        .select("theme")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (profileData) {
-        setTheme(profileData.theme as 'dark' | 'light');
+        setTheme(profileData.theme as "dark" | "light");
       }
 
       // Fetch user balance with account code
       const { data: balanceData } = await supabase
-        .from('user_balances')
-        .select('account_code')
-        .eq('user_id', user.id)
+        .from("user_balances")
+        .select("account_code")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (balanceData?.account_code) {
         setAccountCode(balanceData.account_code);
       } else {
         // Generate account code if doesn't exist
-        const newCode = 'MF-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        const newCode = "MF-" + Math.random().toString(36).substring(2, 10).toUpperCase();
         const { error } = await supabase
-          .from('user_balances')
-          .upsert({ user_id: user.id, account_code: newCode }, { onConflict: 'user_id' });
+          .from("user_balances")
+          .upsert({ user_id: user.id, account_code: newCode }, { onConflict: "user_id" });
         if (!error) setAccountCode(newCode);
       }
 
       // Fetch manifold settings
       const { data: manifoldData } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_username, withdrawal_username')
-        .eq('user_id', user.id)
+        .from("user_manifold_settings")
+        .select("manifold_username, withdrawal_username")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (manifoldData) {
-        setManifoldUsername(manifoldData.manifold_username || '');
-        setWithdrawalUsername(manifoldData.withdrawal_username || manifoldData.manifold_username || '');
+        setManifoldUsername(manifoldData.manifold_username || "");
+        setWithdrawalUsername(manifoldData.withdrawal_username || manifoldData.manifold_username || "");
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error("Error fetching settings:", error);
     } finally {
       setIsFetching(false);
     }
@@ -87,37 +89,41 @@ export default function Settings() {
   const handleSavePreferences = async () => {
     setIsSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       // Save theme
-      await supabase
-        .from('profiles')
-        .upsert({
+      await supabase.from("profiles").upsert(
+        {
           user_id: user.id,
           theme,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        },
+        { onConflict: "user_id" },
+      );
 
       // Save withdrawal username
-      await supabase
-        .from('user_manifold_settings')
-        .upsert({
+      await supabase.from("user_manifold_settings").upsert(
+        {
           user_id: user.id,
           withdrawal_username: withdrawalUsername,
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        },
+        { onConflict: "user_id" },
+      );
 
       toast({
-        title: 'Settings Saved',
-        description: 'Your preferences have been updated.',
+        title: "Settings Saved",
+        description: "Your preferences have been updated.",
       });
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      console.error("Error saving preferences:", error);
       toast({
-        title: 'Failed to Save',
-        description: error instanceof Error ? error.message : 'Could not save preferences',
-        variant: 'destructive',
+        title: "Failed to Save",
+        description: error instanceof Error ? error.message : "Could not save preferences",
+        variant: "destructive",
       });
     } finally {
       setIsSaving(false);
@@ -127,27 +133,27 @@ export default function Settings() {
   const copyAccountCode = () => {
     navigator.clipboard.writeText(accountCode);
     toast({
-      title: 'Copied!',
-      description: 'Account code copied to clipboard.',
+      title: "Copied!",
+      description: "Account code copied to clipboard.",
     });
   };
 
   const handleCheckDeposit = async () => {
     setIsCheckingDeposit(true);
     try {
-      const { data, error } = await supabase.functions.invoke('verify-transactions');
+      const { data, error } = await supabase.functions.invoke("verify-transactions");
       if (error) throw error;
-      
+
       toast({
-        title: 'Deposit Check Complete',
-        description: `Verified: ${data.results?.verified || 0}, Pending: Check your balance.`,
+        title: "Deposit Check Complete",
+        description: `Check your balance in the Hub.`,
       });
     } catch (error) {
-      console.error('Check deposit error:', error);
+      console.error("Check deposit error:", error);
       toast({
-        title: 'Check Failed',
-        description: error instanceof Error ? error.message : 'Failed to check deposits',
-        variant: 'destructive',
+        title: "Check Failed",
+        description: error instanceof Error ? error.message : "Failed to check deposits",
+        variant: "destructive",
       });
     } finally {
       setIsCheckingDeposit(false);
@@ -156,7 +162,7 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   return (
@@ -192,9 +198,7 @@ export default function Settings() {
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-8 animate-slide-up">
           <h1 className="font-display text-3xl font-bold text-foreground mb-2">Settings</h1>
-          <p className="font-serif text-muted-foreground">
-            Manage your ManiFed account and preferences
-          </p>
+          <p className="font-serif text-muted-foreground">Manage your ManiFed account and preferences</p>
         </div>
 
         <div className="space-y-6">
@@ -229,16 +233,17 @@ export default function Settings() {
                       <strong className="text-foreground">To deposit M$:</strong>
                     </p>
                     <ol className="font-serif text-sm text-muted-foreground list-decimal list-inside space-y-1">
-                      <li>Send a Managram to <span className="font-bold text-accent">@ManiFed</span></li>
-                      <li>Include your account code <span className="font-mono text-foreground">{accountCode}</span> in the message</li>
+                      <li>
+                        Send a Managram to <span className="font-bold text-accent">@ManiFed</span>
+                      </li>
+                      <li>
+                        Include your account code <span className="font-mono text-foreground">{accountCode}</span> in
+                        the message
+                      </li>
                       <li>Click the button below to verify your deposit</li>
                     </ol>
                   </div>
-                  <Button 
-                    onClick={handleCheckDeposit} 
-                    disabled={isCheckingDeposit}
-                    className="w-full gap-2 font-serif"
-                  >
+                  <Button onClick={handleCheckDeposit} disabled={isCheckingDeposit} className="w-full gap-2 font-serif">
                     {isCheckingDeposit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
                     Check for Deposits
                   </Button>
@@ -246,7 +251,7 @@ export default function Settings() {
               </Card>
 
               {/* Withdrawal Username */}
-              <Card className="glass animate-slide-up" style={{ animationDelay: '50ms' }}>
+              <Card className="glass animate-slide-up" style={{ animationDelay: "50ms" }}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 font-display">
                     <Wallet className="w-5 h-5 text-accent" />
@@ -273,38 +278,32 @@ export default function Settings() {
               </Card>
 
               {/* Appearance Settings */}
-              <Card className="glass animate-slide-up" style={{ animationDelay: '100ms' }}>
+              <Card className="glass animate-slide-up" style={{ animationDelay: "100ms" }}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 font-display">
                     <Palette className="w-5 h-5 text-accent" />
                     Appearance
                   </CardTitle>
-                  <CardDescription className="font-serif">
-                    Customize how ManiFed looks
-                  </CardDescription>
+                  <CardDescription className="font-serif">Customize how ManiFed looks</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label className="flex items-center gap-2 font-serif">
-                        {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                        {theme === "dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                         Dark Mode
                       </Label>
                       <p className="text-sm text-muted-foreground font-serif">Toggle between light and dark themes</p>
                     </div>
                     <Switch
-                      checked={theme === 'dark'}
-                      onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                      checked={theme === "dark"}
+                      onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <Button 
-                onClick={handleSavePreferences} 
-                disabled={isSaving}
-                className="w-full gap-2 font-serif"
-              >
+              <Button onClick={handleSavePreferences} disabled={isSaving} className="w-full gap-2 font-serif">
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Save All Settings
               </Button>
