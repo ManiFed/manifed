@@ -33,6 +33,9 @@ interface Market {
   question: string;
   probability: number;
   url: string;
+  outcomeType?: string;
+  isResolved?: boolean;
+  answers?: { id: string; text: string; probability: number }[];
 }
 
 interface ExecutionLog {
@@ -57,6 +60,14 @@ interface Hotkey {
 interface Position {
   outcome: string;
   shares: number;
+  answerId?: string;
+}
+
+interface MultipleChoiceOption {
+  index: number;
+  id: string;
+  text: string;
+  probability: number;
 }
 
 const STORAGE_KEYS = {
@@ -197,6 +208,8 @@ function TerminalMain() {
   const [youtubeInput, setYoutubeInput] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [mcOptions, setMcOptions] = useState<MultipleChoiceOption[]>([]);
+  const [selectedMcIndex, setSelectedMcIndex] = useState<number>(0);
 
   const commandInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -263,19 +276,40 @@ function TerminalMain() {
   const fetchPositions = async () => {
     if (!activeMarket || !apiKey) return;
     try {
-      const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}/positions?userId=me`, {
+      // Fetch user info first to get user id
+      const meResponse = await fetch('https://api.manifold.markets/v0/me', {
+        headers: { Authorization: `Key ${apiKey}` },
+      });
+      if (!meResponse.ok) return;
+      const meData = await meResponse.json();
+      const userId = meData.id;
+
+      // Fetch positions for this market
+      const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}/positions?userId=${userId}`, {
         headers: { Authorization: `Key ${apiKey}` },
       });
       if (response.ok) {
         const data = await response.json();
-        if (data && data.length > 0) {
-          setPositions(data.map((p: any) => ({ outcome: p.outcome, shares: p.shares })));
+        console.log('[TT] Positions fetched:', data);
+        if (data && Array.isArray(data) && data.length > 0) {
+          // For binary markets: data[0].hasYesShares, data[0].hasNoShares, data[0].totalShares
+          // For MC markets: check answers
+          const pos: Position[] = [];
+          for (const p of data) {
+            if (p.hasYesShares && p.totalShares?.YES > 0) {
+              pos.push({ outcome: 'YES', shares: p.totalShares.YES, answerId: p.answerId });
+            }
+            if (p.hasNoShares && p.totalShares?.NO > 0) {
+              pos.push({ outcome: 'NO', shares: p.totalShares.NO, answerId: p.answerId });
+            }
+          }
+          setPositions(pos);
         } else {
           setPositions([]);
         }
       }
-    } catch {
-      // Ignore errors
+    } catch (err) {
+      console.error('[TT] Position fetch error:', err);
     }
   };
 
@@ -305,16 +339,28 @@ function TerminalMain() {
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=10`,
+        `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=30`,
       );
       if (response.ok) {
         const data = await response.json();
+        // Filter out resolved markets, date markets (STONK), numeric markets, and polls
+        const filtered = data.filter((m: any) => {
+          // Skip resolved markets
+          if (m.isResolved) return false;
+          // Skip STONK (date-based), NUMBER, POLL, BOUNTIED_QUESTION
+          const excludedTypes = ['STONK', 'NUMBER', 'POLL', 'BOUNTIED_QUESTION', 'PSEUDO_NUMERIC'];
+          if (excludedTypes.includes(m.outcomeType)) return false;
+          return true;
+        });
         setSearchResults(
-          data.map((m: any) => ({
+          filtered.slice(0, 10).map((m: any) => ({
             id: m.id,
             question: m.question,
             probability: m.probability,
             url: m.url,
+            outcomeType: m.outcomeType,
+            isResolved: m.isResolved,
+            answers: m.answers,
           })),
         );
       }
@@ -329,11 +375,27 @@ function TerminalMain() {
     setActiveMarket(market);
     setSearchResults([]);
     setSearchQuery("");
+    
+    // Set up multiple choice options if applicable
+    if (market.outcomeType === 'MULTIPLE_CHOICE' && market.answers) {
+      const options = market.answers.map((a, i) => ({
+        index: i + 1,
+        id: a.id,
+        text: a.text,
+        probability: a.probability,
+      }));
+      setMcOptions(options);
+      setSelectedMcIndex(1);
+    } else {
+      setMcOptions([]);
+      setSelectedMcIndex(0);
+    }
+    
     addLog("Market Selected", true, `${market.question.slice(0, 50)}...`);
     commandInputRef.current?.focus();
   };
 
-  const executeTrade = async (side: "YES" | "NO", amount: number, limitPrice?: number, expirationMinutes?: number) => {
+  const executeTrade = async (side: "YES" | "NO", amount: number, limitPrice?: number, expirationMinutes?: number, answerId?: string) => {
     if (!activeMarket || !apiKey) {
       addLog("Trade", false, "No market or API key");
       return;
@@ -344,6 +406,11 @@ function TerminalMain() {
       outcome: side,
       amount,
     };
+
+    // For multiple choice markets, include answerId
+    if (answerId) {
+      body.answerId = answerId;
+    }
 
     if (limitPrice !== undefined) {
       body.limitProb = limitPrice / 100;
@@ -426,58 +493,105 @@ function TerminalMain() {
   const parseAndExecuteCommand = (input: string, forceExecute = false) => {
     const trimmed = input.trim().toUpperCase();
 
-    // Pattern: {minutes}/{amount}{B|S}@{price}L - limit with expiration (L required)
-    const limitWithExpiryL = /^(\d+)\/(\d+)(B|S)@(\d+)L$/;
-    // Pattern: {amount}{B|S}@{price}L - limit without expiration (L required)
-    const limitNoExpiryL = /^(\d+)(B|S)@(\d+)L$/;
-    // Pattern: {amount}{B|S} - market order
-    const marketOrder = /^(\d+)(B|S)$/;
+    // Check for MC option switch with #N
+    const mcSwitch = /^#(\d+)$/;
+    let match = trimmed.match(mcSwitch);
+    if (match) {
+      const optionIndex = parseInt(match[1]);
+      if (optionIndex > 0 && optionIndex <= mcOptions.length) {
+        setSelectedMcIndex(optionIndex);
+        addLog("MC Switch", true, `Switched to option #${optionIndex}: ${mcOptions[optionIndex - 1]?.text?.slice(0, 30)}...`);
+      }
+      setCommandInput("");
+      return true;
+    }
 
-    // Check for limit with expiry and L suffix (auto-executes on L)
-    let match = trimmed.match(limitWithExpiryL);
+    // Check for MC trading on specific option: N:amountB or N:amountS
+    const mcTrade = /^(\d+):(\d+)(B|S)$/;
+    match = trimmed.match(mcTrade);
+    if (match && mcOptions.length > 0) {
+      const [, optionNum, amount, side] = match;
+      const optionIndex = parseInt(optionNum);
+      if (optionIndex > 0 && optionIndex <= mcOptions.length) {
+        const option = mcOptions[optionIndex - 1];
+        if (autoExecute || forceExecute) {
+          executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), undefined, undefined, option.id);
+          setCommandInput("");
+        }
+        return true;
+      }
+    }
+
+    // MC trading with limit: N:amountB@priceL
+    const mcTradeLimit = /^(\d+):(\d+)(B|S)@(\d+)L$/;
+    match = trimmed.match(mcTradeLimit);
+    if (match && mcOptions.length > 0) {
+      const [, optionNum, amount, side, price] = match;
+      const optionIndex = parseInt(optionNum);
+      if (optionIndex > 0 && optionIndex <= mcOptions.length) {
+        const option = mcOptions[optionIndex - 1];
+        executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), undefined, option.id);
+        setCommandInput("");
+        return true;
+      }
+    }
+
+    // Pattern: {minutes}/{amount}{B|S}@{price}L - limit with expiration (L required, auto-executes)
+    const limitWithExpiryL = /^(\d+)\/(\d+)(B|S)@(\d+)L$/;
+    match = trimmed.match(limitWithExpiryL);
     if (match) {
       const [, minutes, amount, side, price] = match;
-      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes));
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes), answerId);
       setCommandInput("");
       return true;
     }
 
-    // Check for limit without expiry and L suffix
-    match = trimmed.match(limitNoExpiryL);
+    // Pattern: /{amount}{B|S}@{price}L - limit without expiration (starts with /, L required, auto-executes)
+    const limitNoExpirySlashL = /^\/(\d+)(B|S)@(\d+)L$/;
+    match = trimmed.match(limitNoExpirySlashL);
     if (match) {
       const [, amount, side, price] = match;
-      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price));
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), undefined, answerId);
       setCommandInput("");
       return true;
     }
 
-    // Check for market order
+    // Pattern: /{amount}{B|S}@{price} - limit without expiration (requires / prefix, executes on Enter)
+    const limitNoExpirySlash = /^\/(\d+)(B|S)@(\d+)$/;
+    match = trimmed.match(limitNoExpirySlash);
+    if (match && forceExecute) {
+      const [, amount, side, price] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), undefined, answerId);
+      setCommandInput("");
+      return true;
+    }
+
+    // Pattern: {amount}{B|S}@{price}L - legacy (no slash, L required, auto-executes)
+    // NOTE: Without slash and without expiry, this is now invalid - must use /
+    
+    // Pattern: {amount}{B|S} - market order
+    const marketOrder = /^(\d+)(B|S)$/;
     match = trimmed.match(marketOrder);
     if (match) {
       const [, amount, side] = match;
       if (autoExecute || forceExecute) {
-        executeTrade(side === "B" ? "YES" : "NO", parseInt(amount));
+        const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+        executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), undefined, undefined, answerId);
         setCommandInput("");
       }
       return true;
     }
 
-    // Legacy patterns (without L suffix, require Enter)
+    // Legacy pattern with expiry (keep for backwards compat): {minutes}/{amount}{B|S}@{price}
     const limitWithExpiryNoL = /^(\d+)\/(\d+)(B|S)@(\d+)$/;
-    const limitNoExpiryNoL = /^(\d+)(B|S)@(\d+)$/;
-
     match = trimmed.match(limitWithExpiryNoL);
     if (match && forceExecute) {
       const [, minutes, amount, side, price] = match;
-      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes));
-      setCommandInput("");
-      return true;
-    }
-
-    match = trimmed.match(limitNoExpiryNoL);
-    if (match && forceExecute) {
-      const [, amount, side, price] = match;
-      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price));
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes), answerId);
       setCommandInput("");
       return true;
     }

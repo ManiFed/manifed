@@ -130,14 +130,89 @@ serve(async (req) => {
 
     console.log(`Processing ${action} for amount M$${amount} by user ${user.id}`);
 
-    // Fetch user's API key server-side using service role
+    // Fetch user's settings server-side using service role
     const { data: userSettings, error: settingsError } = await supabase
       .from("user_manifold_settings")
-      .select("manifold_api_key, manifold_username")
+      .select("manifold_api_key, manifold_username, withdrawal_username")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (settingsError || !userSettings?.manifold_api_key) {
+    // For withdrawals, we only need the withdrawal_username - API key is optional
+    // For investments, we still need the API key
+    if (action === "withdraw") {
+      // Get withdrawal username - prioritize withdrawal_username, fall back to manifold_username
+      const withdrawalUsername = userSettings?.withdrawal_username || userSettings?.manifold_username;
+      
+      if (!withdrawalUsername) {
+        return new Response(
+          JSON.stringify({ error: "No withdrawal username set. Please configure in Settings." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // First check if user has sufficient balance
+      const { data: balanceData } = await supabase
+        .from("user_balances")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      const currentBalance = Number(balanceData?.balance) || 0;
+      if (currentBalance < amount) {
+        return new Response(
+          JSON.stringify({ error: "Insufficient ManiFed balance" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`Processing withdrawal to @${withdrawalUsername}`);
+
+      // ManiFed sends managram back to user using the withdrawal username
+      const result = await sendManagram(
+        MANIFED_API_KEY,
+        withdrawalUsername,
+        amount,
+        message || `ManiFed withdrawal to @${withdrawalUsername}`
+      );
+
+      if (result.txnId) {
+        // Debit user's ManiFed balance
+        await updateUserBalance(supabase, user.id, amount, "subtract");
+        
+        // Record transaction
+        await supabase.from("transactions").insert({
+          user_id: user.id,
+          type: "withdraw",
+          amount: amount,
+          description: `Withdrawal to Manifold (@${withdrawalUsername}): M$${amount}`
+        });
+        
+        console.log(`Debited M$${amount} from user ${user.id} ManiFed balance, sent to @${withdrawalUsername}`);
+      }
+
+      // Fetch updated balance to return
+      const { data: updatedBalance } = await supabase
+        .from("user_balances")
+        .select("balance, total_invested")
+        .eq("user_id", user.id)
+        .single();
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          action,
+          amount,
+          username: withdrawalUsername,
+          newBalance: Number(updatedBalance?.balance) || 0,
+          newTotalInvested: Number(updatedBalance?.total_invested) || 0,
+          ...result 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // For invest action, we still need the API key for verification
+    if (!userSettings?.manifold_api_key) {
       console.error("Failed to fetch user API key:", settingsError);
       return new Response(
         JSON.stringify({ error: "Manifold account not connected. Please connect in Settings." }),
@@ -156,7 +231,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const manifoldUsername = userSettings.manifold_username;
 
     // Verify user's API key
     const meResponse = await fetch("https://api.manifold.markets/v0/me", {
@@ -175,45 +249,7 @@ serve(async (req) => {
 
     let result;
 
-    if (action === "withdraw") {
-      // First check if user has sufficient balance
-      const { data: balanceData } = await supabase
-        .from("user_balances")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
-
-      const currentBalance = Number(balanceData?.balance) || 0;
-      if (currentBalance < amount) {
-        return new Response(
-          JSON.stringify({ error: "Insufficient ManiFed balance" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // ManiFed sends managram back to user
-      result = await sendManagram(
-        MANIFED_API_KEY,
-        userData.username,
-        amount,
-        message || `ManiFed withdrawal to @${userData.username}`
-      );
-
-      if (result.txnId) {
-        // Debit user's ManiFed balance
-        await updateUserBalance(supabase, user.id, amount, "subtract");
-        
-        // Record transaction
-        await supabase.from("transactions").insert({
-          user_id: user.id,
-          type: "withdraw",
-          amount: amount,
-          description: `Withdrawal to Manifold: M$${amount}`
-        });
-        
-        console.log(`Debited M$${amount} from user ${user.id} ManiFed balance`);
-      }
-    } else if (action === "invest") {
+    if (action === "invest") {
       // Investment flow: Deduct from investor's ManiFed balance immediately
       // Funds are NOT sent to borrower until funding period ends (handled by process-repayments)
 

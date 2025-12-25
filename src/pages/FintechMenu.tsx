@@ -63,7 +63,7 @@ const fintechProducts = [
     title: 'AI Arbitrage Scanner',
     description: 'AI-powered detection of mispriced correlated markets. Find guaranteed profits.',
     icon: Target,
-    path: '/arbitrage',
+    path: '/fintech/arbitrage',
     color: 'from-rose-500 to-red-500',
   },
 ];
