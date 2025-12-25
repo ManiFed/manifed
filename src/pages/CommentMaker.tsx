@@ -29,6 +29,7 @@ interface MarketData {
 export default function CommentMaker() {
   const { balance, fetchBalance } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [marketUrl, setMarketUrl] = useState('');
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [isLoadingMarket, setIsLoadingMarket] = useState(false);
@@ -47,8 +48,13 @@ export default function CommentMaker() {
   const checkApiKey = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
+    const { data } = await supabase
+      .from('user_manifold_settings')
+      .select('manifold_api_key, withdrawal_username')
+      .eq('user_id', user.id)
+      .maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
+    setHasWithdrawalUsername(!!data?.withdrawal_username);
   };
 
   const fetchUsage = async () => {
@@ -197,7 +203,12 @@ export default function CommentMaker() {
                 <Sparkles className="w-3 h-3" />
                 {usageInfo.current}/{usageInfo.limit} posts
               </Badge>
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                 <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Sign Out</span>

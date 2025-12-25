@@ -67,6 +67,7 @@ export default function Market() {
   const [isLoading, setIsLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [equippingId, setEquippingId] = useState<string | null>(null);
   const { balance, fetchBalance } = useUserBalance();
@@ -100,14 +101,15 @@ export default function Market() {
         setUserItems(userItemsData as UserItem[]);
       }
 
-      // Check API key
+      // Check API key + withdrawal username (used by wallet)
       const { data: settings } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_api_key')
+        .select('manifold_api_key, withdrawal_username')
         .eq('user_id', user.id)
         .maybeSingle();
 
       setHasApiKey(!!settings?.manifold_api_key);
+      setHasWithdrawalUsername(!!settings?.withdrawal_username);
       await fetchBalance();
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -228,7 +230,12 @@ export default function Market() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />

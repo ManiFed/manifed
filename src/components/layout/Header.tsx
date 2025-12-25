@@ -25,6 +25,7 @@ export function Header() {
     fetchBalance
   } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   useEffect(() => {
     fetchUserSettings();
   }, []);
@@ -38,8 +39,13 @@ export function Header() {
       if (!user) return;
       const {
         data
-      } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
+      } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_api_key, withdrawal_username')
+        .eq('user_id', user.id)
+        .maybeSingle();
       setHasApiKey(!!data?.manifold_api_key);
+      setHasWithdrawalUsername(!!data?.withdrawal_username);
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -80,7 +86,12 @@ export function Header() {
 
           <div className="flex items-center gap-3">
             <div className="hidden sm:block">
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
             </div>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
               <LogOut className="w-4 h-4" />

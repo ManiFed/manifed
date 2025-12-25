@@ -10,11 +10,14 @@ import { DepositPopup } from "./DepositPopup";
 
 interface WalletPopoverProps {
   balance: number;
+  /** Still used elsewhere for features that require a connected Manifold account (not withdrawals). */
   hasApiKey: boolean;
+  /** Withdrawals are sent to the username configured in Settings. */
+  hasWithdrawalUsername: boolean;
   onBalanceChange: () => void;
 }
 
-export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPopoverProps) {
+export function WalletPopover({ balance, hasApiKey, hasWithdrawalUsername, onBalanceChange }: WalletPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,10 +25,10 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
   const [showDepositPopup, setShowDepositPopup] = useState(false);
 
   const handleWithdraw = async () => {
-    if (!hasApiKey) {
+    if (!hasWithdrawalUsername) {
       toast({
-        title: "API Key Required",
-        description: "Please connect your Manifold account in Settings first",
+        title: "Withdrawal Username Required",
+        description: "Set your withdrawal username in Settings to withdraw.",
         variant: "destructive",
       });
       return;
@@ -60,8 +63,11 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
         },
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        const msg = (error as any)?.context?.body?.error ?? error.message;
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
 
       onBalanceChange();
       setAmount("");
@@ -125,15 +131,15 @@ export function WalletPopover({ balance, hasApiKey, onBalanceChange }: WalletPop
                   variant="outline" 
                   onClick={() => setMode("withdraw")} 
                   className="gap-2"
-                  disabled={!hasApiKey}
+                  disabled={!hasWithdrawalUsername}
                 >
                   <Minus className="w-4 h-4" />
                   Withdraw
                 </Button>
               </div>
-              {!hasApiKey && (
+              {!hasWithdrawalUsername && (
                 <p className="text-xs text-warning text-center">
-                  <Link to="/settings" className="underline">Connect your Manifold API key</Link> to withdraw
+                  <Link to="/settings" className="underline">Set your withdrawal username</Link> to withdraw
                 </p>
               )}
               <p className="text-xs text-muted-foreground text-center">Minimum transaction: M$10</p>

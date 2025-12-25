@@ -59,6 +59,7 @@ export default function BondMarket() {
   const [askingPrice, setAskingPrice] = useState('');
   const [isListing, setIsListing] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const { balance, fetchBalance } = useUserBalance();
 
@@ -101,14 +102,15 @@ export default function BondMarket() {
         setUserBonds(bondsData.filter(b => !listedBondIds.has(b.id)) as UserBond[]);
       }
 
-      // Check API key
+      // Check API key + withdrawal username (used by wallet)
       const { data: settings } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_api_key')
+        .select('manifold_api_key, withdrawal_username')
         .eq('user_id', user.id)
         .maybeSingle();
 
       setHasApiKey(!!settings?.manifold_api_key);
+      setHasWithdrawalUsername(!!settings?.withdrawal_username);
       await fetchBalance();
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -221,7 +223,12 @@ export default function BondMarket() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/bonds">
                 <Button variant="outline" size="sm">Buy New Bonds</Button>
               </Link>

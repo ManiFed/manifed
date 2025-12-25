@@ -62,6 +62,7 @@ export default function Memecoins() {
   const [isLoading, setIsLoading] = useState(true);
   const [isTrading, setIsTrading] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -100,10 +101,11 @@ export default function Memecoins() {
         await fetchBalance();
         const { data: settings } = await supabase
           .from("user_manifold_settings")
-          .select("manifold_api_key")
+          .select("manifold_api_key, withdrawal_username")
           .eq("user_id", user.id)
           .maybeSingle();
         setHasApiKey(!!settings?.manifold_api_key);
+        setHasWithdrawalUsername(!!settings?.withdrawal_username);
 
         // Fetch holdings
         const { data: holdingsData } = await supabase
@@ -335,7 +337,12 @@ export default function Memecoins() {
             <div className="flex items-center gap-3">
               {isAuthenticated ? (
                 <>
-                  <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+                  <WalletPopover
+                    balance={balance}
+                    hasApiKey={hasApiKey}
+                    hasWithdrawalUsername={hasWithdrawalUsername}
+                    onBalanceChange={fetchBalance}
+                  />
                   <Link to="/hub">
                     <Button variant="ghost" size="sm">
                       Hub
