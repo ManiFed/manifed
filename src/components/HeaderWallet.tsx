@@ -9,17 +9,29 @@ import { DepositPopup } from "./DepositPopup";
 
 interface HeaderWalletProps {
   balance: number;
+  /** Still used elsewhere for features that require a connected Manifold account (not withdrawals). */
   hasApiKey: boolean;
+  /** Withdrawals are sent to the username configured in Settings. */
+  hasWithdrawalUsername: boolean;
   onBalanceChange: () => void;
 }
 
-export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWalletProps) {
+export function HeaderWallet({ balance, hasApiKey, hasWithdrawalUsername, onBalanceChange }: HeaderWalletProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showDepositPopup, setShowDepositPopup] = useState(false);
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<"select" | "withdraw">("select");
   const handleWithdraw = async () => {
+    if (!hasWithdrawalUsername) {
+      toast({
+        title: "Withdrawal Username Required",
+        description: "Set your withdrawal username in Settings to withdraw.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount < 10) {
       toast({
@@ -45,12 +57,15 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
         body: {
           action: "withdraw",
           amount: withdrawAmount,
-          message: `Withdrawl from ManiFed account - M$${withdrawAmount}`,
+          message: `Withdrawal from ManiFed account - M$${withdrawAmount}`,
         },
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        const msg = (error as any)?.context?.body?.error ?? error.message;
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
 
       onBalanceChange();
       setAmount("");
@@ -111,7 +126,12 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
                   <Plus className="w-4 h-4" />
                   Deposit
                 </Button>
-                <Button variant="outline" onClick={() => setMode("withdraw")} className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setMode("withdraw")}
+                  className="gap-2"
+                  disabled={!hasWithdrawalUsername}
+                >
                   <Minus className="w-4 h-4" />
                   Withdraw
                 </Button>

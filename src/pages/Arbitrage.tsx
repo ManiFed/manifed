@@ -136,6 +136,7 @@ export default function Arbitrage() {
     clearAnalysis
   } = useAIArbitrage();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -230,8 +231,13 @@ export default function Arbitrage() {
     if (!user) return;
     const {
       data
-    } = await supabase.from('user_manifold_settings').select('manifold_api_key').eq('user_id', user.id).maybeSingle();
+    } = await supabase
+      .from('user_manifold_settings')
+      .select('manifold_api_key, withdrawal_username')
+      .eq('user_id', user.id)
+      .maybeSingle();
     setHasApiKey(!!data?.manifold_api_key);
+    setHasWithdrawalUsername(!!data?.withdrawal_username);
   };
   const handleScan = async () => {
     if (!hasApiKey) {
@@ -719,7 +725,12 @@ export default function Arbitrage() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />

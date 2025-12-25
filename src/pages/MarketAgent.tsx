@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,12 +33,31 @@ interface MarketData {
 export default function MarketAgent() {
   const { balance, fetchBalance } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [marketUrl, setMarketUrl] = useState('');
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [isLoadingMarket, setIsLoadingMarket] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAsking, setIsAsking] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_api_key, withdrawal_username')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      setHasApiKey(!!data?.manifold_api_key);
+      setHasWithdrawalUsername(!!data?.withdrawal_username);
+    };
+
+    fetchSettings();
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -189,7 +208,12 @@ export default function MarketAgent() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <WalletPopover balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <WalletPopover
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />

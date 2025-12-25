@@ -57,6 +57,7 @@ export default function Hub() {
   const [loanCount, setLoanCount] = useState(0);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string>("");
   const [hasVerifiedBadge, setHasVerifiedBadge] = useState(false);
@@ -75,11 +76,12 @@ export default function Hub() {
       // Fetch manifold settings
       const { data: settings } = await supabase
         .from("user_manifold_settings")
-        .select("manifold_username, manifold_api_key")
+        .select("manifold_username, manifold_api_key, withdrawal_username")
         .eq("user_id", user.id)
         .maybeSingle();
 
       setHasApiKey(!!settings?.manifold_api_key);
+      setHasWithdrawalUsername(!!settings?.withdrawal_username);
       if (settings?.manifold_username) {
         setUsername(settings.manifold_username);
       }
@@ -180,7 +182,12 @@ export default function Hub() {
                   </span>
                 </div>
               )}
-              <HeaderWallet balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <HeaderWallet
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <DonationButton />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">

@@ -74,6 +74,7 @@ export default function FintechMenu() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [subscription, setSubscription] = useState<FintechSubscription | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -90,13 +91,14 @@ export default function FintechMenu() {
         return;
       }
 
-      // Check API key
+      // Check API key + withdrawal username (used by wallet)
       const { data: settings } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_api_key')
+        .select('manifold_api_key, withdrawal_username')
         .eq('user_id', user.id)
         .maybeSingle();
       setHasApiKey(!!settings?.manifold_api_key);
+      setHasWithdrawalUsername(!!settings?.withdrawal_username);
 
       // Check if admin
       const { data: roleData } = await supabase
@@ -179,7 +181,12 @@ export default function FintechMenu() {
               {isAdmin && <Badge variant="secondary">Admin</Badge>}
             </Link>
             <div className="flex items-center gap-3">
-              <HeaderWallet balance={balance} hasApiKey={hasApiKey} onBalanceChange={fetchBalance} />
+              <HeaderWallet
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/hub">
                 <Button variant="ghost" size="sm" className="gap-2 font-serif">
                   <ArrowLeft className="w-4 h-4" />
