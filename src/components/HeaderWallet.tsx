@@ -137,6 +137,7 @@ export function HeaderWallet({ balance, hasApiKey, hasWithdrawalUsername, onBala
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground text-center">Minimum transaction: M$10</p>
+              <p className="text-xs text-muted-foreground text-center">Enter your username in Settings to withdraw.</p>
             </div>
           ) : (
             <div className="space-y-3">
