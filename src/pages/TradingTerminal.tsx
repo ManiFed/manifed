@@ -1,16 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { Search, Zap, Key, Settings, Terminal, Youtube, Wifi, WifiOff, Trash2, Plus, ArrowLeft, AlertTriangle, Keyboard, Book, ArrowRight } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import {
+  Search,
+  Zap,
+  Key,
+  Settings,
+  Terminal,
+  Youtube,
+  Wifi,
+  WifiOff,
+  Trash2,
+  Plus,
+  ArrowLeft,
+  AlertTriangle,
+  Keyboard,
+  Book,
+  ArrowRight,
+} from "lucide-react";
 
 interface Market {
   id: string;
@@ -30,9 +46,9 @@ interface ExecutionLog {
 interface Hotkey {
   id: string;
   key: string;
-  side: 'YES' | 'NO';
+  side: "YES" | "NO";
   amount: number;
-  orderType: 'market' | 'limit-fixed' | 'limit-relative';
+  orderType: "market" | "limit-fixed" | "limit-relative";
   limitPrice?: number;
   relativeOffset?: number;
   expirationMinutes?: number;
@@ -44,9 +60,9 @@ interface Position {
 }
 
 const STORAGE_KEYS = {
-  API_KEY: 'manifold_terminal_api_key',
-  HOTKEYS: 'manifold_terminal_hotkeys',
-  YOUTUBE_URL: 'manifold_terminal_youtube',
+  API_KEY: "manifold_terminal_api_key",
+  HOTKEYS: "manifold_terminal_hotkeys",
+  YOUTUBE_URL: "manifold_terminal_youtube",
 };
 
 // Landing page component
@@ -72,7 +88,9 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
         <div className="max-w-2xl w-full space-y-8">
           <div className="text-center space-y-4">
             <h1 className="text-4xl font-bold text-white font-mono">Fast Keyboard-Driven Trading</h1>
-            <p className="text-gray-400 text-lg">Execute trades on Manifold Markets with lightning speed using keyboard shortcuts and command syntax.</p>
+            <p className="text-gray-400 text-lg">
+              Execute trades on Manifold Markets with lightning speed using keyboard shortcuts and command syntax.
+            </p>
           </div>
 
           <Card className="bg-gray-900/50 border-gray-800 p-6 space-y-6">
@@ -93,7 +111,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
             <div className="flex items-start gap-3">
               <Keyboard className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-white mb-2">Command Syntax</h3>
+                <h3 className="font-semibold text-white mb-2">Command Syntax Examples</h3>
                 <div className="space-y-2 text-sm font-mono">
                   <div className="flex gap-4">
                     <code className="text-emerald-400 w-28">100B</code>
@@ -104,8 +122,8 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                     <span className="text-gray-400">Buy 100 mana of NO at market price</span>
                   </div>
                   <div className="flex gap-4">
-                    <code className="text-yellow-400 w-28">100B@45L</code>
-                    <span className="text-gray-400">Limit YES @45% (press L to confirm)</span>
+                    <code className="text-yellow-400 w-28">/100B@45L</code>
+                    <span className="text-gray-400">Limit YES @45%</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">30/100B@45L</code>
@@ -120,7 +138,8 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
               <div>
                 <h3 className="font-semibold text-white mb-1">Auto-Execute Mode</h3>
                 <p className="text-sm text-gray-400">
-                  When enabled, market orders execute instantly. Limit orders require <code className="text-yellow-400">L</code> suffix or Enter key to confirm.
+                  When enabled, market orders execute instantly. Limit orders require{" "}
+                  <code className="text-yellow-400">L</code> suffix or Enter key to confirm.
                 </p>
               </div>
             </div>
@@ -130,7 +149,8 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
               <div>
                 <h3 className="font-semibold text-white mb-1">Custom Hotkeys</h3>
                 <p className="text-sm text-gray-400">
-                  Bind keyboard keys to preset orders. Press a single key to execute trades instantly when not in an input field.
+                  Bind keyboard keys to preset orders. Press a single key to execute trades instantly when not in an
+                  input field.
                 </p>
               </div>
             </div>
@@ -150,11 +170,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
           </Card>
 
           <div className="text-center">
-            <Button 
-              onClick={onEnter}
-              size="lg"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-8"
-            >
+            <Button onClick={onEnter} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-8">
               Enter Terminal
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -167,21 +183,21 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
 
 // Main terminal component
 function TerminalMain() {
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Market[]>([]);
   const [activeMarket, setActiveMarket] = useState<Market | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [autoExecute, setAutoExecute] = useState(false);
-  const [commandInput, setCommandInput] = useState('');
+  const [commandInput, setCommandInput] = useState("");
   const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
   const [hotkeys, setHotkeys] = useState<Hotkey[]>([]);
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [youtubeInput, setYoutubeInput] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeInput, setYoutubeInput] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
-  
+
   const commandInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -191,7 +207,7 @@ function TerminalMain() {
     const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
     const savedHotkeys = localStorage.getItem(STORAGE_KEYS.HOTKEYS);
     const savedYoutube = localStorage.getItem(STORAGE_KEYS.YOUTUBE_URL);
-    
+
     if (savedApiKey) {
       setApiKey(savedApiKey);
       setApiKeyInput(savedApiKey);
@@ -218,7 +234,7 @@ function TerminalMain() {
           const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`);
           if (response.ok) {
             const data = await response.json();
-            setActiveMarket(prev => prev ? { ...prev, probability: data.probability } : null);
+            setActiveMarket((prev) => (prev ? { ...prev, probability: data.probability } : null));
             setIsConnected(true);
           } else {
             setIsConnected(false);
@@ -248,7 +264,7 @@ function TerminalMain() {
     if (!activeMarket || !apiKey) return;
     try {
       const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}/positions?userId=me`, {
-        headers: { 'Authorization': `Key ${apiKey}` }
+        headers: { Authorization: `Key ${apiKey}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -271,14 +287,14 @@ function TerminalMain() {
       success,
       details,
     };
-    setExecutionLogs(prev => [log, ...prev].slice(0, 100));
+    setExecutionLogs((prev) => [log, ...prev].slice(0, 100));
   }, []);
 
   const saveApiKey = () => {
     localStorage.setItem(STORAGE_KEYS.API_KEY, apiKeyInput);
     setApiKey(apiKeyInput);
-    toast.success('API key saved');
-    addLog('API Key', true, 'API key saved to localStorage');
+    toast.success("API key saved");
+    addLog("API Key", true, "API key saved to localStorage");
   };
 
   const searchMarkets = async (query: string) => {
@@ -288,18 +304,22 @@ function TerminalMain() {
     }
     setIsSearching(true);
     try {
-      const response = await fetch(`https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=10`);
+      const response = await fetch(
+        `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=10`,
+      );
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.map((m: any) => ({
-          id: m.id,
-          question: m.question,
-          probability: m.probability,
-          url: m.url,
-        })));
+        setSearchResults(
+          data.map((m: any) => ({
+            id: m.id,
+            question: m.question,
+            probability: m.probability,
+            url: m.url,
+          })),
+        );
       }
     } catch (err) {
-      addLog('Search', false, 'Failed to search markets');
+      addLog("Search", false, "Failed to search markets");
     } finally {
       setIsSearching(false);
     }
@@ -308,19 +328,14 @@ function TerminalMain() {
   const selectMarket = (market: Market) => {
     setActiveMarket(market);
     setSearchResults([]);
-    setSearchQuery('');
-    addLog('Market Selected', true, `${market.question.slice(0, 50)}...`);
+    setSearchQuery("");
+    addLog("Market Selected", true, `${market.question.slice(0, 50)}...`);
     commandInputRef.current?.focus();
   };
 
-  const executeTrade = async (
-    side: 'YES' | 'NO',
-    amount: number,
-    limitPrice?: number,
-    expirationMinutes?: number
-  ) => {
+  const executeTrade = async (side: "YES" | "NO", amount: number, limitPrice?: number, expirationMinutes?: number) => {
     if (!activeMarket || !apiKey) {
-      addLog('Trade', false, 'No market or API key');
+      addLog("Trade", false, "No market or API key");
       return;
     }
 
@@ -338,54 +353,54 @@ function TerminalMain() {
     }
 
     try {
-      const response = await fetch('https://api.manifold.markets/v0/bet', {
-        method: 'POST',
+      const response = await fetch("https://api.manifold.markets/v0/bet", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Key ${apiKey}`,
+          "Content-Type": "application/json",
+          Authorization: `Key ${apiKey}`,
         },
         body: JSON.stringify(body),
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
-        const orderType = limitPrice ? `Limit @${limitPrice}%` : 'Market';
-        const expiry = expirationMinutes ? ` (${expirationMinutes}m)` : '';
-        addLog(`${side} ${orderType}${expiry}`, true, `${amount}M → ${data.shares?.toFixed(2) || '?'} shares`);
+        const orderType = limitPrice ? `Limit @${limitPrice}%` : "Market";
+        const expiry = expirationMinutes ? ` (${expirationMinutes}m)` : "";
+        addLog(`${side} ${orderType}${expiry}`, true, `${amount}M → ${data.shares?.toFixed(2) || "?"} shares`);
         toast.success(`${side} order placed`);
         fetchPositions();
       } else {
-        addLog(`${side} Order`, false, data.message || 'Failed');
-        toast.error(data.message || 'Trade failed');
+        addLog(`${side} Order`, false, data.message || "Failed");
+        toast.error(data.message || "Trade failed");
       }
     } catch (err) {
-      addLog('Trade', false, 'Network error');
-      toast.error('Network error');
+      addLog("Trade", false, "Network error");
+      toast.error("Network error");
     }
   };
 
   const sellAllPositions = useCallback(async () => {
     if (!activeMarket || !apiKey) {
-      addLog('Sell All', false, 'No market or API key');
-      toast.error('No active market or API key');
+      addLog("Sell All", false, "No market or API key");
+      toast.error("No active market or API key");
       return;
     }
-    
+
     if (positions.length === 0) {
-      addLog('Sell All', false, 'No positions to sell');
-      toast.error('No positions to sell');
+      addLog("Sell All", false, "No positions to sell");
+      toast.error("No positions to sell");
       return;
     }
 
     for (const pos of positions) {
       if (pos.shares > 0) {
         try {
-          const response = await fetch('https://api.manifold.markets/v0/market/' + activeMarket.id + '/sell', {
-            method: 'POST',
+          const response = await fetch("https://api.manifold.markets/v0/market/" + activeMarket.id + "/sell", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Key ${apiKey}`,
+              "Content-Type": "application/json",
+              Authorization: `Key ${apiKey}`,
             },
             body: JSON.stringify({
               outcome: pos.outcome,
@@ -397,20 +412,20 @@ function TerminalMain() {
           if (response.ok) {
             addLog(`Sell ${pos.outcome}`, true, `Sold ${pos.shares.toFixed(2)} shares`);
           } else {
-            addLog(`Sell ${pos.outcome}`, false, data.message || 'Failed');
+            addLog(`Sell ${pos.outcome}`, false, data.message || "Failed");
           }
         } catch {
-          addLog(`Sell ${pos.outcome}`, false, 'Network error');
+          addLog(`Sell ${pos.outcome}`, false, "Network error");
         }
       }
     }
     fetchPositions();
-    toast.success('Sold all positions');
+    toast.success("Sold all positions");
   }, [activeMarket, apiKey, positions, addLog]);
 
   const parseAndExecuteCommand = (input: string, forceExecute = false) => {
     const trimmed = input.trim().toUpperCase();
-    
+
     // Pattern: {minutes}/{amount}{B|S}@{price}L - limit with expiration (L required)
     const limitWithExpiryL = /^(\d+)\/(\d+)(B|S)@(\d+)L$/;
     // Pattern: {amount}{B|S}@{price}L - limit without expiration (L required)
@@ -422,8 +437,8 @@ function TerminalMain() {
     let match = trimmed.match(limitWithExpiryL);
     if (match) {
       const [, minutes, amount, side, price] = match;
-      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price), parseInt(minutes));
-      setCommandInput('');
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes));
+      setCommandInput("");
       return true;
     }
 
@@ -431,8 +446,8 @@ function TerminalMain() {
     match = trimmed.match(limitNoExpiryL);
     if (match) {
       const [, amount, side, price] = match;
-      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price));
-      setCommandInput('');
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price));
+      setCommandInput("");
       return true;
     }
 
@@ -441,8 +456,8 @@ function TerminalMain() {
     if (match) {
       const [, amount, side] = match;
       if (autoExecute || forceExecute) {
-        executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount));
-        setCommandInput('');
+        executeTrade(side === "B" ? "YES" : "NO", parseInt(amount));
+        setCommandInput("");
       }
       return true;
     }
@@ -450,20 +465,20 @@ function TerminalMain() {
     // Legacy patterns (without L suffix, require Enter)
     const limitWithExpiryNoL = /^(\d+)\/(\d+)(B|S)@(\d+)$/;
     const limitNoExpiryNoL = /^(\d+)(B|S)@(\d+)$/;
-    
+
     match = trimmed.match(limitWithExpiryNoL);
     if (match && forceExecute) {
       const [, minutes, amount, side, price] = match;
-      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price), parseInt(minutes));
-      setCommandInput('');
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price), parseInt(minutes));
+      setCommandInput("");
       return true;
     }
 
     match = trimmed.match(limitNoExpiryNoL);
     if (match && forceExecute) {
       const [, amount, side, price] = match;
-      executeTrade(side === 'B' ? 'YES' : 'NO', parseInt(amount), parseInt(price));
-      setCommandInput('');
+      executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), parseInt(price));
+      setCommandInput("");
       return true;
     }
 
@@ -476,7 +491,7 @@ function TerminalMain() {
   };
 
   const handleCommandKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       parseAndExecuteCommand(commandInput, true);
     }
   };
@@ -485,7 +500,7 @@ function TerminalMain() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Cmd+X or Ctrl+X to sell all
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'x') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "x") {
         e.preventDefault();
         e.stopPropagation();
         sellAllPositions();
@@ -494,17 +509,17 @@ function TerminalMain() {
 
       // Ignore if typing in input
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (!activeMarket || !apiKey) return;
 
-      const hotkey = hotkeys.find(h => h.key.toUpperCase() === e.key.toUpperCase());
+      const hotkey = hotkeys.find((h) => h.key.toUpperCase() === e.key.toUpperCase());
       if (hotkey) {
         e.preventDefault();
         let limitPrice: number | undefined;
-        
-        if (hotkey.orderType === 'limit-fixed') {
+
+        if (hotkey.orderType === "limit-fixed") {
           limitPrice = hotkey.limitPrice;
-        } else if (hotkey.orderType === 'limit-relative') {
+        } else if (hotkey.orderType === "limit-relative") {
           const currentProb = Math.round(activeMarket.probability * 100);
           limitPrice = currentProb + (hotkey.relativeOffset || 0);
           limitPrice = Math.max(1, Math.min(99, limitPrice));
@@ -514,33 +529,33 @@ function TerminalMain() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [hotkeys, activeMarket, apiKey, sellAllPositions]);
 
   const addHotkey = () => {
     const newHotkey: Hotkey = {
       id: crypto.randomUUID(),
-      key: '',
-      side: 'YES',
+      key: "",
+      side: "YES",
       amount: 10,
-      orderType: 'market',
+      orderType: "market",
     };
     setHotkeys([...hotkeys, newHotkey]);
   };
 
   const updateHotkey = (id: string, updates: Partial<Hotkey>) => {
-    setHotkeys(hotkeys.map(h => h.id === id ? { ...h, ...updates } : h));
+    setHotkeys(hotkeys.map((h) => (h.id === id ? { ...h, ...updates } : h)));
   };
 
   const deleteHotkey = (id: string) => {
-    setHotkeys(hotkeys.filter(h => h.id !== id));
+    setHotkeys(hotkeys.filter((h) => h.id !== id));
   };
 
   const saveYoutube = () => {
     localStorage.setItem(STORAGE_KEYS.YOUTUBE_URL, youtubeInput);
     setYoutubeUrl(youtubeInput);
-    toast.success('Video saved');
+    toast.success("Video saved");
   };
 
   const getYoutubeEmbedUrl = (url: string) => {
@@ -567,7 +582,7 @@ function TerminalMain() {
                 className="data-[state=checked]:bg-emerald-600"
               />
               <Label className="text-sm text-gray-400">
-                {autoExecute ? <Zap className="w-4 h-4 text-yellow-500" /> : 'Auto'}
+                {autoExecute ? <Zap className="w-4 h-4 text-yellow-500" /> : "Auto"}
               </Label>
             </div>
             <Link to="/fintech/menu">
@@ -590,7 +605,9 @@ function TerminalMain() {
                   <span className="font-semibold text-yellow-400">API Key Required</span>
                 </div>
                 <p className="text-sm text-gray-400 mb-3">
-                  Enter your Manifold API key to enable trading. Your key is stored <span className="text-emerald-400">locally in your browser only</span> — we never send it to our servers.
+                  Enter your Manifold API key to enable trading. Your key is stored{" "}
+                  <span className="text-emerald-400">locally in your browser only</span> — we never send it to our
+                  servers.
                 </p>
                 <div className="flex gap-2">
                   <Input
@@ -636,9 +653,7 @@ function TerminalMain() {
                       className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0"
                     >
                       <div className="text-sm text-white line-clamp-2">{market.question}</div>
-                      <div className="text-xs text-emerald-400 mt-1">
-                        {(market.probability * 100).toFixed(1)}%
-                      </div>
+                      <div className="text-xs text-emerald-400 mt-1">{(market.probability * 100).toFixed(1)}%</div>
                     </button>
                   ))}
                 </div>
@@ -657,7 +672,7 @@ function TerminalMain() {
                         <WifiOff className="w-4 h-4 text-red-500" />
                       )}
                       <Badge variant="outline" className="text-xs border-gray-700">
-                        {isConnected ? 'LIVE' : 'DISCONNECTED'}
+                        {isConnected ? "LIVE" : "DISCONNECTED"}
                       </Badge>
                     </div>
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
@@ -666,7 +681,7 @@ function TerminalMain() {
                     </div>
                     {positions.length > 0 && (
                       <div className="mt-2 text-sm text-gray-400">
-                        Positions: {positions.map(p => `${p.outcome}: ${p.shares.toFixed(1)}`).join(', ')}
+                        Positions: {positions.map((p) => `${p.outcome}: ${p.shares.toFixed(1)}`).join(", ")}
                       </div>
                     )}
                   </div>
@@ -685,20 +700,32 @@ function TerminalMain() {
                 value={commandInput}
                 onChange={(e) => handleCommandChange(e.target.value)}
                 onKeyDown={handleCommandKeyDown}
-                placeholder={activeMarket && apiKey ? "100B = Buy YES, 100S = Buy NO, 100B@45L = Limit order..." : "Select a market first..."}
+                placeholder={
+                  activeMarket && apiKey
+                    ? "100B = Buy YES, 100S = Buy NO, 100B@45L = Limit order..."
+                    : "Select a market first..."
+                }
                 disabled={!activeMarket || !apiKey}
                 className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                {autoExecute ? '⚡ AUTO' : '↵ ENTER'}
+                {autoExecute ? "⚡ AUTO" : "↵ ENTER"}
               </div>
             </div>
 
             {/* Command Reference */}
             <div className="text-xs text-gray-500 space-y-1">
-              <div><span className="text-gray-400">100B</span> Buy 100M YES • <span className="text-gray-400">100S</span> Buy 100M NO</div>
-              <div><span className="text-gray-400">100B@45L</span> Limit YES @45% • <span className="text-gray-400">30/100B@45L</span> Limit with 30min cancel</div>
-              <div><span className="text-gray-400">Cmd+X</span> Sell all positions</div>
+              <div>
+                <span className="text-gray-400">100B</span> Buy 100M YES • <span className="text-gray-400">100S</span>{" "}
+                Buy 100M NO
+              </div>
+              <div>
+                <span className="text-gray-400">100B@45L</span> Limit YES @45% •{" "}
+                <span className="text-gray-400">30/100B@45L</span> Limit with 30min cancel
+              </div>
+              <div>
+                <span className="text-gray-400">Cmd+X</span> Sell all positions
+              </div>
             </div>
 
             {/* Logs & Config Tabs */}
@@ -719,9 +746,7 @@ function TerminalMain() {
                 <Card className="bg-gray-900/50 border-gray-800">
                   <ScrollArea className="h-[300px] p-3">
                     {executionLogs.length === 0 ? (
-                      <div className="text-gray-500 text-sm text-center py-8">
-                        No executions yet
-                      </div>
+                      <div className="text-gray-500 text-sm text-center py-8">No executions yet</div>
                     ) : (
                       <div className="space-y-2">
                         {executionLogs.map((log) => (
@@ -729,17 +754,13 @@ function TerminalMain() {
                             key={log.id}
                             className={`text-xs p-2 rounded border ${
                               log.success
-                                ? 'border-emerald-900/50 bg-emerald-950/20'
-                                : 'border-red-900/50 bg-red-950/20'
+                                ? "border-emerald-900/50 bg-emerald-950/20"
+                                : "border-red-900/50 bg-red-950/20"
                             }`}
                           >
                             <div className="flex items-center justify-between mb-1">
-                              <span className={log.success ? 'text-emerald-400' : 'text-red-400'}>
-                                {log.action}
-                              </span>
-                              <span className="text-gray-500">
-                                {log.timestamp.toLocaleTimeString()}
-                              </span>
+                              <span className={log.success ? "text-emerald-400" : "text-red-400"}>{log.action}</span>
+                              <span className="text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
                             </div>
                             <div className="text-gray-400">{log.details}</div>
                           </div>
@@ -773,11 +794,11 @@ function TerminalMain() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-2">
                             <Select
                               value={hotkey.side}
-                              onValueChange={(v) => updateHotkey(hotkey.id, { side: v as 'YES' | 'NO' })}
+                              onValueChange={(v) => updateHotkey(hotkey.id, { side: v as "YES" | "NO" })}
                             >
                               <SelectTrigger className="bg-gray-700 border-gray-600">
                                 <SelectValue />
@@ -787,7 +808,7 @@ function TerminalMain() {
                                 <SelectItem value="NO">NO</SelectItem>
                               </SelectContent>
                             </Select>
-                            
+
                             <Input
                               type="number"
                               value={hotkey.amount}
@@ -799,7 +820,7 @@ function TerminalMain() {
 
                           <Select
                             value={hotkey.orderType}
-                            onValueChange={(v) => updateHotkey(hotkey.id, { orderType: v as Hotkey['orderType'] })}
+                            onValueChange={(v) => updateHotkey(hotkey.id, { orderType: v as Hotkey["orderType"] })}
                           >
                             <SelectTrigger className="bg-gray-700 border-gray-600">
                               <SelectValue />
@@ -811,38 +832,44 @@ function TerminalMain() {
                             </SelectContent>
                           </Select>
 
-                          {hotkey.orderType === 'limit-fixed' && (
+                          {hotkey.orderType === "limit-fixed" && (
                             <Input
                               type="number"
-                              value={hotkey.limitPrice || ''}
-                              onChange={(e) => updateHotkey(hotkey.id, { limitPrice: parseInt(e.target.value) || undefined })}
+                              value={hotkey.limitPrice || ""}
+                              onChange={(e) =>
+                                updateHotkey(hotkey.id, { limitPrice: parseInt(e.target.value) || undefined })
+                              }
                               placeholder="Limit price %"
                               className="bg-gray-700 border-gray-600"
                             />
                           )}
 
-                          {hotkey.orderType === 'limit-relative' && (
+                          {hotkey.orderType === "limit-relative" && (
                             <Input
                               type="number"
-                              value={hotkey.relativeOffset || ''}
-                              onChange={(e) => updateHotkey(hotkey.id, { relativeOffset: parseInt(e.target.value) || undefined })}
+                              value={hotkey.relativeOffset || ""}
+                              onChange={(e) =>
+                                updateHotkey(hotkey.id, { relativeOffset: parseInt(e.target.value) || undefined })
+                              }
                               placeholder="Offset (+/- %)"
                               className="bg-gray-700 border-gray-600"
                             />
                           )}
 
-                          {hotkey.orderType !== 'market' && (
+                          {hotkey.orderType !== "market" && (
                             <Input
                               type="number"
-                              value={hotkey.expirationMinutes || ''}
-                              onChange={(e) => updateHotkey(hotkey.id, { expirationMinutes: parseInt(e.target.value) || undefined })}
+                              value={hotkey.expirationMinutes || ""}
+                              onChange={(e) =>
+                                updateHotkey(hotkey.id, { expirationMinutes: parseInt(e.target.value) || undefined })
+                              }
                               placeholder="Expiration (minutes)"
                               className="bg-gray-700 border-gray-600"
                             />
                           )}
                         </div>
                       ))}
-                      
+
                       <Button
                         onClick={addHotkey}
                         variant="outline"
@@ -879,9 +906,9 @@ function TerminalMain() {
                       size="sm"
                       onClick={() => {
                         localStorage.removeItem(STORAGE_KEYS.API_KEY);
-                        setApiKey('');
-                        setApiKeyInput('');
-                        toast.success('API key removed');
+                        setApiKey("");
+                        setApiKeyInput("");
+                        toast.success("API key removed");
                       }}
                     >
                       Clear API Key
