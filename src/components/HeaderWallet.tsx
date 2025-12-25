@@ -111,7 +111,7 @@ export function HeaderWallet({ balance, hasApiKey, onBalanceChange }: HeaderWall
                   <Plus className="w-4 h-4" />
                   Deposit
                 </Button>
-                <Button variant="outline" onClick={() => setMode("withdraw")} className="gap-2" disabled={!hasApiKey}>
+                <Button variant="outline" onClick={() => setMode("withdraw")} className="gap-2">
                   <Minus className="w-4 h-4" />
                   Withdraw
                 </Button>

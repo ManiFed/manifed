@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Copy, Check, ExternalLink } from "lucide-react";
+import { Copy, Check, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -13,6 +13,7 @@ interface DepositPopupProps {
 export function DepositPopup({ open, onOpenChange }: DepositPopupProps) {
   const [accountCode, setAccountCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -47,6 +48,38 @@ export function DepositPopup({ open, onOpenChange }: DepositPopupProps) {
       }
     } catch (error) {
       console.error('Error fetching account code:', error);
+    }
+  };
+
+  const checkForDeposits = async () => {
+    setIsChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-transactions');
+      
+      if (error) throw error;
+      
+      if (data?.results?.depositsProcessed > 0) {
+        toast({ 
+          title: 'Deposits Found!', 
+          description: `Processed ${data.results.depositsProcessed} deposits totaling M$${data.results.totalAmount}` 
+        });
+        // Trigger a page refresh or balance update
+        window.location.reload();
+      } else {
+        toast({ 
+          title: 'No New Deposits', 
+          description: 'No pending deposits found. Make sure you included your account code in the managram message.' 
+        });
+      }
+    } catch (error) {
+      console.error('Error checking deposits:', error);
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to check for deposits. Please try again.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -98,6 +131,16 @@ export function DepositPopup({ open, onOpenChange }: DepositPopupProps) {
               <li>Send the managram - your balance will update within minutes!</li>
             </ol>
           </div>
+
+          <Button 
+            variant="outline" 
+            onClick={checkForDeposits} 
+            disabled={isChecking}
+            className="w-full gap-2"
+          >
+            {isChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Check for New Deposits
+          </Button>
 
           <a 
             href="https://manifold.markets/ManiFed" 
