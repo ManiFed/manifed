@@ -38,6 +38,17 @@ import FintechBotBuilder from "./pages/FintechBotBuilder";
 import About from "./pages/About";
 import TradingTerminal from "./pages/TradingTerminal";
 import NotFound from "./pages/NotFound";
+import DocsLayout from "./pages/docs/DocsLayout";
+import Welcome from "./pages/docs/articles/Welcome";
+import TradingTerminalDocs from "./pages/docs/articles/TradingTerminalDocs";
+import FintechOverview from "./pages/docs/articles/FintechOverview";
+import {
+  QuickstartDoc, CoreConceptsDoc, CreateAccountDoc, ManifoldIntegrationDoc,
+  DepositsWithdrawalsDoc, IndexFundsDoc, AdvancedOrdersDoc, CalibrationDoc,
+  BotBuilderDoc, ArbitrageDoc, TreasuryOverviewDoc, BondsDoc, BondMarketDoc,
+  MemecoinsDoc, CommentMakerDoc, FirstTradeDoc, LimitOrdersDoc, HotkeysDoc,
+  ArbitrageGuideDoc, CalibrationGuideDoc, ApiOverviewDoc, ApiAuthDoc
+} from "./pages/docs/articles/PlaceholderDoc";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +123,33 @@ const App = () => (
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/about" element={<About />} />
           <Route path="/terminal" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
+          <Route path="/docs" element={<DocsLayout />}>
+            <Route index element={<Welcome />} />
+            <Route path="quickstart" element={<QuickstartDoc />} />
+            <Route path="core-concepts" element={<CoreConceptsDoc />} />
+            <Route path="create-account" element={<CreateAccountDoc />} />
+            <Route path="manifold-integration" element={<ManifoldIntegrationDoc />} />
+            <Route path="deposits-withdrawals" element={<DepositsWithdrawalsDoc />} />
+            <Route path="fintech" element={<FintechOverview />} />
+            <Route path="trading-terminal" element={<TradingTerminalDocs />} />
+            <Route path="index-funds" element={<IndexFundsDoc />} />
+            <Route path="advanced-orders" element={<AdvancedOrdersDoc />} />
+            <Route path="calibration" element={<CalibrationDoc />} />
+            <Route path="bot-builder" element={<BotBuilderDoc />} />
+            <Route path="arbitrage" element={<ArbitrageDoc />} />
+            <Route path="treasury" element={<TreasuryOverviewDoc />} />
+            <Route path="bonds" element={<BondsDoc />} />
+            <Route path="bond-market" element={<BondMarketDoc />} />
+            <Route path="memecoins" element={<MemecoinsDoc />} />
+            <Route path="comment-maker" element={<CommentMakerDoc />} />
+            <Route path="first-trade" element={<FirstTradeDoc />} />
+            <Route path="limit-orders" element={<LimitOrdersDoc />} />
+            <Route path="hotkeys" element={<HotkeysDoc />} />
+            <Route path="arbitrage-guide" element={<ArbitrageGuideDoc />} />
+            <Route path="calibration-guide" element={<CalibrationGuideDoc />} />
+            <Route path="api" element={<ApiOverviewDoc />} />
+            <Route path="api-auth" element={<ApiAuthDoc />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
