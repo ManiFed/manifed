@@ -376,7 +376,7 @@ export default function Landing() {
           <div className="text-center mb-12 animate-slide-up">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Our Products</h2>
             <p className="font-serif text-muted-foreground max-w-xl mx-auto">
-              Financial instruments for the Manifold ecosystem
+              Financial instruments designed for the prediction market ecosystem
             </p>
           </div>
 
@@ -393,6 +393,14 @@ export default function Landing() {
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
                       <product.icon className="w-6 h-6 text-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
+                      {product.free === true && (
+                        <Badge variant="outline" className="text-xs mt-0.5">
+                          Free
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <p className="font-serif text-sm text-muted-foreground mb-4">{product.description}</p>
