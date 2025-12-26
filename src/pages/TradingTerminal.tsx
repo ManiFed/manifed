@@ -27,6 +27,10 @@ import {
   Book,
   ArrowRight,
 } from "lucide-react";
+import TerminalWatchlist from "@/components/terminal/TerminalWatchlist";
+import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
+import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
+import TerminalPositions from "@/components/terminal/TerminalPositions";
 
 interface Market {
   id: string;
@@ -773,8 +777,17 @@ function TerminalMain() {
         )}
 
         <div className="flex gap-4">
+          {/* Left Sidebar - Watchlist */}
+          <div className="w-56 flex-shrink-0">
+            <TerminalWatchlist
+              onSelectMarket={selectMarket}
+              activeMarketId={activeMarket?.id}
+              currentMarket={activeMarket}
+            />
+          </div>
+
           {/* Main Trading Area */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-4 min-w-0">
             {/* Market Search */}
             <div className="relative">
               <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
@@ -859,12 +872,6 @@ function TerminalMain() {
                     ) : (
                       <div className="text-4xl font-bold text-emerald-400">
                         {(activeMarket.probability * 100).toFixed(1)}%
-                      </div>
-                    )}
-                    
-                    {positions.length > 0 && (
-                      <div className="mt-2 text-sm text-gray-400">
-                        Positions: {positions.map((p) => `${p.outcome}: ${p.shares.toFixed(1)}`).join(", ")}
                       </div>
                     )}
                   </div>
@@ -1114,8 +1121,36 @@ function TerminalMain() {
             </Tabs>
           </div>
 
-          {/* YouTube Side Panel */}
-          <div className="w-96 flex-shrink-0 space-y-4">
+          {/* Right Side Panel - Charts & Video */}
+          <div className="w-80 flex-shrink-0 space-y-4">
+            {/* Price Chart */}
+            {activeMarket && (
+              <TerminalPriceChart
+                marketId={activeMarket.id}
+                currentProbability={activeMarket.probability}
+              />
+            )}
+
+            {/* Order Book */}
+            {activeMarket && (
+              <TerminalOrderBook
+                marketId={activeMarket.id}
+                currentProbability={activeMarket.probability}
+              />
+            )}
+
+            {/* Positions & P&L */}
+            {activeMarket && apiKey && (
+              <TerminalPositions
+                positions={positions}
+                marketId={activeMarket.id}
+                currentProbability={activeMarket.probability}
+                apiKey={apiKey}
+                onRefresh={fetchPositions}
+              />
+            )}
+
+            {/* YouTube Panel */}
             <Card className="bg-gray-900/50 border-gray-800 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Youtube className="w-4 h-4 text-red-500" />
