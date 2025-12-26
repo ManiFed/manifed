@@ -272,13 +272,7 @@ export default function Hub() {
             {/* P2P Loans */}
             <Link to="/marketplace" className="group">
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-primary-foreground" />
-                    </div>
-                    <Badge variant="active">{loanCount} investments</Badge>
-                  </div>
+                <CardHeader></div>
                   <CardTitle className="text-xl mt-4">P2P Loans</CardTitle>
                   <CardDescription>
                     Invest in peer-to-peer loans backed by Manifold Markets predictions.
@@ -322,12 +316,7 @@ export default function Hub() {
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <Sparkles className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="secondary">Premium</Badge>
-                  </div>
-                  <CardTitle className="text-xl mt-4">ManiFed Fintech</CardTitle>
+<CardTitle className="text-xl mt-4">ManiFed Fintech</CardTitle>
                   <CardDescription>
                     AI-powered tools: Arbitrage Scanner, Index Funds, Advanced Orders, and more.
                   </CardDescription>
