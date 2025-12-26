@@ -426,8 +426,8 @@ export default function Landing() {
                 <div className="space-y-2">
                   <h3 className="font-display font-semibold text-foreground">Important Disclaimer</h3>
                   <p className="font-serif text-sm text-muted-foreground">
-                    ManiFed is an experimental platform for peer-to-peer M$ lending. All transactions are conducted in
-                    Manifold Markets' virtual currency (M$) and have no real-world monetary value. Loans are
+                    ManiFed is an experimental platform built for Manifold Markets. All transactions are conducted in
+                    Manifold Markets' virtual currency (mana) and have no real-world monetary value. Loans are
                     <strong className="text-foreground"> not legally enforceable</strong> and depend entirely on the
                     borrower's reputation and goodwill to repay.
                   </p>
