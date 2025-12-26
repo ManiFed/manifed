@@ -9,7 +9,7 @@ import { DonationButton } from "@/components/DonationButton";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import manifedLogo from "@/assets/manifed-logo.png";
-import {
+import { 4 more scam
   Landmark,
   TrendingUp,
   FileText,
