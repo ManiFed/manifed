@@ -4,7 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { TrendingUp, FileText, Shield, ArrowRight, Sparkles, Landmark, ChevronDown, MoreHorizontal, Info } from "lucide-react";
+import {
+  TrendingUp,
+  FileText,
+  Shield,
+  ArrowRight,
+  Sparkles,
+  Landmark,
+  ChevronDown,
+  MoreHorizontal,
+  Info,
+} from "lucide-react";
 import manifedLogo from "@/assets/manifed-logo-new.png";
 import { PenguinAnimation } from "@/components/PenguinAnimation";
 
@@ -57,7 +67,7 @@ function RisingChartBackground() {
         const py = y * Math.cos(cameraAngleX) - pz * Math.sin(cameraAngleX);
         return {
           x: centerX + px * scale,
-          y: centerY - py * scale + 50
+          y: centerY - py * scale + 50,
         };
       };
 
@@ -126,7 +136,7 @@ function RisingChartBackground() {
       ctx.beginPath();
       let first = true;
       for (let i = 0; i < chartData.length; i++) {
-        const x = (i - 100) * 4 - scrollOffset % 800;
+        const x = (i - 100) * 4 - (scrollOffset % 800);
         const y = chartData[i];
         const z = 0;
         if (x < -gridSize || x > gridSize) continue;
@@ -143,7 +153,7 @@ function RisingChartBackground() {
 
       // Draw candlestick markers at intervals
       for (let i = 0; i < chartData.length; i += 15) {
-        const x = (i - 100) * 4 - scrollOffset % 800;
+        const x = (i - 100) * 4 - (scrollOffset % 800);
         if (x < -gridSize || x > gridSize) continue;
         const y = chartData[i];
         const p = project3D(x, y, 0);
@@ -166,7 +176,7 @@ function RisingChartBackground() {
 
       // Floating particles
       for (let i = 0; i < 15; i++) {
-        const angle = time * 0.5 + i * (Math.PI * 2 / 15);
+        const angle = time * 0.5 + i * ((Math.PI * 2) / 15);
         const radius = 200 + Math.sin(time + i) * 50;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
@@ -187,17 +197,34 @@ function RisingChartBackground() {
       window.removeEventListener("resize", resize);
     };
   }, []);
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0" style={{
-    opacity: 0.85
-  }} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 w-full h-full pointer-events-none z-0"
+      style={{
+        opacity: 0.85,
+      }}
+    />
+  );
 }
 
 // Bouncing Logo Component
 function BouncingLogo() {
   const [isHovered, setIsHovered] = useState(false);
-  return <Link to="/" className="flex items-center gap-3" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
-      <img src={manifedLogo} alt="ManiFed" className={`h-28 transition-transform duration-300 ${isHovered ? "animate-bounce-subtle" : ""}`} />
-    </Link>;
+  return (
+    <Link
+      to="/"
+      className="flex items-center gap-3"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <img
+        src={manifedLogo}
+        alt="ManiFed"
+        className={`h-28 transition-transform duration-300 ${isHovered ? "animate-bounce-subtle" : ""}`}
+      />
+    </Link>
+  );
 }
 export default function Landing() {
   const [scrollY, setScrollY] = useState(0);
@@ -206,26 +233,31 @@ export default function Landing() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  const products = [{
-    title: "Treasury Bonds",
-    description: "Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.",
-    icon: FileText,
-    link: "/bonds",
-    free: true
-  }, {
-    title: "P2P Loans",
-    description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
-    icon: TrendingUp,
-    link: "/marketplace",
-    free: true
-  }, {
-    title: "ManiFed Fintech",
-    description: "Premium tools: Trading Terminal, Index Funds, Arbitrage Opportunities, and more.",
-    icon: Sparkles,
-    link: "/fintech/menu",
-    free: false
-  }];
-  return <div className="min-h-screen relative overflow-hidden">
+  const products = [
+    {
+      title: "Treasury Bonds",
+      description: "Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.",
+      icon: FileText,
+      link: "/bonds",
+      free: true,
+    },
+    {
+      title: "P2P Loans",
+      description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
+      icon: TrendingUp,
+      link: "/marketplace",
+      free: true,
+    },
+    {
+      title: "ManiFed Fintech",
+      description: "Premium tools: Trading Terminal, Index Funds, Arbitrage Opportunities, and more.",
+      icon: Sparkles,
+      link: "/fintech/menu",
+      free: false,
+    },
+  ];
+  return (
+    <div className="min-h-screen relative overflow-hidden">
       <RisingChartBackground />
 
       {/* Floating Glass Island Navigation Bar */}
@@ -304,9 +336,12 @@ export default function Landing() {
       </div>
       <main className="relative z-10">
         {/* Hero Section with Parallax */}
-        <section className="container mx-auto px-4 py-24 md:py-32 text-center relative" style={{
-        transform: `translateY(${scrollY * 0.1}px)`
-      }}>
+        <section
+          className="container mx-auto px-4 py-24 md:py-32 text-center relative"
+          style={{
+            transform: `translateY(${scrollY * 0.1}px)`,
+          }}
+        >
           <div className="animate-slide-up max-w-4xl mx-auto">
             <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold italic text-foreground mb-8 leading-tight">
               The <span className="text-amber-400">Golden</span> Age of Manifold is Here
@@ -317,7 +352,10 @@ export default function Landing() {
             </p>
             <div className="flex justify-center gap-4 flex-wrap">
               <Link to="/auth?mode=signup">
-                <Button size="lg" className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90">
+                <Button
+                  size="lg"
+                  className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90"
+                >
                   Get Started <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
@@ -329,9 +367,12 @@ export default function Landing() {
         </section>
 
         {/* Products Grid */}
-        <section className="container mx-auto px-4 py-16" style={{
-        transform: `translateY(${scrollY * 0.05}px)`
-      }}>
+        <section
+          className="container mx-auto px-4 py-16"
+          style={{
+            transform: `translateY(${scrollY * 0.05}px)`,
+          }}
+        >
           <div className="text-center mb-12 animate-slide-up">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Our Products</h2>
             <p className="font-serif text-muted-foreground max-w-xl mx-auto">
@@ -340,15 +381,26 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {products.map((product, index) => <Card key={product.title} className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1" style={{
-            animationDelay: `${index * 100}ms`
-          }}>
+            {products.map((product, index) => (
+              <Card
+                key={product.title}
+                className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1"
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                }}
+              >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    
+                    <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
+                      <product.icon className="w-6 h-6 text-foreground" />
+                    </div>
                     <div className="flex-1">
                       <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
-                      {product.free === true}
+                      {product.free === true && (
+                        <Badge variant="outline" className="text-xs mt-0.5">
+                          Free
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <p className="font-serif text-sm text-muted-foreground mb-4">{product.description}</p>
@@ -358,7 +410,8 @@ export default function Landing() {
                     </Button>
                   </Link>
                 </CardContent>
-              </Card>)}
+              </Card>
+            ))}
           </div>
         </section>
 
@@ -392,12 +445,22 @@ export default function Landing() {
                 <h3 className="font-display font-semibold text-foreground mb-2">Questions or Need Help?</h3>
                 <p className="font-serif text-sm text-muted-foreground mb-4">Contact the POTUS and Fed Chair at:</p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <a href="https://manifold.markets/ManiFed" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent hover:underline font-serif">
+                  <a
+                    href="https://manifold.markets/ManiFed"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                  >
                     <Landmark className="w-4 h-4" />
                     @ManiFed on Manifold
                   </a>
                   <span className="hidden sm:inline text-muted-foreground">•</span>
-                  <a target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-accent hover:underline font-serif" href="https://discord.com/users/1443255374089289840">
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                    href="https://discord.com/users/1443255374089289840"
+                  >
                     Discord: @manifed
                   </a>
                 </div>
@@ -430,5 +493,6 @@ export default function Landing() {
           </div>
         </footer>
       </main>
-    </div>;
+    </div>
+  );
 }
