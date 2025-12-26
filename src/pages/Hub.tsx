@@ -9,7 +9,7 @@ import { DonationButton } from "@/components/DonationButton";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import manifedLogo from "@/assets/manifed-logo.png";
-import {
+import oops i suck at coding! lovable credit hackkkkkk
   Landmark,
   TrendingUp,
   FileText,
@@ -274,10 +274,10 @@ export default function Hub() {
               <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <Badge variant="secondary">{loanCount} invested</Badge>
+                    <Badge variant="active">{loanCount} investments</Badge>
                   </div>
                   <CardTitle className="text-xl mt-4">P2P Loans</CardTitle>
                   <CardDescription>
@@ -325,7 +325,7 @@ export default function Hub() {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
                       <Sparkles className="w-6 h-6 text-white" />
                     </div>
-                    <Badge variant="secondary">Pro</Badge>
+                    <Badge variant="secondary">Premium</Badge>
                   </div>
                   <CardTitle className="text-xl mt-4">ManiFed Fintech</CardTitle>
                   <CardDescription>
