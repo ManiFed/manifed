@@ -9,7 +9,7 @@ import { DonationButton } from "@/components/DonationButton";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import manifedLogo from "@/assets/manifed-logo.png";
-import oops i suck at coding! lovable credit hackkkkkk
+import {
   Landmark,
   TrendingUp,
   FileText,
