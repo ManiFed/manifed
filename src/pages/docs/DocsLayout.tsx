@@ -102,16 +102,27 @@ export default function DocsLayout() {
   // Determine active tab from current path
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes("/docs/fintech") || path.includes("/docs/trading-terminal") || 
-        path.includes("/docs/index-funds") || path.includes("/docs/advanced-orders") ||
-        path.includes("/docs/calibration") || path.includes("/docs/bot-builder") ||
-        path.includes("/docs/arbitrage") || path.includes("/docs/treasury") ||
-        path.includes("/docs/bonds") || path.includes("/docs/memecoins") ||
-        path.includes("/docs/comment-maker")) {
+    if (
+      path.includes("/docs/fintech") ||
+      path.includes("/docs/trading-terminal") ||
+      path.includes("/docs/index-funds") ||
+      path.includes("/docs/advanced-orders") ||
+      path.includes("/docs/calibration") ||
+      path.includes("/docs/bot-builder") ||
+      path.includes("/docs/arbitrage") ||
+      path.includes("/docs/treasury") ||
+      path.includes("/docs/bonds") ||
+      path.includes("/docs/memecoins") ||
+      path.includes("/docs/comment-maker")
+    ) {
       setActiveTab("products");
-    } else if (path.includes("/docs/first-trade") || path.includes("/docs/limit-orders") ||
-               path.includes("/docs/hotkeys") || path.includes("/docs/arbitrage-guide") ||
-               path.includes("/docs/calibration-guide")) {
+    } else if (
+      path.includes("/docs/first-trade") ||
+      path.includes("/docs/limit-orders") ||
+      path.includes("/docs/hotkeys") ||
+      path.includes("/docs/arbitrage-guide") ||
+      path.includes("/docs/calibration-guide")
+    ) {
       setActiveTab("guides");
     } else if (path.includes("/docs/api")) {
       setActiveTab("api");
@@ -125,7 +136,9 @@ export default function DocsLayout() {
   return (
     <div className={`min-h-screen ${isDark ? "bg-[#0d1117] text-gray-100" : "bg-white text-gray-900"}`}>
       {/* Header */}
-      <header className={`sticky top-0 z-50 border-b ${isDark ? "border-gray-800 bg-[#0d1117]/95" : "border-gray-200 bg-white/95"} backdrop-blur-sm`}>
+      <header
+        className={`sticky top-0 z-50 border-b ${isDark ? "border-gray-800 bg-[#0d1117]/95" : "border-gray-200 bg-white/95"} backdrop-blur-sm`}
+      >
         <div className="max-w-[1600px] mx-auto px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -144,14 +157,29 @@ export default function DocsLayout() {
                   placeholder="Search..."
                   className={`pl-10 border-0 ${isDark ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"} focus-visible:ring-1 focus-visible:ring-blue-500`}
                 />
-                <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">⌘K</kbd>
+                <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">
+                  ⌘K
+                </kbd>
               </div>
             </div>
 
             {/* Right actions */}
             <div className="flex items-center gap-4">
-              <a href="https://manifold.markets" target="_blank" rel="noopener noreferrer" className="hidden md:flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200">
+              <a
+                href="https://manifold.markets"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200"
+              >
                 Manifold <ExternalLink className="w-3 h-3" />
+              </a>
+              <a
+                href="https://manifed.markets/hub"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200"
+              >
+                ManiFed <ExternalLink className="w-3 h-3" />
               </a>
               <Button
                 variant="ghost"
@@ -161,12 +189,7 @@ export default function DocsLayout() {
               >
                 {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
-              <Link to="/hub">
-                <Button variant="outline" size="sm" className={isDark ? "border-gray-700 text-gray-300" : ""}>
-                  Go to App
-                </Button>
-              </Link>
-              
+
               {/* Mobile menu toggle */}
               <Button
                 variant="ghost"
@@ -200,11 +223,15 @@ export default function DocsLayout() {
 
       <div className="max-w-[1600px] mx-auto flex">
         {/* Sidebar */}
-        <aside className={`hidden md:block w-64 flex-shrink-0 border-r ${isDark ? "border-gray-800" : "border-gray-200"} sticky top-[105px] h-[calc(100vh-105px)]`}>
+        <aside
+          className={`hidden md:block w-64 flex-shrink-0 border-r ${isDark ? "border-gray-800" : "border-gray-200"} sticky top-[105px] h-[calc(100vh-105px)]`}
+        >
           <ScrollArea className="h-full py-6 px-4">
             {currentSections.map((section, idx) => (
               <div key={idx} className="mb-6">
-                <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                <h3
+                  className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? "text-gray-500" : "text-gray-400"}`}
+                >
                   {section.title}
                 </h3>
                 <ul className="space-y-1">
@@ -237,7 +264,9 @@ export default function DocsLayout() {
             <ScrollArea className="h-full py-6 px-4">
               {currentSections.map((section, idx) => (
                 <div key={idx} className="mb-6">
-                  <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                  <h3
+                    className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? "text-gray-500" : "text-gray-400"}`}
+                  >
                     {section.title}
                   </h3>
                   <ul className="space-y-1">
