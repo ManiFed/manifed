@@ -207,7 +207,7 @@ export default function Hub() {
         {/* Welcome */}
         <div className="mb-8 animate-slide-up relative">
           <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-            Welcome back{username ? `, @${withdrawal_username}` : ""}
+            Welcome back{username ? `, @${username}` : ""}
           </h1>
           <p className="font-serif text-muted-foreground">Your ManiFed dashboard</p>
         </div>
