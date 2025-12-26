@@ -55,6 +55,7 @@ interface Hotkey {
   limitPrice?: number;
   relativeOffset?: number;
   expirationMinutes?: number;
+  mcOptionIndex?: number; // For MC markets: specific option index (1-based), 0 or undefined = use selected
 }
 
 interface Position {
@@ -610,7 +611,7 @@ function TerminalMain() {
     }
   };
 
-  // Global hotkey handler
+  // Global hotkey handler (including MC navigation)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Cmd+X or Ctrl+X to sell all
@@ -621,8 +622,30 @@ function TerminalMain() {
         return;
       }
 
-      // Ignore if typing in input
+      // Ignore if typing in input (except for arrow navigation in command input)
       const target = e.target as HTMLElement;
+      const isCommandInput = target === commandInputRef.current;
+      
+      // MC option navigation with arrow keys or w/s (works even in command input if empty)
+      if (mcOptions.length > 0 && activeMarket) {
+        const isNavKey = e.key === "ArrowUp" || e.key === "ArrowDown" || 
+                         e.key.toLowerCase() === "w" || e.key.toLowerCase() === "s";
+        
+        // Only handle nav in input if command is empty
+        if (isNavKey && (!isCommandInput || commandInput.trim() === "")) {
+          e.preventDefault();
+          const goUp = e.key === "ArrowUp" || e.key.toLowerCase() === "w";
+          setSelectedMcIndex(prev => {
+            if (goUp) {
+              return prev > 1 ? prev - 1 : mcOptions.length;
+            } else {
+              return prev < mcOptions.length ? prev + 1 : 1;
+            }
+          });
+          return;
+        }
+      }
+
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (!activeMarket || !apiKey) return;
 
@@ -639,13 +662,22 @@ function TerminalMain() {
           limitPrice = Math.max(1, Math.min(99, limitPrice));
         }
 
-        executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationMinutes);
+        // Determine answerId for MC markets
+        let answerId: string | undefined;
+        if (mcOptions.length > 0) {
+          const optionIdx = hotkey.mcOptionIndex && hotkey.mcOptionIndex > 0 && hotkey.mcOptionIndex <= mcOptions.length
+            ? hotkey.mcOptionIndex
+            : selectedMcIndex;
+          answerId = mcOptions[optionIdx - 1]?.id;
+        }
+
+        executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationMinutes, answerId);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [hotkeys, activeMarket, apiKey, sellAllPositions]);
+  }, [hotkeys, activeMarket, apiKey, sellAllPositions, mcOptions, selectedMcIndex, commandInput]);
 
   const addHotkey = () => {
     const newHotkey: Hotkey = {
@@ -788,11 +820,48 @@ function TerminalMain() {
                       <Badge variant="outline" className="text-xs border-gray-700">
                         {isConnected ? "LIVE" : "DISCONNECTED"}
                       </Badge>
+                      {mcOptions.length > 0 && (
+                        <Badge variant="outline" className="text-xs border-purple-700 text-purple-400">
+                          MC ({mcOptions.length} options)
+                        </Badge>
+                      )}
                     </div>
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
-                    <div className="text-4xl font-bold text-emerald-400">
-                      {(activeMarket.probability * 100).toFixed(1)}%
-                    </div>
+                    
+                    {/* Multiple Choice Options */}
+                    {mcOptions.length > 0 ? (
+                      <div className="space-y-1 mb-3">
+                        <div className="text-xs text-gray-500 mb-2">↑↓ or W/S to navigate • #N to jump</div>
+                        <ScrollArea className="h-[120px]">
+                          {mcOptions.map((opt) => (
+                            <div
+                              key={opt.id}
+                              className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${
+                                opt.index === selectedMcIndex
+                                  ? "bg-emerald-900/40 border border-emerald-700"
+                                  : "hover:bg-gray-800"
+                              }`}
+                              onClick={() => setSelectedMcIndex(opt.index)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500 w-5 text-right">#{opt.index}</span>
+                                <span className={opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-300"}>
+                                  {opt.text.slice(0, 40)}{opt.text.length > 40 ? "..." : ""}
+                                </span>
+                              </div>
+                              <span className={`font-mono ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}>
+                                {(opt.probability * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          ))}
+                        </ScrollArea>
+                      </div>
+                    ) : (
+                      <div className="text-4xl font-bold text-emerald-400">
+                        {(activeMarket.probability * 100).toFixed(1)}%
+                      </div>
+                    )}
+                    
                     {positions.length > 0 && (
                       <div className="mt-2 text-sm text-gray-400">
                         Positions: {positions.map((p) => `${p.outcome}: ${p.shares.toFixed(1)}`).join(", ")}
@@ -981,6 +1050,18 @@ function TerminalMain() {
                               className="bg-gray-700 border-gray-600"
                             />
                           )}
+
+                          {/* MC Option Index for hotkey */}
+                          <Input
+                            type="number"
+                            value={hotkey.mcOptionIndex || ""}
+                            onChange={(e) =>
+                              updateHotkey(hotkey.id, { mcOptionIndex: parseInt(e.target.value) || undefined })
+                            }
+                            placeholder="MC Option # (leave empty for selected)"
+                            className="bg-gray-700 border-gray-600"
+                            min={0}
+                          />
                         </div>
                       ))}
 

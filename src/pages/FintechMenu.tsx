@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, Sparkles, Target, ArrowRight } from "lucide-react";
+import { ArrowLeft, Lock, Loader2, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
@@ -22,49 +22,37 @@ const fintechProducts = [
     id: 'trading-terminal',
     title: 'Trading Terminal',
     description: "Trade with exceptional speed on real-time markets. ManiFed Fintech's flagship product.",
-    icon: Target,
     path: '/terminal',
-    color: 'from-amber-500 to-orange-500',
   },
   {
     id: 'index-funds',
     title: 'Index Funds',
     description: 'Batch trades on curated market groups. Execute diversified bets with one click.',
-    icon: TrendingUp,
     path: '/fintech/index-funds',
-    color: 'from-blue-500 to-cyan-500',
   },
   {
     id: 'advanced-orders',
     title: 'Advanced Orders',
     description: 'Limit sell orders with automatic profit-taking. Set and forget your exit strategy.',
-    icon: Sparkles,
     path: '/fintech/advanced-orders',
-    color: 'from-purple-500 to-pink-500',
   },
   {
     id: 'calibration',
     title: 'Calibration Analysis',
     description: 'Analyze your prediction accuracy. Find your edge and improve your forecasting.',
-    icon: BarChart3,
     path: '/fintech/calibration',
-    color: 'from-emerald-500 to-teal-500',
   },
   {
     id: 'bot-builder',
     title: 'Bot Builder',
     description: 'Create and test custom trading strategies. Backtest against historical data.',
-    icon: Bot,
     path: '/fintech/bot-builder',
-    color: 'from-orange-500 to-amber-500',
   },
   {
     id: 'arbitrage',
     title: 'AI Arbitrage Scanner',
     description: 'AI-powered detection of mispriced correlated markets. Find guaranteed profits.',
-    icon: Target,
     path: '/fintech/arbitrage',
-    color: 'from-rose-500 to-red-500',
   },
 ];
 
@@ -215,9 +203,6 @@ export default function FintechMenu() {
             <Link key={product.id} to={product.path} className="group">
               <Card className="glass h-full hover:border-accent/50 transition-all hover:-translate-y-1">
                 <CardHeader>
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${product.color} flex items-center justify-center mb-3`}>
-                    <product.icon className="w-6 h-6 text-white" />
-                  </div>
                   <CardTitle className="font-display text-xl">{product.title}</CardTitle>
                   <CardDescription className="font-serif">{product.description}</CardDescription>
                 </CardHeader>
