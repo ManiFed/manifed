@@ -166,7 +166,7 @@ export default function DocsLayout() {
             {/* Right actions */}
             <div className="flex items-center gap-4">
               <a
-                href="https://manifold.markets"
+                href="https://manifold.markets?r=TWFuaUZlZA"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden md:flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200"
