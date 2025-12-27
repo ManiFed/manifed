@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogOut, Menu, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { LogOut, Menu, X, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { WalletPopover } from '@/components/WalletPopover';
+import { HeaderWallet } from '@/components/HeaderWallet';
 import { useUserBalance } from '@/hooks/useUserBalance';
 import manifedLogo from '@/assets/manifed-logo-new.png';
 
@@ -32,6 +33,7 @@ export function UniversalHeader({
   const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -42,7 +44,18 @@ export function UniversalHeader({
     setIsAuthenticated(!!user);
     if (user) {
       fetchUserSettings();
+      checkAdmin(user.id);
     }
+  };
+
+  const checkAdmin = async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    setIsAdmin(!!data);
   };
 
   const fetchUserSettings = async () => {
@@ -104,7 +117,7 @@ export function UniversalHeader({
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             {items.map(item => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
               return (
                 <Link key={item.path} to={item.path}>
                   <Button 
@@ -120,13 +133,11 @@ export function UniversalHeader({
                 </Link>
               );
             })}
-            {isAuthenticated && (
-              <Link to="/about">
-                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  About
-                </Button>
-              </Link>
-            )}
+            <Link to="/about">
+              <Button variant="ghost" size="sm" className="font-medium tracking-wide">
+                About
+              </Button>
+            </Link>
           </nav>
 
           {/* Right side */}
@@ -134,13 +145,23 @@ export function UniversalHeader({
             {isAuthenticated ? (
               <>
                 <div className="hidden sm:block">
-                  <WalletPopover
+                  <HeaderWallet
                     balance={balance}
                     hasApiKey={hasApiKey}
                     hasWithdrawalUsername={hasWithdrawalUsername}
                     onBalanceChange={fetchBalance}
                   />
                 </div>
+                {isAdmin && (
+                  <Badge variant="outline" className="hidden sm:flex text-xs">
+                    Admin
+                  </Badge>
+                )}
+                <Link to="/settings">
+                  <Button variant="ghost" size="icon">
+                    <Settings className="w-5 h-5" />
+                  </Button>
+                </Link>
                 <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                   <LogOut className="w-4 h-4" />
                   <span className="hidden sm:inline">Sign Out</span>
@@ -198,6 +219,11 @@ export function UniversalHeader({
               <Link to="/about" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start font-medium">
                   About
+                </Button>
+              </Link>
+              <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start font-medium">
+                  Settings
                 </Button>
               </Link>
             </div>
