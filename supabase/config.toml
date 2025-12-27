@@ -59,3 +59,6 @@ verify_jwt = true
 
 [functions.monitor-conditional-orders]
 verify_jwt = false
+
+[functions.start-fintech-trial]
+verify_jwt = true

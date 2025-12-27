@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, CreditCard, Sparkles } from "lucide-react";
+import { ArrowLeft, TrendingUp, BarChart3, Bot, Lock, Loader2, CreditCard, Sparkles, Gift, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import Footer from "@/components/layout/Footer";
@@ -15,7 +15,7 @@ import IndexFunds from "@/components/fintech/IndexFunds";
 import CalibrationGraph from "@/components/fintech/CalibrationGraph";
 import BotPlayground from "@/components/fintech/BotPlayground";
 import AdvancedOrders from "@/components/fintech/AdvancedOrders";
-import manifedLogo from "@/assets/manifed-logo.png";
+import { UniversalHeader } from "@/components/layout/UniversalHeader";
 
 interface SubscriptionRate {
   plan_type: string;
@@ -29,6 +29,8 @@ interface FintechSubscription {
   expires_at: string | null;
   is_active: boolean;
   is_gifted: boolean;
+  is_trial?: boolean;
+  trial_ends_at?: string | null;
 }
 
 export default function Fintech() {
@@ -43,6 +45,8 @@ export default function Fintech() {
   const [apiKey, setApiKey] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasUsedTrial, setHasUsedTrial] = useState(false);
+  const [isStartingTrial, setIsStartingTrial] = useState(false);
 
   useEffect(() => {
     checkAccess();
@@ -82,6 +86,10 @@ export default function Fintech() {
 
       if (subData) {
         setSubscription(subData);
+        // Check if they already used trial
+        if (subData.trial_ends_at) {
+          setHasUsedTrial(true);
+        }
         const isActive = subData.is_active && 
           (!subData.expires_at || new Date(subData.expires_at) > new Date());
         setHasAccess(isActive);
@@ -104,6 +112,32 @@ export default function Fintech() {
       console.error('Access check error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const startFreeTrial = async () => {
+    setIsStartingTrial(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('start-fintech-trial');
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Trial Started!',
+        description: 'Your 7-day free trial is now active. Enjoy ManiFed Fintech!',
+      });
+
+      navigate('/fintech/menu');
+    } catch (error) {
+      console.error('Trial error:', error);
+      toast({
+        title: 'Could not start trial',
+        description: error instanceof Error ? error.message : 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsStartingTrial(false);
     }
   };
 
@@ -201,38 +235,56 @@ export default function Fintech() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/hub" className="flex items-center gap-3">
-              <img src={manifedLogo} alt="ManiFed" className="w-10 h-10 rounded-lg" />
-              <span className="font-display text-lg font-bold text-foreground">ManiFed Fintech</span>
-              {isAdmin && <Badge variant="secondary">Admin</Badge>}
-            </Link>
-            <Link to="/hub">
-              <Button variant="ghost" size="sm" className="gap-2 font-serif">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <UniversalHeader />
 
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 mt-4">
         {!hasAccess ? (
           // Subscription required view
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
               <Sparkles className="w-16 h-16 mx-auto text-accent mb-4" />
-              <h1 className="font-display text-4xl font-bold text-foreground mb-4">
+              <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
                 ManiFed Fintech
               </h1>
-              <p className="font-serif text-xl text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Premium AI-powered tools for prediction market traders. Arbitrage scanner, 
                 market agent, index funds, and more.
               </p>
             </div>
+
+            {/* Free Trial Card */}
+            {!hasUsedTrial && (
+              <Card className="glass border-2 border-primary/50 mb-8 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5" />
+                <CardContent className="p-8 relative">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-4 rounded-2xl bg-primary/10">
+                        <Gift className="w-10 h-10 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground">7-Day Free Trial</h3>
+                        <p className="text-muted-foreground">
+                          Try all premium features free. No payment required.
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="lg" 
+                      className="px-8 gap-2 text-lg"
+                      onClick={startFreeTrial}
+                      disabled={isStartingTrial}
+                    >
+                      {isStartingTrial ? (
+                        <><Loader2 className="w-5 h-5 animate-spin" />Starting...</>
+                      ) : (
+                        <>Start Free Trial</>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid md:grid-cols-3 gap-6 mb-12">
               {rates.map((rate) => (

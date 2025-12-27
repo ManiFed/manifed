@@ -160,18 +160,33 @@ export default function Hub() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen relative overflow-hidden bg-background">
+      {/* Header - Anthropic/Kalshi style */}
+      <header className="sticky top-4 z-50 mx-4 md:mx-8">
+        <div className="max-w-6xl mx-auto bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
+          <div className="flex items-center justify-between py-3 px-6">
             <Link to="/hub" className="flex items-center gap-3">
-              <img src={manifedLogo} alt="ManiFed" className="w-10 h-10 rounded-lg" />
-              <div className="hidden sm:block">
-                <h1 className="font-display text-lg font-bold text-foreground">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Your Financial Hub</p>
-              </div>
+              <img src={manifedLogo} alt="ManiFed" className="h-12 md:h-16" />
             </Link>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              <Link to="/bonds">
+                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
+                  Treasury
+                </Button>
+              </Link>
+              <Link to="/marketplace">
+                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
+                  P2P Loans
+                </Button>
+              </Link>
+              <Link to="/fintech/menu">
+                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
+                  Fintech
+                </Button>
+              </Link>
+            </nav>
 
             <div className="flex items-center gap-3">
               {notifications.length > 0 && (
@@ -188,7 +203,6 @@ export default function Hub() {
                 hasWithdrawalUsername={hasWithdrawalUsername}
                 onBalanceChange={fetchBalance}
               />
-              <DonationButton />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />
@@ -203,119 +217,131 @@ export default function Hub() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
-        {/* Welcome */}
-        <div className="mb-8 animate-slide-up relative">
-          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+      <main className="container mx-auto px-4 py-12 max-w-6xl relative z-10">
+        {/* Welcome - Bold Anthropic style */}
+        <div className="mb-16 animate-slide-up">
+          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
             Welcome back{username ? `, @${username}` : ""}
           </h1>
-          <p className="font-serif text-muted-foreground">Your ManiFed dashboard</p>
+          <p className="text-xl text-muted-foreground max-w-xl">
+            Your ManiFed dashboard for prediction market finance.
+          </p>
         </div>
 
-        {/* Portfolio Overview */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: "50ms" }}>
-          <h2 className="font-display text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-accent" />
+        {/* Portfolio Overview - Clean cards like Kalshi */}
+        <section className="mb-16 animate-slide-up" style={{ animationDelay: "50ms" }}>
+          <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">
             Portfolio Overview
           </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="glass">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-success/10">
-                    <TrendingUp className="w-5 h-5 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total Portfolio</p>
-                    <p className="text-xl font-bold text-foreground">
-                      M${(totalInvested + bondValue).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Total Portfolio</p>
+                <p className="text-4xl font-bold text-foreground">
+                  M${(totalInvested + bondValue).toLocaleString()}
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="glass">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <FileText className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">In Loans</p>
-                    <p className="text-xl font-bold text-foreground">M${totalInvested.toLocaleString()}</p>
-                  </div>
-                </div>
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">In Loans</p>
+                <p className="text-4xl font-bold text-foreground">
+                  M${totalInvested.toLocaleString()}
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="glass">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Coins className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">In Bonds</p>
-                    <p className="text-xl font-bold text-foreground">M${bondValue.toLocaleString()}</p>
-                  </div>
-                </div>
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">In Bonds</p>
+                <p className="text-4xl font-bold text-foreground">
+                  M${bondValue.toLocaleString()}
+                </p>
               </CardContent>
             </Card>
           </div>
         </section>
 
-        {/* Products Grid */}
-        <section className="mb-8 animate-slide-up" style={{ animationDelay: "100ms" }}>
-          <h2 className="text-lg font-semibold text-foreground mb-4">Products</h2>
+        {/* Products Grid - Clean Kalshi/Anthropic style */}
+        <section className="mb-16 animate-slide-up" style={{ animationDelay: "100ms" }}>
+          <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">
+            Products
+          </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* P2P Loans */}
             <Link to="/marketplace" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-primary-foreground" />
+              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-primary" />
                     </div>
-                    <Badge variant="active">{loanCount} investments</Badge>
+                    <Badge variant="outline">{loanCount} investments</Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">P2P Loans</CardTitle>
-                  <CardDescription>
-                    Invest in peer-to-peer loans backed by Manifold Markets predictions.
-                  </CardDescription>
+                  <CardTitle className="text-2xl font-bold">P2P Loans</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                  <p className="text-muted-foreground mb-6">
+                    Invest in peer-to-peer loans backed by Manifold Markets predictions.
+                  </p>
+                  <div className="flex items-center gap-2 text-primary font-medium">
                     Go to Marketplace
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
                 </CardContent>
               </Card>
             </Link>
 
             {/* Treasury Bonds */}
             <Link to="/bonds" className="group">
-              <Card className="glass h-full hover:bg-card/90 transition-all hover:-translate-y-1 group-hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-white" />
+              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-emerald-500" />
                     </div>
-                    <Badge variant="active">{bonds.length} active</Badge>
+                    <Badge variant="outline">{bonds.length} active</Badge>
                   </div>
-                  <CardTitle className="text-xl mt-4">Treasury Bonds</CardTitle>
-                  <CardDescription>
-                    Fixed-income instruments with guaranteed yields. Earn 6% APY on your M$ deposits.
-                  </CardDescription>
+                  <CardTitle className="text-2xl font-bold">Treasury Bonds</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full group-hover:border-primary group-hover:text-primary">
+                  <p className="text-muted-foreground mb-6">
+                    Fixed-income instruments with guaranteed 6% APY yields.
+                  </p>
+                  <div className="flex items-center gap-2 text-emerald-500 font-medium">
                     View Bonds
-                    <ArrowUpRight className="w-4 h-4 ml-2" />
-                  </Button>
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
                 </CardContent>
               </Card>
             </Link>
+
+            {/* Fintech Tools */}
+            <Link to="/fintech/menu" className="group">
+              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-violet-500" />
+                    </div>
+                    <Badge variant="secondary">Premium</Badge>
+                  </div>
+                  <CardTitle className="text-2xl font-bold">ManiFed Fintech</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-6">
+                    AI-powered arbitrage, index funds, and advanced orders.
+                  </p>
+                  <div className="flex items-center gap-2 text-violet-500 font-medium">
+                    Access Tools
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </section>
 
             {/* Fintech Tools */}
             <Link to="/fintech/menu" className="group">
