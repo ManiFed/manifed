@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.start-fintech-trial]
 verify_jwt = true
+
+[functions.conditional-limit-order]
+verify_jwt = true

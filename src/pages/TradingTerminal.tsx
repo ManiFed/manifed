@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Search,
   Zap,
@@ -26,12 +27,15 @@ import {
   Keyboard,
   Book,
   ArrowRight,
+  Layout,
+  Clock,
 } from "lucide-react";
 import TerminalWatchlist from "@/components/terminal/TerminalWatchlist";
 import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
 import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
 import TerminalPositions from "@/components/terminal/TerminalPositions";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
+import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
 
 interface Market {
   id: string;
@@ -216,6 +220,10 @@ function TerminalMain() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [mcOptions, setMcOptions] = useState<MultipleChoiceOption[]>([]);
   const [selectedMcIndex, setSelectedMcIndex] = useState<number>(0);
+  const [showEditMode, setShowEditMode] = useState(false);
+  const [conditionalOrders, setConditionalOrders] = useState<any[]>([]);
+
+  const { panels, saveLayout, isPanelVisible } = useTerminalLayout();
 
   const commandInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -405,6 +413,50 @@ function TerminalMain() {
     if (!activeMarket || !apiKey) {
       addLog("Trade", false, "No market or API key");
       return;
+    }
+
+    // Check if this is a conditional order (limit price that's "wrong side" of current price)
+    if (limitPrice !== undefined) {
+      const currentProb = activeMarket.probability * 100;
+      const isYesAboveCurrent = side === "YES" && limitPrice > currentProb;
+      const isNoBelowCurrent = side === "NO" && limitPrice < currentProb;
+
+      // YES limit above current = conditional (wait for price to rise)
+      // NO limit below current = conditional (wait for price to fall)
+      if (isYesAboveCurrent || isNoBelowCurrent) {
+        // Create conditional order
+        try {
+          const { data, error } = await supabase.functions.invoke('conditional-limit-order', {
+            body: {
+              action: 'create-order',
+              marketId: activeMarket.id,
+              marketUrl: activeMarket.url,
+              side,
+              amount,
+              targetProbability: limitPrice,
+            }
+          });
+
+          if (error) throw error;
+          if (data.executeNow) {
+            // Normal limit order, continue with regular flow
+            addLog("Info", true, "Target at/better than current price, using normal limit order");
+          } else if (data.success) {
+            addLog(`Conditional ${side}`, true, `${amount}M @ ${limitPrice}% - waiting for trigger`);
+            toast.success(`Conditional order created - will execute when price reaches ${limitPrice}%`);
+            return;
+          } else if (data.error) {
+            addLog("Conditional", false, data.error);
+            toast.error(data.error);
+            return;
+          }
+        } catch (err) {
+          console.error('Conditional order error:', err);
+          addLog("Conditional", false, "Failed to create conditional order");
+          toast.error("Failed to create conditional order");
+          return;
+        }
+      }
     }
 
     const body: any = {
@@ -726,6 +778,15 @@ function TerminalMain() {
             <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditMode(true)}
+              className="text-gray-400 hover:text-white gap-2"
+            >
+              <Layout className="w-4 h-4" />
+              Edit Layout
+            </Button>
             <div className="flex items-center gap-2">
               <Switch
                 checked={autoExecute}
@@ -744,6 +805,19 @@ function TerminalMain() {
             </Link>
           </div>
         </div>
+
+        {/* Edit Mode Modal */}
+        {showEditMode && (
+          <TerminalEditMode
+            panels={panels}
+            onSave={(newPanels) => {
+              saveLayout(newPanels);
+              setShowEditMode(false);
+              toast.success("Layout saved");
+            }}
+            onCancel={() => setShowEditMode(false)}
+          />
+        )}
 
         {/* API Key Warning */}
         {!apiKey && (

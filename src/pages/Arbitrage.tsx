@@ -240,6 +240,16 @@ export default function Arbitrage() {
     setHasWithdrawalUsername(!!data?.withdrawal_username);
   };
   const handleScan = async () => {
+    // Security: Only admins/moderators can scan
+    if (!canScan) {
+      toast({
+        title: 'Permission Denied',
+        description: 'Only admins and moderators can run arbitrage scans. Regular users can view published opportunities.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (!hasApiKey) {
       toast({
         title: 'API Key Required',
@@ -375,7 +385,8 @@ export default function Arbitrage() {
         body: {
           action: 'execute',
           opportunityId: opportunity.id,
-          markets: marketsWithScaling
+          markets: marketsWithScaling,
+          verifyPrices: true // Security: Always verify prices before execution
         }
       });
       if (error) throw error;
@@ -411,6 +422,53 @@ export default function Arbitrage() {
       });
     } finally {
       setIsExecuting(null);
+    }
+  };
+
+  // Publish opportunity to public list (admin only)
+  const publishOpportunity = async (opportunity: ArbitrageOpportunity) => {
+    if (!canScan) {
+      toast({
+        title: 'Permission Denied',
+        description: 'Only admins can publish opportunities',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      const aiAnalysis = getAnalysis(opportunity.markets[0]?.id, opportunity.markets[1]?.id);
+      
+      const { error } = await supabase.from('public_arbitrage_opportunities').insert({
+        market_1_id: opportunity.markets[0].id,
+        market_1_question: opportunity.markets[0].question,
+        market_1_prob: opportunity.markets[0].probability,
+        market_1_url: opportunity.markets[0].url,
+        market_1_position: opportunity.markets[0].action,
+        market_2_id: opportunity.markets[1].id,
+        market_2_question: opportunity.markets[1].question,
+        market_2_prob: opportunity.markets[1].probability,
+        market_2_url: opportunity.markets[1].url,
+        market_2_position: opportunity.markets[1].action,
+        expected_profit: opportunity.expectedProfit,
+        confidence: opportunity.confidence,
+        ai_analysis: aiAnalysis?.reason || null,
+        status: 'active'
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Published!',
+        description: 'Opportunity is now visible on the public arbitrage page',
+      });
+    } catch (error) {
+      console.error('Publish error:', error);
+      toast({
+        title: 'Publish Failed',
+        description: error instanceof Error ? error.message : 'Failed to publish',
+        variant: 'destructive'
+      });
     }
   };
   const skipOpportunity = (opportunityId: string, reason: string) => {
@@ -697,6 +755,12 @@ export default function Arbitrage() {
             <XCircle className="w-4 h-4 mr-1" />
             Skip
           </Button>
+          {canScan && opp.markets.length >= 2 && (
+            <Button variant="outline" size="sm" onClick={() => publishOpportunity(opp)} className="gap-1">
+              <Users className="w-4 h-4" />
+              Publish
+            </Button>
+          )}
           <Button size="sm" onClick={() => executeOpportunity(opp)} disabled={isExecuting === opp.id} className={`gap-1 ${confirmingTrade === opp.id ? 'bg-destructive hover:bg-destructive/90' : ''}`}>
             {isExecuting === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmingTrade === opp.id ? <AlertTriangle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
             {confirmingTrade === opp.id ? 'Confirm?' : `Execute${investmentAmounts[opp.id] ? ` M$${investmentAmounts[opp.id]}` : ''}`}
