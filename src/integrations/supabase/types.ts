@@ -574,9 +574,12 @@ export type Database = {
           id: string
           is_active: boolean
           is_gifted: boolean
+          is_trial: boolean | null
           mana_price: number
           plan_type: string
           started_at: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
           user_id: string
         }
@@ -588,9 +591,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_gifted?: boolean
+          is_trial?: boolean | null
           mana_price?: number
           plan_type?: string
           started_at?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -602,9 +608,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_gifted?: boolean
+          is_trial?: boolean | null
           mana_price?: number
           plan_type?: string
           started_at?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id?: string
         }
