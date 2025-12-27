@@ -31,6 +31,7 @@ import TerminalWatchlist from "@/components/terminal/TerminalWatchlist";
 import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
 import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
 import TerminalPositions from "@/components/terminal/TerminalPositions";
+import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 
 interface Market {
   id: string;
@@ -138,25 +139,25 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                     <span className="text-gray-400">Buy 100 mana of NO at market price</span>
                   </div>
                   <div className="flex gap-4">
-                    <code className="text-yellow-400 w-28">/100B@45L</code>
+                    <code className="text-yellow-400 w-28">/100B@45/</code>
                     <span className="text-gray-400">Limit YES @45%</span>
                   </div>
                   <div className="flex gap-4">
-                    <code className="text-yellow-400 w-28">30/100B@45L</code>
+                    <code className="text-yellow-400 w-28">30/100B@45/</code>
                     <span className="text-gray-400">Limit YES @45%, cancel in 30 min</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Zap className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-white mb-1">Auto-Execute Mode</h3>
-                <p className="text-sm text-gray-400">
-                  When enabled, market orders execute instantly. Limit orders require{" "}
-                  <code className="text-yellow-400">L</code> suffix or Enter key to confirm.
-                </p>
+              <div className="flex items-start gap-3">
+                <Zap className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-white mb-1">Auto-Execute Mode</h3>
+                  <p className="text-sm text-gray-400">
+                    When enabled, market orders execute instantly. Limit orders require{" "}
+                    <code className="text-yellow-400">/</code> suffix or Enter key to confirm.
+                  </p>
               </div>
             </div>
 
@@ -527,8 +528,8 @@ function TerminalMain() {
       }
     }
 
-    // MC trading with limit: N:amountB@priceL
-    const mcTradeLimit = /^(\d+):(\d+)(B|S)@(\d+)L$/;
+    // MC trading with limit: N:amountB@price/
+    const mcTradeLimit = /^(\d+):(\d+)(B|S)@(\d+)\/$/;
     match = trimmed.match(mcTradeLimit);
     if (match && mcOptions.length > 0) {
       const [, optionNum, amount, side, price] = match;
@@ -541,9 +542,9 @@ function TerminalMain() {
       }
     }
 
-    // Pattern: {minutes}/{amount}{B|S}@{price}L - limit with expiration (L required, auto-executes)
-    const limitWithExpiryL = /^(\d+)\/(\d+)(B|S)@(\d+)L$/;
-    match = trimmed.match(limitWithExpiryL);
+    // Pattern: {minutes}/{amount}{B|S}@{price}/ - limit with expiration (/ required, auto-executes)
+    const limitWithExpiry = /^(\d+)\/(\d+)(B|S)@(\d+)\/$/;
+    match = trimmed.match(limitWithExpiry);
     if (match) {
       const [, minutes, amount, side, price] = match;
       const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
@@ -552,9 +553,9 @@ function TerminalMain() {
       return true;
     }
 
-    // Pattern: /{amount}{B|S}@{price}L - limit without expiration (starts with /, L required, auto-executes)
-    const limitNoExpirySlashL = /^\/(\d+)(B|S)@(\d+)L$/;
-    match = trimmed.match(limitNoExpirySlashL);
+    // Pattern: /{amount}{B|S}@{price}/ - limit without expiration (starts with /, / required at end, auto-executes)
+    const limitNoExpirySlash = /^\/(\d+)(B|S)@(\d+)\/$/;
+    match = trimmed.match(limitNoExpirySlash);
     if (match) {
       const [, amount, side, price] = match;
       const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
@@ -564,8 +565,8 @@ function TerminalMain() {
     }
 
     // Pattern: /{amount}{B|S}@{price} - limit without expiration (requires / prefix, executes on Enter)
-    const limitNoExpirySlash = /^\/(\d+)(B|S)@(\d+)$/;
-    match = trimmed.match(limitNoExpirySlash);
+    const limitNoExpiryEnter = /^\/(\d+)(B|S)@(\d+)$/;
+    match = trimmed.match(limitNoExpiryEnter);
     if (match && forceExecute) {
       const [, amount, side, price] = match;
       const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
@@ -574,8 +575,8 @@ function TerminalMain() {
       return true;
     }
 
-    // Pattern: {amount}{B|S}@{price}L - legacy (no slash, L required, auto-executes)
-    // NOTE: Without slash and without expiry, this is now invalid - must use /
+    // Legacy pattern with L (keep for backwards compat): {amount}{B|S}@{price}L
+    // NOTE: Without slash and without expiry, still support L for backwards compat
     
     // Pattern: {amount}{B|S} - market order
     const marketOrder = /^(\d+)(B|S)$/;
@@ -777,8 +778,12 @@ function TerminalMain() {
         )}
 
         <div className="flex gap-4">
-          {/* Left Sidebar - Watchlist */}
-          <div className="w-56 flex-shrink-0">
+          {/* Left Sidebar - Hotkeys + Watchlist */}
+          <div className="w-56 flex-shrink-0 space-y-4">
+            <HotkeyDisplayPanel 
+              hotkeys={hotkeys} 
+              onUpdateHotkey={updateHotkey}
+            />
             <TerminalWatchlist
               onSelectMarket={selectMarket}
               activeMarketId={activeMarket?.id}
@@ -910,8 +915,8 @@ function TerminalMain() {
                 Buy 100M NO
               </div>
               <div>
-                <span className="text-gray-400">100B@45L</span> Limit YES @45% •{" "}
-                <span className="text-gray-400">30/100B@45L</span> Limit with 30min cancel
+                <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
+                <span className="text-gray-400">30/100B@45/</span> Limit with 30min cancel
               </div>
               <div>
                 <span className="text-gray-400">Cmd+X</span> Sell all positions
