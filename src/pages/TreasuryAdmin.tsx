@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Landmark, Shield, TrendingUp, FileText, Loader2, Plus, Save, Trash2, AlertTriangle, CheckCircle, XCircle, Users, Ban, Bot, Play, Pause, Settings, MessageSquare, Clock, Zap, ExternalLink, PieChart, Code, Edit, CreditCard, Gift } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useAIArbitrage } from '@/hooks/useAIArbitrage';
 
 interface BondRate {
   id: string;
@@ -79,6 +80,31 @@ interface ArbitrageOpportunity {
   created_at: string;
 }
 
+interface ScanOpportunity {
+  id: string;
+  type: string;
+  markets: {
+    id: string;
+    question: string;
+    probability: number;
+    url: string;
+    liquidity?: number;
+    action: 'BUY_YES' | 'BUY_NO';
+  }[];
+  expectedProfit: number;
+  confidence?: 'high' | 'medium' | 'low';
+  matchReason?: string;
+}
+
+interface ScanConfig {
+  minLiquidity: number;
+  minVolume: number;
+  baseThreshold: number;
+  fullScan: boolean;
+  maxMarkets: number;
+  aiAnalysisEnabled: boolean;
+}
+
 const TERM_LABELS: Record<number, string> = {
   4: '4 Week T-Bond',
   13: '3 Month T-Bond',
@@ -127,7 +153,7 @@ export default function TreasuryAdmin() {
   // Suggestions
   const [processingSuggestion, setProcessingSuggestion] = useState<string | null>(null);
 
-  // Arbitrage
+  // Arbitrage - manual entry
   const [showNewArbitrage, setShowNewArbitrage] = useState(false);
   const [processingArbitrage, setProcessingArbitrage] = useState<string | null>(null);
   const [newArbitrage, setNewArbitrage] = useState({
@@ -144,6 +170,23 @@ export default function TreasuryAdmin() {
     ai_analysis: '',
   });
 
+  // AI Scan
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
+  const [scannedOpportunities, setScannedOpportunities] = useState<ScanOpportunity[]>([]);
+  const [scanConfig, setScanConfig] = useState<ScanConfig>({
+    minLiquidity: 50,
+    minVolume: 10,
+    baseThreshold: 2,
+    fullScan: true,
+    maxMarkets: 50000,
+    aiAnalysisEnabled: true,
+  });
+  const scanHistoryIdRef = useRef<string | null>(null);
+  
+  const { analyzePairs, getAnalysis, clearAnalysis } = useAIArbitrage();
+
   // Index Funds
   const [indexFunds, setIndexFunds] = useState<TradingBot[]>([]);
   const [showNewIndexFund, setShowNewIndexFund] = useState(false);
@@ -154,14 +197,12 @@ export default function TreasuryAdmin() {
     markets: [] as { id: string; question: string; url: string; probability: number; allocation: number }[],
   });
   const [newMarketInput, setNewMarketInput] = useState({ question: '', url: '', probability: 50, allocation: 25 });
-  const [editingFund, setEditingFund] = useState<string | null>(null);
 
   // Bot Strategies
   const [botStrategies, setBotStrategies] = useState<TradingBot[]>([]);
   const [showNewStrategy, setShowNewStrategy] = useState(false);
   const [processingStrategy, setProcessingStrategy] = useState<string | null>(null);
   const [newStrategy, setNewStrategy] = useState({ name: '', description: '', codeSnippet: '' });
-  const [editingStrategy, setEditingStrategy] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAndFetchData();
@@ -268,6 +309,107 @@ export default function TreasuryAdmin() {
     }
   };
 
+  // AI Scan handler
+  const handleAIScan = async () => {
+    setIsScanning(true);
+    setScanProgress(0);
+    setScanStatus('Initializing scan...');
+    setScannedOpportunities([]);
+    clearAnalysis();
+
+    try {
+      const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
+        body: {
+          action: 'scan',
+          config: {
+            minLiquidity: scanConfig.minLiquidity,
+            minVolume: scanConfig.minVolume,
+            baseThreshold: scanConfig.baseThreshold / 100,
+            dynamicThresholdEnabled: true,
+            semanticMatchingEnabled: true,
+            dryRun: false,
+            fullScan: scanConfig.fullScan,
+            maxMarkets: scanConfig.maxMarkets,
+          }
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      if (data.historyId) {
+        scanHistoryIdRef.current = data.historyId;
+      }
+
+      setScanProgress(100);
+      setScanStatus('Scan complete!');
+      const opps = data.opportunities || [];
+      setScannedOpportunities(opps);
+
+      toast({
+        title: 'Scan Complete',
+        description: `Found ${opps.length} opportunities across ${data.marketsScanned || 0} markets.`
+      });
+    } catch (error) {
+      console.error('Scan error:', error);
+      toast({
+        title: 'Scan Failed',
+        description: error instanceof Error ? error.message : 'Failed to scan markets',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsScanning(false);
+      setScanProgress(0);
+      setScanStatus('');
+    }
+  };
+
+  // Publish scanned opportunity to public list
+  const publishScannedOpportunity = async (opp: ScanOpportunity) => {
+    if (opp.markets.length < 2) {
+      toast({ title: 'Invalid', description: 'Need at least 2 markets', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const aiAnalysis = getAnalysis(opp.markets[0]?.id, opp.markets[1]?.id);
+      
+      const { error } = await supabase.from('public_arbitrage_opportunities').insert({
+        market_1_id: opp.markets[0].id,
+        market_1_question: opp.markets[0].question,
+        market_1_prob: opp.markets[0].probability,
+        market_1_url: opp.markets[0].url,
+        market_1_position: opp.markets[0].action,
+        market_2_id: opp.markets[1].id,
+        market_2_question: opp.markets[1].question,
+        market_2_prob: opp.markets[1].probability,
+        market_2_url: opp.markets[1].url,
+        market_2_position: opp.markets[1].action,
+        expected_profit: opp.expectedProfit,
+        confidence: opp.confidence || 'medium',
+        ai_analysis: aiAnalysis?.reason || null,
+        status: 'active'
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Published!', description: 'Opportunity visible to fintech subscribers' });
+      
+      // Remove from scanned list
+      setScannedOpportunities(prev => prev.filter(o => o.id !== opp.id));
+      
+      // Refresh published list
+      await checkAdminAndFetchData();
+    } catch (error) {
+      console.error('Publish error:', error);
+      toast({
+        title: 'Publish Failed',
+        description: error instanceof Error ? error.message : 'Failed to publish',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleSaveRate = async () => {
     if (!newRate.annual_yield || newRate.annual_yield <= 0) {
       toast({ title: 'Invalid rate', description: 'Please enter a valid annual yield', variant: 'destructive' });
@@ -358,7 +500,6 @@ export default function TreasuryAdmin() {
   const handleDeleteLoan = async (loanId: string) => {
     setProcessingLoan(loanId);
     try {
-      // First cancel to return funds, then delete
       const { data, error } = await supabase.functions.invoke('cancel-loan', {
         body: { loanId, reason: 'Admin moderation: Loan deleted by administrator' }
       });
@@ -366,7 +507,6 @@ export default function TreasuryAdmin() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Now delete the loan record
       const { error: deleteError } = await supabase
         .from('loans')
         .delete()
@@ -502,7 +642,7 @@ export default function TreasuryAdmin() {
       
       setEmergencyStop(newValue);
       toast({ 
-        title: newValue ? '🛑 Emergency Stop Activated' : '✅ Bots Resumed', 
+        title: newValue ? 'Emergency Stop Activated' : 'Bots Resumed', 
         description: newValue ? 'All trading bots have been halted.' : 'Trading bots can now run.',
         variant: newValue ? 'destructive' : 'default'
       });
@@ -574,7 +714,6 @@ export default function TreasuryAdmin() {
     }
 
     try {
-      // Extract market IDs from URLs if possible
       const market1Id = newArbitrage.market_1_url.split('/').pop() || `m1_${Date.now()}`;
       const market2Id = newArbitrage.market_2_url.split('/').pop() || `m2_${Date.now()}`;
 
@@ -701,25 +840,6 @@ export default function TreasuryAdmin() {
     }
   };
 
-  const handleUpdateIndexFund = async (fundId: string, markets: any[]) => {
-    setProcessingIndexFund(fundId);
-    try {
-      const { error } = await supabase
-        .from('trading_bots')
-        .update({ config: { markets } })
-        .eq('id', fundId);
-
-      if (error) throw error;
-      toast({ title: 'Updated' });
-      setEditingFund(null);
-      await checkAdminAndFetchData();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
-    } finally {
-      setProcessingIndexFund(null);
-    }
-  };
-
   const handleDeleteIndexFund = async (fundId: string) => {
     setProcessingIndexFund(fundId);
     try {
@@ -761,32 +881,6 @@ export default function TreasuryAdmin() {
     }
   };
 
-  const handleUpdateStrategy = async (strategyId: string, updates: { name?: string; description?: string; codeSnippet?: string }) => {
-    setProcessingStrategy(strategyId);
-    try {
-      const strategy = botStrategies.find(s => s.id === strategyId);
-      if (!strategy) return;
-
-      const { error } = await supabase
-        .from('trading_bots')
-        .update({
-          name: updates.name || strategy.name,
-          description: updates.description || strategy.description,
-          config: { codeSnippet: updates.codeSnippet || (strategy.config as any)?.codeSnippet },
-        })
-        .eq('id', strategyId);
-
-      if (error) throw error;
-      toast({ title: 'Updated' });
-      setEditingStrategy(null);
-      await checkAdminAndFetchData();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
-    } finally {
-      setProcessingStrategy(null);
-    }
-  };
-
   const handleDeleteStrategy = async (strategyId: string) => {
     setProcessingStrategy(strategyId);
     try {
@@ -799,12 +893,12 @@ export default function TreasuryAdmin() {
     } finally {
       setProcessingStrategy(null);
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -814,7 +908,6 @@ export default function TreasuryAdmin() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="glass max-w-md">
           <CardContent className="p-8 text-center">
-            <Shield className="w-12 h-12 mx-auto mb-4 text-destructive" />
             <h2 className="text-xl font-bold mb-2">Access Denied</h2>
             <p className="text-muted-foreground mb-4">You don't have admin privileges to access this page.</p>
             <Link to="/hub">
@@ -834,7 +927,7 @@ export default function TreasuryAdmin() {
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
-                <Landmark className="w-5 h-5 text-primary-foreground" />
+                <span className="text-primary-foreground font-bold">T</span>
               </div>
               <div>
                 <h1 className="text-lg font-bold text-gradient">Treasury Admin</h1>
@@ -842,7 +935,6 @@ export default function TreasuryAdmin() {
               </div>
             </Link>
             <Badge variant="outline" className="gap-2">
-              <Shield className="w-3 h-3" />
               Admin
             </Badge>
           </div>
@@ -850,54 +942,291 @@ export default function TreasuryAdmin() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-        <Tabs defaultValue="rates" className="space-y-6">
+        <Tabs defaultValue="arbitrage" className="space-y-6">
           <TabsList className="grid grid-cols-5 sm:grid-cols-9 w-full">
-            <TabsTrigger value="rates" className="gap-2">
-              <TrendingUp className="w-4 h-4" />
-              <span className="hidden sm:inline">Rates</span>
-            </TabsTrigger>
-            <TabsTrigger value="news" className="gap-2">
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">News</span>
-            </TabsTrigger>
-            <TabsTrigger value="loans" className="gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Loans</span>
-            </TabsTrigger>
-            <TabsTrigger value="arbitrage" className="gap-2">
-              <Zap className="w-4 h-4" />
+            <TabsTrigger value="arbitrage">
               <span className="hidden sm:inline">Arbitrage</span>
+              <span className="sm:hidden">Arb</span>
             </TabsTrigger>
-            <TabsTrigger value="bots" className="gap-2">
-              <Bot className="w-4 h-4" />
+            <TabsTrigger value="rates">
+              <span className="hidden sm:inline">Rates</span>
+              <span className="sm:hidden">$</span>
+            </TabsTrigger>
+            <TabsTrigger value="news">
+              <span className="hidden sm:inline">News</span>
+              <span className="sm:hidden">N</span>
+            </TabsTrigger>
+            <TabsTrigger value="loans">
+              <span className="hidden sm:inline">Loans</span>
+              <span className="sm:hidden">L</span>
+            </TabsTrigger>
+            <TabsTrigger value="bots">
               <span className="hidden sm:inline">Bots</span>
+              <span className="sm:hidden">B</span>
             </TabsTrigger>
-            <TabsTrigger value="indexfunds" className="gap-2">
-              <PieChart className="w-4 h-4" />
+            <TabsTrigger value="indexfunds">
               <span className="hidden sm:inline">Funds</span>
+              <span className="sm:hidden">F</span>
             </TabsTrigger>
-            <TabsTrigger value="strategies" className="gap-2">
-              <Code className="w-4 h-4" />
+            <TabsTrigger value="strategies">
               <span className="hidden sm:inline">Snippets</span>
+              <span className="sm:hidden">S</span>
             </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="gap-2">
-              <CreditCard className="w-4 h-4" />
+            <TabsTrigger value="subscriptions">
               <span className="hidden sm:inline">Subs</span>
+              <span className="sm:hidden">$</span>
             </TabsTrigger>
-            <TabsTrigger value="suggestions" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
+            <TabsTrigger value="suggestions">
               <span className="hidden sm:inline">Suggest</span>
+              <span className="sm:hidden">?</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Arbitrage Tab - Now with AI Scan */}
+          <TabsContent value="arbitrage">
+            <div className="space-y-6">
+              {/* AI Scan Section */}
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>AI Arbitrage Scanner</CardTitle>
+                  <CardDescription>
+                    Scan markets for arbitrage opportunities using AI analysis. Found opportunities can be published for fintech subscribers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Scan Config */}
+                  <div className="grid sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label>Min Liquidity</Label>
+                      <Input 
+                        type="number" 
+                        value={scanConfig.minLiquidity} 
+                        onChange={(e) => setScanConfig(c => ({ ...c, minLiquidity: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Min Volume</Label>
+                      <Input 
+                        type="number" 
+                        value={scanConfig.minVolume} 
+                        onChange={(e) => setScanConfig(c => ({ ...c, minVolume: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Threshold %</Label>
+                      <Input 
+                        type="number" 
+                        value={scanConfig.baseThreshold} 
+                        onChange={(e) => setScanConfig(c => ({ ...c, baseThreshold: parseFloat(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Max Markets</Label>
+                      <Input 
+                        type="number" 
+                        value={scanConfig.maxMarkets} 
+                        onChange={(e) => setScanConfig(c => ({ ...c, maxMarkets: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={scanConfig.fullScan}
+                        onCheckedChange={(v) => setScanConfig(c => ({ ...c, fullScan: v }))}
+                      />
+                      <Label>Full Scan</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={scanConfig.aiAnalysisEnabled}
+                        onCheckedChange={(v) => setScanConfig(c => ({ ...c, aiAnalysisEnabled: v }))}
+                      />
+                      <Label>AI Analysis</Label>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleAIScan} 
+                    disabled={isScanning}
+                    className="w-full"
+                  >
+                    {isScanning ? 'Scanning...' : 'Run AI Scan'}
+                  </Button>
+
+                  {isScanning && (
+                    <div className="space-y-2">
+                      <Progress value={scanProgress} />
+                      <p className="text-sm text-muted-foreground text-center">{scanStatus}</p>
+                    </div>
+                  )}
+
+                  {/* Scanned Results */}
+                  {scannedOpportunities.length > 0 && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <h4 className="font-medium">Found {scannedOpportunities.length} Opportunities</h4>
+                      {scannedOpportunities.slice(0, 20).map(opp => (
+                        <div key={opp.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={opp.confidence === 'high' ? 'success' : opp.confidence === 'medium' ? 'pending' : 'secondary'}>
+                                  {opp.confidence || 'unknown'}
+                                </Badge>
+                                <Badge variant="outline">{opp.type}</Badge>
+                                <span className="text-sm font-medium text-success">+M${opp.expectedProfit.toFixed(2)}</span>
+                              </div>
+                              {opp.markets.slice(0, 2).map((m, i) => (
+                                <p key={i} className="text-sm text-muted-foreground truncate">
+                                  {i + 1}. {m.action === 'BUY_YES' ? 'YES' : 'NO'} @ {(m.probability * 100).toFixed(0)}% - {m.question}
+                                </p>
+                              ))}
+                            </div>
+                            <Button 
+                              size="sm" 
+                              onClick={() => publishScannedOpportunity(opp)}
+                            >
+                              Publish
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Manual Entry & Published List */}
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>Published Opportunities</CardTitle>
+                  <CardDescription>
+                    Manage opportunities visible to fintech subscribers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {arbitrageOpportunities.filter(a => a.status === 'active').length} active opportunities
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setShowNewArbitrage(!showNewArbitrage)}>
+                      New Opportunity
+                    </Button>
+                  </div>
+
+                  {showNewArbitrage && (
+                    <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                      <h4 className="font-medium">Create Arbitrage Opportunity</h4>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label>Market 1 Question</Label>
+                          <Input placeholder="e.g., Will X happen?" value={newArbitrage.market_1_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_question: e.target.value })} />
+                          <Label>Market 1 URL</Label>
+                          <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_1_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_url: e.target.value })} />
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Label>Prob %</Label>
+                              <Input type="number" value={newArbitrage.market_1_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_prob: parseInt(e.target.value) || 0 })} />
+                            </div>
+                            <div className="flex-1">
+                              <Label>Position</Label>
+                              <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_1_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_position: e.target.value })}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <Label>Market 2 Question</Label>
+                          <Input placeholder="e.g., Will Y happen?" value={newArbitrage.market_2_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_question: e.target.value })} />
+                          <Label>Market 2 URL</Label>
+                          <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_2_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_url: e.target.value })} />
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Label>Prob %</Label>
+                              <Input type="number" value={newArbitrage.market_2_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_prob: parseInt(e.target.value) || 0 })} />
+                            </div>
+                            <div className="flex-1">
+                              <Label>Position</Label>
+                              <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_2_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_position: e.target.value })}>
+                                <option value="YES">YES</option>
+                                <option value="NO">NO</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Expected Profit %</Label>
+                          <Input type="number" value={newArbitrage.expected_profit} onChange={(e) => setNewArbitrage({ ...newArbitrage, expected_profit: parseFloat(e.target.value) || 0 })} />
+                        </div>
+                        <div>
+                          <Label>Confidence</Label>
+                          <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.confidence} onChange={(e) => setNewArbitrage({ ...newArbitrage, confidence: e.target.value })}>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label>AI Analysis (optional)</Label>
+                        <Textarea placeholder="Explain why this is a valid arbitrage opportunity..." value={newArbitrage.ai_analysis} onChange={(e) => setNewArbitrage({ ...newArbitrage, ai_analysis: e.target.value })} rows={3} />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleCreateArbitrage}>Create Opportunity</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowNewArbitrage(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {arbitrageOpportunities.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">No opportunities yet</div>
+                    ) : (
+                      arbitrageOpportunities.map(opp => (
+                        <div key={opp.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant={opp.status === 'active' ? 'success' : opp.status === 'executed' ? 'secondary' : 'destructive'}>{opp.status}</Badge>
+                                <Badge variant={opp.confidence === 'high' ? 'success' : opp.confidence === 'medium' ? 'pending' : 'secondary'}>{opp.confidence}</Badge>
+                                <span className="text-sm font-medium text-success">+{(opp.expected_profit * 100).toFixed(1)}%</span>
+                              </div>
+                              <p className="text-sm font-medium">{opp.market_1_question}</p>
+                              <p className="text-xs text-muted-foreground">vs {opp.market_2_question}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {opp.market_1_url && (
+                                <Button variant="ghost" size="sm" asChild>
+                                  <a href={opp.market_1_url} target="_blank" rel="noopener noreferrer">View</a>
+                                </Button>
+                              )}
+                              <Button variant="outline" size="sm" onClick={() => handleUpdateArbitrageStatus(opp.id, opp.status === 'active' ? 'expired' : 'active')} disabled={processingArbitrage === opp.id}>
+                                {opp.status === 'active' ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteArbitrage(opp.id)} disabled={processingArbitrage === opp.id}>
+                                {processingArbitrage === opp.id ? '...' : 'Delete'}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Rates Tab */}
           <TabsContent value="rates">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Set Bond Rates
-                </CardTitle>
+                <CardTitle>Set Bond Rates</CardTitle>
                 <CardDescription>
                   Update interest rates for Treasury Bonds. New rates apply to future purchases.
                 </CardDescription>
@@ -927,9 +1256,8 @@ export default function TreasuryAdmin() {
                     />
                   </div>
                   <div className="flex items-end">
-                    <Button onClick={handleSaveRate} disabled={isSavingRate} className="w-full gap-2">
-                      {isSavingRate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Set Rate
+                    <Button onClick={handleSaveRate} disabled={isSavingRate} className="w-full">
+                      {isSavingRate ? '...' : 'Set Rate'}
                     </Button>
                   </div>
                 </div>
@@ -956,19 +1284,16 @@ export default function TreasuryAdmin() {
           <TabsContent value="news">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Publish Treasury News
-                </CardTitle>
+                <CardTitle>Publish Treasury News</CardTitle>
                 <CardDescription>
-                  Post official announcements about rate changes, policies, or treasury updates.
+                  Announcements appear on the bonds page for all users.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label>Title</Label>
                   <Input 
-                    placeholder="Announcement title..."
+                    placeholder="e.g., Rate Update: 6% APY Now Available"
                     value={newNews.title}
                     onChange={(e) => setNewNews({ ...newNews, title: e.target.value })}
                   />
@@ -976,36 +1301,30 @@ export default function TreasuryAdmin() {
                 <div>
                   <Label>Content</Label>
                   <Textarea 
-                    placeholder="Announcement content..."
+                    placeholder="Write your announcement here..."
+                    rows={4}
                     value={newNews.content}
                     onChange={(e) => setNewNews({ ...newNews, content: e.target.value })}
-                    rows={4}
                   />
                 </div>
-                <Button onClick={handlePublishNews} disabled={isSavingNews} className="gap-2">
-                  {isSavingNews ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Publish Announcement
+                <Button onClick={handlePublishNews} disabled={isSavingNews}>
+                  {isSavingNews ? '...' : 'Publish'}
                 </Button>
 
                 {news.length > 0 && (
                   <div className="pt-4 border-t">
-                    <p className="text-sm font-medium mb-3">Recent Announcements</p>
+                    <p className="text-sm font-medium mb-3">Recent News</p>
                     <div className="space-y-2">
                       {news.map(item => (
-                        <div key={item.id} className="p-3 rounded-lg bg-secondary/30 flex items-start justify-between gap-4">
+                        <div key={item.id} className="p-3 rounded-lg bg-secondary/30 flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{item.title}</p>
+                            <p className="font-medium text-sm">{item.title}</p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(item.published_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="shrink-0"
-                            onClick={() => handleDeleteNews(item.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteNews(item.id)}>
+                            Delete
                           </Button>
                         </div>
                       ))}
@@ -1016,14 +1335,11 @@ export default function TreasuryAdmin() {
             </Card>
           </TabsContent>
 
-          {/* Loans Moderation Tab */}
+          {/* Loans Tab */}
           <TabsContent value="loans">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  P2P Loans Moderation
-                </CardTitle>
+                <CardTitle>P2P Loans Moderation</CardTitle>
                 <CardDescription>
                   Review, approve, flag, delete, or cancel loans in the marketplace.
                 </CardDescription>
@@ -1031,9 +1347,7 @@ export default function TreasuryAdmin() {
               <CardContent>
                 <div className="space-y-3">
                   {loans.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No loans to moderate
-                    </div>
+                    <div className="text-center py-8 text-muted-foreground">No loans to moderate</div>
                   ) : (
                     loans.map(loan => (
                       <div key={loan.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
@@ -1041,88 +1355,29 @@ export default function TreasuryAdmin() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-medium text-foreground truncate">{loan.title}</h3>
-                              <Badge 
-                                variant={
-                                  loan.status === 'active' ? 'active' : 
-                                  loan.status === 'seeking_funding' ? 'pending' : 
-                                  loan.status === 'cancelled' ? 'destructive' : 'secondary'
-                                }
-                              >
+                              <Badge variant={loan.status === 'active' ? 'active' : loan.status === 'seeking_funding' ? 'pending' : loan.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                 {loan.status.replace('_', ' ')}
                               </Badge>
-                              <Badge 
-                                variant={
-                                  loan.risk_score === 'low' ? 'success' :
-                                  loan.risk_score === 'high' ? 'destructive' : 'secondary'
-                                }
-                              >
+                              <Badge variant={loan.risk_score === 'low' ? 'success' : loan.risk_score === 'high' ? 'destructive' : 'secondary'}>
                                 {loan.risk_score} risk
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              By @{loan.borrower_username} • M${loan.amount.toLocaleString()} • 
-                              Funded: M${loan.funded_amount.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Created: {new Date(loan.created_at).toLocaleDateString()}
+                              By @{loan.borrower_username} • M${loan.amount.toLocaleString()} • Funded: M${loan.funded_amount.toLocaleString()}
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleApproveLoan(loan.id)}
-                              disabled={processingLoan === loan.id || loan.risk_score === 'low'}
-                              className="gap-1"
-                            >
-                              {processingLoan === loan.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-3 h-3" />
-                              )}
-                              Approve
+                            <Button variant="outline" size="sm" onClick={() => handleApproveLoan(loan.id)} disabled={processingLoan === loan.id || loan.risk_score === 'low'}>
+                              {processingLoan === loan.id ? '...' : 'Approve'}
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleFlagLoan(loan.id)}
-                              disabled={processingLoan === loan.id || loan.risk_score === 'high'}
-                              className="gap-1"
-                            >
-                              {processingLoan === loan.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <AlertTriangle className="w-3 h-3" />
-                              )}
-                              Flag
+                            <Button variant="outline" size="sm" onClick={() => handleFlagLoan(loan.id)} disabled={processingLoan === loan.id || loan.risk_score === 'high'}>
+                              {processingLoan === loan.id ? '...' : 'Flag'}
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCancelLoan(loan.id)}
-                              disabled={processingLoan === loan.id || loan.status === 'cancelled'}
-                              className="gap-1 text-warning border-warning/50 hover:bg-warning/10"
-                            >
-                              {processingLoan === loan.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Ban className="w-3 h-3" />
-                              )}
-                              Cancel
+                            <Button variant="outline" size="sm" onClick={() => handleCancelLoan(loan.id)} disabled={processingLoan === loan.id || loan.status === 'cancelled'}>
+                              {processingLoan === loan.id ? '...' : 'Cancel'}
                             </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteLoan(loan.id)}
-                              disabled={processingLoan === loan.id}
-                              className="gap-1"
-                            >
-                              {processingLoan === loan.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3 h-3" />
-                              )}
-                              Delete
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteLoan(loan.id)} disabled={processingLoan === loan.id}>
+                              {processingLoan === loan.id ? '...' : 'Delete'}
                             </Button>
                           </div>
                         </div>
@@ -1138,72 +1393,33 @@ export default function TreasuryAdmin() {
           <TabsContent value="bots">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-primary" />
-                  ManiFed Trading Bots
-                </CardTitle>
+                <CardTitle>ManiFed Trading Bots</CardTitle>
                 <CardDescription>
-                  Automated trading strategies that run continuously. Market making, mispricing detection, and more.
+                  Automated trading strategies that run continuously.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Emergency Stop & Controls */}
+                {/* Emergency Stop */}
                 <div className="p-4 rounded-lg border-2 border-destructive/50 bg-destructive/5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${emergencyStop ? 'bg-destructive animate-pulse' : 'bg-success'}`} />
-                      <span className="font-medium">
-                        {emergencyStop ? '🛑 EMERGENCY STOP ACTIVE' : '✅ Bots Running Normally'}
-                      </span>
+                      <span className="font-medium">{emergencyStop ? 'EMERGENCY STOP ACTIVE' : 'Bots Running Normally'}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant={emergencyStop ? 'default' : 'destructive'} 
-                        size="sm" 
-                        onClick={handleToggleEmergencyStop}
-                        disabled={togglingEmergencyStop}
-                        className="gap-2"
-                      >
-                        {togglingEmergencyStop ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : emergencyStop ? (
-                          <Play className="w-4 h-4" />
-                        ) : (
-                          <Pause className="w-4 h-4" />
-                        )}
-                        {emergencyStop ? 'Resume Bots' : 'Emergency Stop'}
+                      <Button variant={emergencyStop ? 'default' : 'destructive'} size="sm" onClick={handleToggleEmergencyStop} disabled={togglingEmergencyStop}>
+                        {togglingEmergencyStop ? '...' : emergencyStop ? 'Resume Bots' : 'Emergency Stop'}
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleManualBotRun}
-                        disabled={runningBots || emergencyStop}
-                        className="gap-2"
-                      >
-                        {runningBots ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                        Run Now
+                      <Button variant="outline" size="sm" onClick={handleManualBotRun} disabled={runningBots || emergencyStop}>
+                        {runningBots ? '...' : 'Run Now'}
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {emergencyStop 
-                      ? 'All trading bots are halted. Click "Resume Bots" to allow them to trade again.'
-                      : 'Bots run automatically every minute via scheduled job. Use "Emergency Stop" to halt all trading immediately.'}
-                  </p>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {bots.filter(b => b.is_active).length} active bots configured
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => setShowNewBot(!showNewBot)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    New Bot
-                  </Button>
+                  <p className="text-sm text-muted-foreground">{bots.filter(b => b.is_active).length} active bots</p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewBot(!showNewBot)}>New Bot</Button>
                 </div>
 
                 {showNewBot && (
@@ -1212,28 +1428,15 @@ export default function TreasuryAdmin() {
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div>
                         <Label>Bot Name</Label>
-                        <Input 
-                          placeholder="e.g., Alpha Maker 1"
-                          value={newBot.name}
-                          onChange={(e) => setNewBot({ ...newBot, name: e.target.value })}
-                        />
+                        <Input placeholder="e.g., Alpha Maker 1" value={newBot.name} onChange={(e) => setNewBot({ ...newBot, name: e.target.value })} />
                       </div>
                       <div>
                         <Label>Strategy</Label>
-                        <select 
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                          value={newBot.strategy}
-                          onChange={(e) => setNewBot({ ...newBot, strategy: e.target.value })}
-                        >
-                          {BOT_STRATEGIES.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
+                        <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newBot.strategy} onChange={(e) => setNewBot({ ...newBot, strategy: e.target.value })}>
+                          {BOT_STRATEGIES.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
                         </select>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {BOT_STRATEGIES.find(s => s.id === newBot.strategy)?.description}
-                    </p>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={handleCreateBot}>Create Bot</Button>
                       <Button size="sm" variant="ghost" onClick={() => setShowNewBot(false)}>Cancel</Button>
@@ -1243,11 +1446,7 @@ export default function TreasuryAdmin() {
 
                 <div className="space-y-3">
                   {bots.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Bot className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No trading bots configured</p>
-                      <p className="text-sm">Create your first bot to start automated trading</p>
-                    </div>
+                    <div className="text-center py-8 text-muted-foreground">No trading bots configured</div>
                   ) : (
                     bots.map(bot => {
                       const strategy = BOT_STRATEGIES.find(s => s.id === bot.strategy);
@@ -1257,266 +1456,25 @@ export default function TreasuryAdmin() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-medium text-foreground">{bot.name}</h3>
-                                <Badge variant={bot.is_active ? 'success' : 'secondary'}>
-                                  {bot.is_active ? 'Active' : 'Paused'}
-                                </Badge>
+                                <Badge variant={bot.is_active ? 'success' : 'secondary'}>{bot.is_active ? 'Active' : 'Paused'}</Badge>
                                 <Badge variant="outline">{strategy?.name || bot.strategy}</Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">
-                                {bot.description || strategy?.description}
-                              </p>
+                              <p className="text-sm text-muted-foreground">{bot.description || strategy?.description}</p>
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                 <span>Trades: {bot.total_trades}</span>
                                 <span>Profit: M${bot.total_profit.toFixed(2)}</span>
-                                {bot.last_run_at && (
-                                  <span>Last run: {new Date(bot.last_run_at).toLocaleString()}</span>
-                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Switch 
-                                checked={bot.is_active}
-                                onCheckedChange={() => handleToggleBot(bot.id, bot.is_active)}
-                                disabled={processingBot === bot.id}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteBot(bot.id)}
-                                disabled={processingBot === bot.id}
-                              >
-                                {processingBot === bot.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-4 h-4 text-destructive" />
-                                )}
+                              <Switch checked={bot.is_active} onCheckedChange={() => handleToggleBot(bot.id, bot.is_active)} disabled={processingBot === bot.id} />
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteBot(bot.id)} disabled={processingBot === bot.id}>
+                                {processingBot === bot.id ? '...' : 'Delete'}
                               </Button>
                             </div>
                           </div>
                         </div>
                       );
                     })
-                  )}
-                </div>
-
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">Available Strategies</h4>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    {BOT_STRATEGIES.map(s => (
-                      <div key={s.id} className="p-3 rounded-lg bg-background/50 text-sm">
-                        <p className="font-medium">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{s.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Suggestions Tab */}
-          <TabsContent value="suggestions">
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                  Product Suggestions
-                </CardTitle>
-                <CardDescription>
-                  User-submitted feature requests and product ideas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {suggestions.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No suggestions yet</p>
-                ) : (
-                  <div className="space-y-3">
-                    {suggestions.map(suggestion => (
-                      <div key={suggestion.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-medium text-foreground">{suggestion.title}</h3>
-                              <Badge variant={
-                                suggestion.status === 'approved' ? 'success' :
-                                suggestion.status === 'rejected' ? 'destructive' :
-                                suggestion.status === 'in_progress' ? 'pending' :
-                                'secondary'
-                              }>
-                                {suggestion.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">{suggestion.description}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
-                            </div>
-                            {suggestion.admin_notes && (
-                              <p className="text-xs text-primary mt-2 italic">Admin: {suggestion.admin_notes}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'approved')}
-                              disabled={processingSuggestion === suggestion.id || suggestion.status === 'approved'}
-                            >
-                              <CheckCircle className="w-4 h-4 text-success" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'rejected')}
-                              disabled={processingSuggestion === suggestion.id || suggestion.status === 'rejected'}
-                            >
-                              <XCircle className="w-4 h-4 text-destructive" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteSuggestion(suggestion.id)}
-                              disabled={processingSuggestion === suggestion.id}
-                            >
-                              {processingSuggestion === suggestion.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Arbitrage Tab */}
-          <TabsContent value="arbitrage">
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-primary" />
-                  Public Arbitrage Opportunities
-                </CardTitle>
-                <CardDescription>
-                  Create and manage arbitrage opportunities that users can execute with one-time API keys.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {arbitrageOpportunities.filter(a => a.status === 'active').length} active opportunities
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => setShowNewArbitrage(!showNewArbitrage)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    New Opportunity
-                  </Button>
-                </div>
-
-                {showNewArbitrage && (
-                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
-                    <h4 className="font-medium">Create Arbitrage Opportunity</h4>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <Label>Market 1 Question</Label>
-                        <Input placeholder="e.g., Will X happen?" value={newArbitrage.market_1_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_question: e.target.value })} />
-                        <Label>Market 1 URL</Label>
-                        <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_1_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_url: e.target.value })} />
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <Label>Prob %</Label>
-                            <Input type="number" value={newArbitrage.market_1_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_prob: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div className="flex-1">
-                            <Label>Position</Label>
-                            <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_1_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_1_position: e.target.value })}>
-                              <option value="YES">YES</option>
-                              <option value="NO">NO</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <Label>Market 2 Question</Label>
-                        <Input placeholder="e.g., Will Y happen?" value={newArbitrage.market_2_question} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_question: e.target.value })} />
-                        <Label>Market 2 URL</Label>
-                        <Input placeholder="https://manifold.markets/..." value={newArbitrage.market_2_url} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_url: e.target.value })} />
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <Label>Prob %</Label>
-                            <Input type="number" value={newArbitrage.market_2_prob} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_prob: parseInt(e.target.value) || 0 })} />
-                          </div>
-                          <div className="flex-1">
-                            <Label>Position</Label>
-                            <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.market_2_position} onChange={(e) => setNewArbitrage({ ...newArbitrage, market_2_position: e.target.value })}>
-                              <option value="YES">YES</option>
-                              <option value="NO">NO</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label>Expected Profit %</Label>
-                        <Input type="number" value={newArbitrage.expected_profit} onChange={(e) => setNewArbitrage({ ...newArbitrage, expected_profit: parseFloat(e.target.value) || 0 })} />
-                      </div>
-                      <div>
-                        <Label>Confidence</Label>
-                        <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={newArbitrage.confidence} onChange={(e) => setNewArbitrage({ ...newArbitrage, confidence: e.target.value })}>
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <Label>AI Analysis (optional)</Label>
-                      <Textarea placeholder="Explain why this is a valid arbitrage opportunity..." value={newArbitrage.ai_analysis} onChange={(e) => setNewArbitrage({ ...newArbitrage, ai_analysis: e.target.value })} rows={3} />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateArbitrage}>Create Opportunity</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowNewArbitrage(false)}>Cancel</Button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {arbitrageOpportunities.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No opportunities yet</div>
-                  ) : (
-                    arbitrageOpportunities.map(opp => (
-                      <div key={opp.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={opp.status === 'active' ? 'success' : opp.status === 'executed' ? 'secondary' : 'destructive'}>{opp.status}</Badge>
-                              <Badge variant={opp.confidence === 'high' ? 'success' : opp.confidence === 'medium' ? 'pending' : 'secondary'}>{opp.confidence}</Badge>
-                              <span className="text-sm font-medium text-success">+{(opp.expected_profit * 100).toFixed(1)}%</span>
-                            </div>
-                            <p className="text-sm font-medium">{opp.market_1_question}</p>
-                            <p className="text-xs text-muted-foreground">vs {opp.market_2_question}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {opp.market_1_url && (
-                              <Button variant="ghost" size="icon" asChild>
-                                <a href={opp.market_1_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /></a>
-                              </Button>
-                            )}
-                            <Button variant="outline" size="sm" onClick={() => handleUpdateArbitrageStatus(opp.id, opp.status === 'active' ? 'expired' : 'active')} disabled={processingArbitrage === opp.id}>
-                              {opp.status === 'active' ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteArbitrage(opp.id)} disabled={processingArbitrage === opp.id}>
-                              {processingArbitrage === opp.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
                   )}
                 </div>
               </CardContent>
@@ -1527,21 +1485,13 @@ export default function TreasuryAdmin() {
           <TabsContent value="indexfunds">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PieChart className="w-5 h-5 text-primary" />
-                  Index Funds
-                </CardTitle>
-                <CardDescription>
-                  Create index funds with custom market selections for users to invest in.
-                </CardDescription>
+                <CardTitle>Index Funds</CardTitle>
+                <CardDescription>Create index funds with custom market selections.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">{indexFunds.length} funds</p>
-                  <Button variant="outline" size="sm" onClick={() => setShowNewIndexFund(!showNewIndexFund)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    New Fund
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewIndexFund(!showNewIndexFund)}>New Fund</Button>
                 </div>
 
                 {showNewIndexFund && (
@@ -1564,7 +1514,7 @@ export default function TreasuryAdmin() {
                         <Input placeholder="Question" value={newMarketInput.question} onChange={(e) => setNewMarketInput({ ...newMarketInput, question: e.target.value })} />
                         <Input placeholder="URL" value={newMarketInput.url} onChange={(e) => setNewMarketInput({ ...newMarketInput, url: e.target.value })} />
                         <Input type="number" placeholder="Prob %" value={newMarketInput.probability} onChange={(e) => setNewMarketInput({ ...newMarketInput, probability: parseInt(e.target.value) || 0 })} />
-                        <Button size="sm" onClick={handleAddMarketToFund} className="gap-1"><Plus className="w-3 h-3" />Add</Button>
+                        <Button size="sm" onClick={handleAddMarketToFund}>Add</Button>
                       </div>
                     </div>
 
@@ -1575,7 +1525,7 @@ export default function TreasuryAdmin() {
                           <div key={i} className="flex items-center gap-2 p-2 bg-secondary/30 rounded">
                             <span className="flex-1 text-sm truncate">{m.question}</span>
                             <Badge variant="secondary">{m.allocation}%</Badge>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveMarketFromFund(m.id)}><Trash2 className="w-3 h-3 text-destructive" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveMarketFromFund(m.id)}>X</Button>
                           </div>
                         ))}
                       </div>
@@ -1594,34 +1544,75 @@ export default function TreasuryAdmin() {
                   ) : (
                     indexFunds.map(fund => (
                       <div key={fund.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{fund.name}</p>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-medium">{fund.name}</h3>
                             <p className="text-sm text-muted-foreground">{fund.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {((fund.config as any)?.markets?.length || 0)} markets
-                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setEditingFund(editingFund === fund.id ? null : fund.id)}>
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteIndexFund(fund.id)} disabled={processingIndexFund === fund.id}>
-                              {processingIndexFund === fund.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
-                            </Button>
-                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteIndexFund(fund.id)} disabled={processingIndexFund === fund.id}>
+                            {processingIndexFund === fund.id ? '...' : 'Delete'}
+                          </Button>
                         </div>
-                        {editingFund === fund.id && (
-                          <div className="mt-4 pt-4 border-t space-y-2">
-                            <p className="text-sm font-medium">Markets in this fund:</p>
-                            {((fund.config as any)?.markets || []).map((m: any, i: number) => (
-                              <div key={i} className="flex items-center gap-2 p-2 bg-background/50 rounded text-sm">
-                                <span className="flex-1 truncate">{m.question}</span>
-                                <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-primary"><ExternalLink className="w-3 h-3" /></a>
-                              </div>
-                            ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Strategies Tab */}
+          <TabsContent value="strategies">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>Bot Strategies</CardTitle>
+                <CardDescription>Custom code snippets for bot playground.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{botStrategies.length} strategies</p>
+                  <Button variant="outline" size="sm" onClick={() => setShowNewStrategy(!showNewStrategy)}>New Strategy</Button>
+                </div>
+
+                {showNewStrategy && (
+                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
+                    <h4 className="font-medium">Create Strategy</h4>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Name</Label>
+                        <Input placeholder="Strategy name" value={newStrategy.name} onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Input placeholder="Brief description" value={newStrategy.description} onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Code Snippet</Label>
+                      <Textarea placeholder="// Your code here..." rows={6} value={newStrategy.codeSnippet} onChange={(e) => setNewStrategy({ ...newStrategy, codeSnippet: e.target.value })} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleCreateStrategy}>Create</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {botStrategies.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No strategies yet</div>
+                  ) : (
+                    botStrategies.map(strat => (
+                      <div key={strat.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-medium">{strat.name}</h3>
+                            <p className="text-sm text-muted-foreground">{strat.description}</p>
                           </div>
-                        )}
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteStrategy(strat.id)} disabled={processingStrategy === strat.id}>
+                            {processingStrategy === strat.id ? '...' : 'Delete'}
+                          </Button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -1634,182 +1625,56 @@ export default function TreasuryAdmin() {
           <TabsContent value="subscriptions">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-primary" />
-                  Fintech Subscriptions
-                </CardTitle>
-                <CardDescription>
-                  Manage user subscriptions to ManiFed Fintech. Gift or extend subscriptions.
-                </CardDescription>
+                <CardTitle>Subscription Management</CardTitle>
+                <CardDescription>Manage fintech subscriptions and gift codes.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Gift className="w-4 h-4" />
-                    Gift Subscription
-                  </h4>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label>User Email</Label>
-                      <Input placeholder="user@example.com" id="gift-email" />
-                    </div>
-                    <div>
-                      <Label>Duration (days)</Label>
-                      <Input type="number" placeholder="30" defaultValue={30} id="gift-days" />
-                    </div>
-                    <div className="flex items-end">
-                      <Button 
-                        className="w-full gap-2"
-                        onClick={async () => {
-                          const email = (document.getElementById('gift-email') as HTMLInputElement)?.value;
-                          const days = parseInt((document.getElementById('gift-days') as HTMLInputElement)?.value) || 30;
-                          if (!email) {
-                            toast({ title: 'Error', description: 'Enter an email', variant: 'destructive' });
-                            return;
-                          }
-                          try {
-                            // Look up user by email in profiles or user_manifold_settings
-                            const { data: profileData } = await supabase
-                              .from('user_manifold_settings')
-                              .select('user_id')
-                              .eq('manifold_username', email)
-                              .maybeSingle();
-                            
-                            const userId = profileData?.user_id || email;
-                            
-                            const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-                            
-                            // Upsert subscription
-                            const { error } = await supabase.from('fintech_subscriptions').upsert({
-                              user_id: userId,
-                              plan_type: 'gifted',
-                              is_active: true,
-                              is_gifted: true,
-                              expires_at: expiresAt,
-                              started_at: new Date().toISOString(),
-                              mana_price: 0,
-                            }, { onConflict: 'user_id' });
-
-                            if (error) throw error;
-                            toast({ title: 'Subscription Gifted', description: `${days} days gifted` });
-                          } catch (error) {
-                            toast({ title: 'Error', description: 'Failed to gift subscription', variant: 'destructive' });
-                          }
-                        }}
-                      >
-                        <Gift className="w-4 h-4" />
-                        Gift
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-sm text-muted-foreground">
-                  Active subscriptions are managed via the fintech_subscriptions table. Users can subscribe through the Fintech page with mana payments.
-                </div>
+              <CardContent>
+                <p className="text-muted-foreground text-center py-8">Coming soon...</p>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Bot Strategies Tab */}
-          <TabsContent value="strategies">
+          {/* Suggestions Tab */}
+          <TabsContent value="suggestions">
             <Card className="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Code className="w-5 h-5 text-primary" />
-                  Bot Strategy Snippets
-                </CardTitle>
-                <CardDescription>
-                  Create and edit code snippets for the Bot Building Playground.
-                </CardDescription>
+                <CardTitle>Product Suggestions</CardTitle>
+                <CardDescription>User-submitted feature requests and product ideas.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">{botStrategies.length} strategies</p>
-                  <Button variant="outline" size="sm" onClick={() => setShowNewStrategy(!showNewStrategy)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    New Strategy
-                  </Button>
-                </div>
-
-                {showNewStrategy && (
-                  <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-4">
-                    <h4 className="font-medium">Create Strategy Snippet</h4>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <Label>Strategy Name</Label>
-                        <Input placeholder="e.g., Momentum Trader" value={newStrategy.name} onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Input placeholder="Brief description..." value={newStrategy.description} onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })} />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Code Snippet</Label>
-                      <Textarea 
-                        placeholder="// Your strategy code here..."
-                        value={newStrategy.codeSnippet}
-                        onChange={(e) => setNewStrategy({ ...newStrategy, codeSnippet: e.target.value })}
-                        rows={8}
-                        className="font-mono text-sm"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleCreateStrategy}>Create Strategy</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowNewStrategy(false)}>Cancel</Button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {botStrategies.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No strategies yet. Default strategies will be used.</div>
-                  ) : (
-                    botStrategies.map(strategy => (
-                      <div key={strategy.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                {suggestions.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No suggestions yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {suggestions.map(suggestion => (
+                      <div key={suggestion.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium">{strategy.name}</p>
-                            <p className="text-sm text-muted-foreground">{strategy.description}</p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium text-foreground">{suggestion.title}</h3>
+                              <Badge variant={suggestion.status === 'approved' ? 'success' : suggestion.status === 'rejected' ? 'destructive' : suggestion.status === 'in_progress' ? 'pending' : 'secondary'}>
+                                {suggestion.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2">{suggestion.description}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(suggestion.created_at).toLocaleDateString()}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setEditingStrategy(editingStrategy === strategy.id ? null : strategy.id)}>
-                              <Edit className="w-4 h-4" />
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'approved')} disabled={processingSuggestion === suggestion.id || suggestion.status === 'approved'}>
+                              Approve
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteStrategy(strategy.id)} disabled={processingStrategy === strategy.id}>
-                              {processingStrategy === strategy.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 text-destructive" />}
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'rejected')} disabled={processingSuggestion === suggestion.id || suggestion.status === 'rejected'}>
+                              Reject
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteSuggestion(suggestion.id)} disabled={processingSuggestion === suggestion.id}>
+                              {processingSuggestion === suggestion.id ? '...' : 'Delete'}
                             </Button>
                           </div>
                         </div>
-                        {editingStrategy === strategy.id && (
-                          <div className="mt-4 pt-4 border-t space-y-3">
-                            <div>
-                              <Label>Code Snippet</Label>
-                              <Textarea 
-                                defaultValue={(strategy.config as any)?.codeSnippet || ''}
-                                rows={8}
-                                className="font-mono text-sm"
-                                id={`code-${strategy.id}`}
-                              />
-                            </div>
-                            <Button 
-                              size="sm" 
-                              onClick={() => {
-                                const textarea = document.getElementById(`code-${strategy.id}`) as HTMLTextAreaElement;
-                                handleUpdateStrategy(strategy.id, { codeSnippet: textarea?.value });
-                              }}
-                              disabled={processingStrategy === strategy.id}
-                            >
-                              {processingStrategy === strategy.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                              Save Changes
-                            </Button>
-                          </div>
-                        )}
                       </div>
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
