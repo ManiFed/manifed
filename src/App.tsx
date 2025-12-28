@@ -22,7 +22,7 @@ import BondMarket from "./pages/BondMarket";
 import TreasuryAdmin from "./pages/TreasuryAdmin";
 import Memecoins from "./pages/Memecoins";
 import Market from "./pages/Market";
-import Arbitrage from "./pages/Arbitrage";
+// Arbitrage removed - functionality moved to TreasuryAdmin
 import MarketAgent from "./pages/MarketAgent";
 import CommentMaker from "./pages/CommentMaker";
 import MispricedScanner from "./pages/MispricedScanner";
@@ -107,13 +107,13 @@ const App = () => (
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
-          <Route path="/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
+          <Route path="/arbitrage" element={<Navigate to="/public-arbitrage" replace />} />
           <Route path="/public-arbitrage" element={<PublicArbitrage />} />
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/mispriced" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
           <Route path="/fintech" element={<Navigate to="/fintech/menu" replace />} />
-          <Route path="/fintech/arbitrage" element={<ProtectedRoute><Arbitrage /></ProtectedRoute>} />
+          <Route path="/fintech/arbitrage" element={<Navigate to="/public-arbitrage" replace />} />
           <Route path="/fintech/menu" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
           <Route path="/fintech/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
           <Route path="/fintech/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
