@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, Shield, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Position {
@@ -175,7 +174,6 @@ export default function TerminalPositions({
           <span className="text-xs text-gray-500">Positions & P&L</span>
           {isMonitoring && stopLosses.some(s => s.isActive) && (
             <Badge variant="outline" className="text-xs border-yellow-700 text-yellow-400">
-              <Shield className="w-3 h-3 mr-1" />
               Monitoring
             </Badge>
           )}
@@ -220,11 +218,7 @@ export default function TerminalPositions({
                       <span className="text-gray-400">{pos.shares.toFixed(2)} shares</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {(pos.pnl ?? 0) >= 0 ? (
-                        <TrendingUp className="w-3 h-3 text-emerald-400" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3 text-red-400" />
-                      )}
+                      <span className="text-xs">{(pos.pnl ?? 0) >= 0 ? '↑' : '↓'}</span>
                       <span className={`font-mono ${(pos.pnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {(pos.pnl ?? 0) >= 0 ? '+' : ''}M${(pos.pnl ?? 0).toFixed(2)}
                         <span className="text-gray-500 ml-1">
@@ -245,7 +239,7 @@ export default function TerminalPositions({
                           onClick={() => removeStopLoss(activeStopLoss.id)}
                           className="text-gray-500 hover:text-red-400"
                         >
-                          <X className="w-3 h-3" />
+                          ✕
                         </button>
                       </div>
                     ) : selectedPosition === posKey ? (
@@ -268,7 +262,7 @@ export default function TerminalPositions({
                           onClick={() => setSelectedPosition(null)}
                           className="text-gray-500 hover:text-white"
                         >
-                          <X className="w-3 h-3" />
+                          ✕
                         </button>
                       </div>
                     ) : (
@@ -278,8 +272,7 @@ export default function TerminalPositions({
                         onClick={() => setSelectedPosition(posKey)}
                         className="h-6 text-xs text-gray-500 hover:text-yellow-400"
                       >
-                        <Shield className="w-3 h-3 mr-1" />
-                        Add Stop-Loss
+                        + Add Stop-Loss
                       </Button>
                     )}
                   </div>

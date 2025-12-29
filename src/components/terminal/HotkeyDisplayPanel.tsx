@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Keyboard, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Hotkey {
@@ -68,7 +67,7 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
     return (
       <Card className="bg-gray-900/50 border-gray-800 p-3">
         <div className="flex items-center gap-2 text-gray-500 text-xs">
-          <Keyboard className="w-4 h-4" />
+          <span className="font-mono">[⌨]</span>
           <span>No hotkeys configured</span>
         </div>
         <p className="text-[10px] text-gray-600 mt-1">
@@ -81,7 +80,7 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
   return (
     <Card className="bg-gray-900/50 border-gray-800 p-3">
       <div className="flex items-center gap-2 mb-3">
-        <Keyboard className="w-4 h-4 text-emerald-400" />
+        <span className="text-emerald-400 font-mono">[⌨]</span>
         <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Hotkeys</span>
       </div>
       <ScrollArea className="max-h-[200px]">
@@ -132,7 +131,7 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
                       className="w-6 h-6 hover:bg-emerald-500/20"
                       onClick={() => saveNote(hotkey.id)}
                     >
-                      <Check className="w-3 h-3" />
+                      ✓
                     </Button>
                   </div>
                 ) : hotkey.note ? (

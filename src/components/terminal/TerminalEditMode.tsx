@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { GripVertical, Save, X, RotateCcw, Move } from 'lucide-react';
 
 export interface PanelConfig {
   id: string;
@@ -121,11 +120,11 @@ export function TerminalEditMode({ panels, onSave, onCancel }: TerminalEditModeP
       <Card className="bg-gray-900 border-gray-700 w-full max-w-lg p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Move className="w-5 h-5 text-emerald-500" />
+            <span className="text-emerald-500 font-mono">[≡]</span>
             <h2 className="text-xl font-bold text-white">Edit Terminal Layout</h2>
           </div>
-          <Button variant="ghost" size="icon" onClick={onCancel}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="sm" onClick={onCancel} className="text-gray-400 hover:text-white">
+            ✕
           </Button>
         </div>
 
@@ -147,7 +146,7 @@ export function TerminalEditMode({ panels, onSave, onCancel }: TerminalEditModeP
                   : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
               } ${!panel.visible ? 'opacity-50' : ''}`}
             >
-              <GripVertical className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              <span className="text-gray-500 font-mono text-sm">⋮⋮</span>
               <span className="flex-1 text-white font-medium">{panel.name}</span>
               <Switch
                 checked={panel.visible}
@@ -165,8 +164,7 @@ export function TerminalEditMode({ panels, onSave, onCancel }: TerminalEditModeP
             onClick={handleReset}
             className="gap-2"
           >
-            <RotateCcw className="w-4 h-4" />
-            Reset
+            ↺ Reset
           </Button>
           <div className="flex-1" />
           <Button
@@ -179,7 +177,6 @@ export function TerminalEditMode({ panels, onSave, onCancel }: TerminalEditModeP
             onClick={handleSave}
             className="bg-emerald-600 hover:bg-emerald-700 gap-2"
           >
-            <Save className="w-4 h-4" />
             Save Layout
           </Button>
         </div>
