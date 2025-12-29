@@ -11,25 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Search,
-  Zap,
-  Key,
-  Settings,
-  Terminal,
-  Youtube,
-  Wifi,
-  WifiOff,
-  Trash2,
-  Plus,
-  ArrowLeft,
-  AlertTriangle,
-  Keyboard,
-  Book,
-  ArrowRight,
-  Layout,
-  Clock,
-} from "lucide-react";
 import TerminalWatchlist from "@/components/terminal/TerminalWatchlist";
 import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
 import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
@@ -93,13 +74,12 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Terminal className="w-6 h-6 text-emerald-500" />
+            <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
             <span className="text-xl font-bold text-emerald-400 font-mono">ManiFed Terminal</span>
           </div>
           <Link to="/fintech/menu">
             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Fintech
+              ← Back to Fintech
             </Button>
           </Link>
         </div>
@@ -116,21 +96,20 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
 
           <Card className="bg-gray-900/50 border-gray-800 p-6 space-y-6">
             <div className="flex items-start gap-3">
-              <Key className="w-5 h-5 text-emerald-500 mt-1 flex-shrink-0" />
+              <span className="text-emerald-500 font-mono mt-1">[K]</span>
               <div>
                 <h3 className="font-semibold text-white mb-1">API Key Required</h3>
                 <p className="text-sm text-gray-400">
                   You'll need your Manifold API key to trade. Get it from your Manifold account settings.
                 </p>
                 <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Your key is stored locally in your browser only. We never send it to our servers.
+                  ⚠ Your key is stored locally in your browser only. We never send it to our servers.
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <Keyboard className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+              <span className="text-blue-500 font-mono mt-1">[⌨]</span>
               <div>
                 <h3 className="font-semibold text-white mb-2">Command Syntax Examples</h3>
                 <div className="space-y-2 text-sm font-mono">
@@ -155,7 +134,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
             </div>
 
               <div className="flex items-start gap-3">
-                <Zap className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                <span className="text-yellow-500 font-mono mt-1">[⚡]</span>
                 <div>
                   <h3 className="font-semibold text-white mb-1">Auto-Execute Mode</h3>
                   <p className="text-sm text-gray-400">
@@ -166,7 +145,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
             </div>
 
             <div className="flex items-start gap-3">
-              <Settings className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+              <span className="text-purple-500 font-mono mt-1">[⚙]</span>
               <div>
                 <h3 className="font-semibold text-white mb-1">Custom Hotkeys</h3>
                 <p className="text-sm text-gray-400">
@@ -177,7 +156,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
             </div>
 
             <div className="flex items-start gap-3">
-              <Book className="w-5 h-5 text-orange-500 mt-1 flex-shrink-0" />
+              <span className="text-orange-500 font-mono mt-1">[?]</span>
               <div>
                 <h3 className="font-semibold text-white mb-1">Keyboard Shortcuts</h3>
                 <div className="text-sm font-mono mt-2">
@@ -192,8 +171,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
 
           <div className="text-center">
             <Button onClick={onEnter} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-8">
-              Enter Terminal
-              <ArrowRight className="w-4 h-4" />
+              Enter Terminal →
             </Button>
           </div>
         </div>
@@ -548,6 +526,17 @@ function TerminalMain() {
     toast.success("Sold all positions");
   }, [activeMarket, apiKey, positions, addLog]);
 
+  // Helper to append to command input from MC option click
+  const appendMcOptionToCommand = (option: MultipleChoiceOption) => {
+    setSelectedMcIndex(option.index);
+    // Add the option prefix to command if not already there
+    const prefix = `${option.index}:`;
+    if (!commandInput.startsWith(prefix)) {
+      setCommandInput(prefix);
+    }
+    commandInputRef.current?.focus();
+  };
+
   const parseAndExecuteCommand = (input: string, forceExecute = false) => {
     const trimmed = input.trim().toUpperCase();
 
@@ -774,7 +763,7 @@ function TerminalMain() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
           <div className="flex items-center gap-3">
-            <Terminal className="w-6 h-6 text-emerald-500" />
+            <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
             <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
           </div>
           <div className="flex items-center gap-4">
@@ -784,8 +773,7 @@ function TerminalMain() {
               onClick={() => setShowEditMode(true)}
               className="text-gray-400 hover:text-white gap-2"
             >
-              <Layout className="w-4 h-4" />
-              Edit Layout
+              [≡] Edit Layout
             </Button>
             <div className="flex items-center gap-2">
               <Switch
@@ -794,13 +782,12 @@ function TerminalMain() {
                 className="data-[state=checked]:bg-emerald-600"
               />
               <Label className="text-sm text-gray-400">
-                {autoExecute ? <Zap className="w-4 h-4 text-yellow-500" /> : "Auto"}
+                {autoExecute ? "⚡ Auto" : "Auto"}
               </Label>
             </div>
             <Link to="/fintech/menu">
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Exit
+                ← Exit
               </Button>
             </Link>
           </div>
@@ -823,10 +810,10 @@ function TerminalMain() {
         {!apiKey && (
           <Card className="bg-yellow-900/20 border-yellow-800/50 p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <span className="text-yellow-500 font-mono">⚠</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Key className="w-4 h-4 text-yellow-500" />
+                  <span className="text-yellow-500 font-mono">[K]</span>
                   <span className="font-semibold text-yellow-400">API Key Required</span>
                 </div>
                 <p className="text-sm text-gray-400 mb-3">
@@ -870,7 +857,7 @@ function TerminalMain() {
             {/* Market Search */}
             <div className="relative">
               <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
-                <Search className="w-4 h-4 text-gray-500" />
+                <span className="text-gray-500 font-mono">🔍</span>
                 <Input
                   ref={searchInputRef}
                   value={searchQuery}
@@ -904,11 +891,9 @@ function TerminalMain() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      {isConnected ? (
-                        <Wifi className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <WifiOff className="w-4 h-4 text-red-500" />
-                      )}
+                      <span className={`font-mono ${isConnected ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {isConnected ? '◉' : '○'}
+                      </span>
                       <Badge variant="outline" className="text-xs border-gray-700">
                         {isConnected ? "LIVE" : "DISCONNECTED"}
                       </Badge>
@@ -920,10 +905,10 @@ function TerminalMain() {
                     </div>
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
                     
-                    {/* Multiple Choice Options */}
+                    {/* Multiple Choice Options - Clickable to add to command */}
                     {mcOptions.length > 0 ? (
                       <div className="space-y-1 mb-3">
-                        <div className="text-xs text-gray-500 mb-2">↑↓ or W/S to navigate • #N to jump</div>
+                        <div className="text-xs text-gray-500 mb-2">Click option to add to command • ↑↓ or W/S to navigate</div>
                         <ScrollArea className="h-[120px]">
                           {mcOptions.map((opt) => (
                             <div
@@ -933,7 +918,7 @@ function TerminalMain() {
                                   ? "bg-emerald-900/40 border border-emerald-700"
                                   : "hover:bg-gray-800"
                               }`}
-                              onClick={() => setSelectedMcIndex(opt.index)}
+                              onClick={() => appendMcOptionToCommand(opt)}
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-500 w-5 text-right">#{opt.index}</span>
@@ -1060,7 +1045,7 @@ function TerminalMain() {
                               onClick={() => deleteHotkey(hotkey.id)}
                               className="text-red-400 hover:text-red-300"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              ✕
                             </Button>
                           </div>
 
@@ -1156,8 +1141,7 @@ function TerminalMain() {
                         variant="outline"
                         className="w-full border-dashed border-gray-700 text-gray-400"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Hotkey
+                        + Add Hotkey
                       </Button>
                     </div>
                   </ScrollArea>
@@ -1232,7 +1216,7 @@ function TerminalMain() {
             {/* YouTube Panel */}
             <Card className="bg-gray-900/50 border-gray-800 p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Youtube className="w-4 h-4 text-red-500" />
+                <span className="text-red-500 font-mono">▶</span>
                 <span className="text-sm text-gray-400">Video Panel</span>
               </div>
               <div className="flex gap-2 mb-3">

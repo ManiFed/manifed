@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { Plus, X, Star } from "lucide-react";
 
 interface WatchlistMarket {
   id: string;
@@ -49,7 +48,7 @@ export default function TerminalWatchlist({ onSelectMarket, activeMarketId, curr
     <Card className="bg-gray-900/50 border-gray-800 p-3 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Star className="w-4 h-4 text-yellow-500" />
+          <span className="text-yellow-500 font-mono">★</span>
           <span className="text-sm font-medium text-gray-300">Watchlist</span>
         </div>
         {currentMarket && !isCurrentInWatchlist && (
@@ -59,8 +58,7 @@ export default function TerminalWatchlist({ onSelectMarket, activeMarketId, curr
             onClick={addToWatchlist}
             className="text-xs text-gray-400 hover:text-emerald-400 h-7 px-2"
           >
-            <Plus className="w-3 h-3 mr-1" />
-            Add
+            + Add
           </Button>
         )}
       </div>
@@ -93,7 +91,7 @@ export default function TerminalWatchlist({ onSelectMarket, activeMarketId, curr
                     }}
                     className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity"
                   >
-                    <X className="w-3 h-3" />
+                    ✕
                   </button>
                 </div>
                 <div className={`mt-1 font-mono ${market.id === activeMarketId ? "text-emerald-400" : "text-gray-500"}`}>

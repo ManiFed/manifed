@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,11 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { 
-  ArrowLeft, ExternalLink, Loader2, Target, TrendingUp, 
-  CheckCircle, Sparkles, AlertCircle, Clock, Zap, 
-  ArrowUpRight, ArrowDownRight, Eye, Key, Shield
-} from 'lucide-react';
 
 interface PublicOpportunity {
   id: string;
@@ -37,6 +32,7 @@ interface PublicOpportunity {
 }
 
 export default function PublicArbitrage() {
+  const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<PublicOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [executingId, setExecutingId] = useState<string | null>(null);
@@ -45,15 +41,70 @@ export default function PublicArbitrage() {
   const [apiKey, setApiKey] = useState('');
   const [betAmount, setBetAmount] = useState('100');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
-    fetchOpportunities();
-    checkAuth();
+    checkAccess();
   }, []);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsAuthenticated(!!user);
+  const checkAccess = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      
+      if (!user) {
+        setCheckingAccess(false);
+        return;
+      }
+
+      // Check if admin
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleData) {
+        setHasAccess(true);
+        fetchOpportunities();
+        setCheckingAccess(false);
+        return;
+      }
+
+      // Check fintech subscription
+      const { data: subData } = await supabase
+        .from('fintech_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (subData) {
+        // Check if trial is active
+        if (subData.is_trial && subData.trial_ends_at) {
+          const trialActive = new Date(subData.trial_ends_at) > new Date();
+          if (trialActive) {
+            setHasAccess(true);
+            fetchOpportunities();
+            setCheckingAccess(false);
+            return;
+          }
+        }
+        
+        const isActive = subData.is_active && 
+          (!subData.expires_at || new Date(subData.expires_at) > new Date());
+        
+        if (isActive) {
+          setHasAccess(true);
+          fetchOpportunities();
+        }
+      }
+    } catch (error) {
+      console.error('Access check error:', error);
+    } finally {
+      setCheckingAccess(false);
+    }
   };
 
   const fetchOpportunities = async () => {
@@ -173,15 +224,100 @@ export default function PublicArbitrage() {
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
       case 'high':
-        return <Badge variant="success" className="gap-1"><Sparkles className="w-3 h-3" />High Confidence</Badge>;
+        return <Badge variant="success" className="gap-1">✦ High Confidence</Badge>;
       case 'medium':
-        return <Badge variant="pending" className="gap-1"><AlertCircle className="w-3 h-3" />Medium</Badge>;
+        return <Badge variant="pending" className="gap-1">● Medium</Badge>;
       case 'low':
-        return <Badge variant="outline" className="gap-1 text-muted-foreground"><AlertCircle className="w-3 h-3" />Low</Badge>;
+        return <Badge variant="outline" className="gap-1 text-muted-foreground">○ Low</Badge>;
       default:
         return null;
     }
   };
+
+  // Show loading state
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Show subscription required for unauthenticated or non-subscribers
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Background */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <img src={trumpPortrait} alt="" className="absolute -right-16 top-40 w-[550px] h-auto opacity-[0.06] rotate-6" />
+        </div>
+
+        {/* Header */}
+        <header className="sticky top-0 z-50 glass border-b border-border/50">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-4">
+                <Link to="/" className="flex items-center gap-3">
+                  <img alt="ManiFed" className="w-10 h-10 rounded-xl object-cover border-2 border-primary/50" src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png" />
+                  <div className="hidden sm:block">
+                    <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
+                    <p className="text-xs text-muted-foreground -mt-0.5">Arbitrage Scanner</p>
+                  </div>
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {isAuthenticated ? (
+                  <Link to="/hub">
+                    <Button variant="outline" size="sm">Dashboard</Button>
+                  </Link>
+                ) : (
+                  <Link to="/auth">
+                    <Button size="sm">Sign In</Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-16 max-w-2xl relative z-10">
+          <Card className="glass border-border/50">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🎯</span>
+              </div>
+              <CardTitle className="text-2xl">Fintech Subscription Required</CardTitle>
+              <CardDescription>
+                Access to arbitrage opportunities requires an active ManiFed Fintech subscription.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center space-y-4">
+                <p className="text-muted-foreground">
+                  Get access to admin-verified arbitrage opportunities, trading terminal, index funds, and more.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link to="/fintech/menu">
+                    <Button className="gap-2">
+                      View Subscription Options →
+                    </Button>
+                  </Link>
+                  {!isAuthenticated && (
+                    <Link to="/auth?redirect=/public-arbitrage">
+                      <Button variant="outline">
+                        Sign In First
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -225,21 +361,20 @@ export default function PublicArbitrage() {
           to="/"
           className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
+          ← Back to Home
         </Link>
 
         {/* Hero Section */}
         <div className="mb-8 animate-slide-up">
           <div className="flex items-center gap-3 mb-2">
-            <Target className="w-8 h-8 text-primary" />
+            <span className="text-3xl">🎯</span>
             <h1 className="text-3xl font-bold text-foreground">Public Arbitrage Scanner</h1>
           </div>
           <p className="text-muted-foreground">
             Admin-verified arbitrage opportunities on Manifold Markets. Execute with your own API key - keys are NOT stored.
           </p>
           <div className="flex items-center gap-2 mt-2 text-sm text-primary">
-            <Shield className="w-4 h-4" />
+            <span>🛡</span>
             <span>Your API key is used once and never saved</span>
           </div>
         </div>
@@ -273,7 +408,7 @@ export default function PublicArbitrage() {
           </Card>
           <Card className="glass">
             <CardContent className="p-4 text-center">
-              <Clock className="w-6 h-6 mx-auto mb-1 text-primary" />
+              <span className="text-2xl">⏱</span>
               <p className="text-sm text-muted-foreground">Updated by Admin</p>
             </CardContent>
           </Card>
@@ -282,12 +417,12 @@ export default function PublicArbitrage() {
         {/* Opportunities List */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : opportunities.length === 0 ? (
           <Card className="glass">
             <CardContent className="py-16 text-center">
-              <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <span className="text-5xl block mb-4">🎯</span>
               <h3 className="text-lg font-semibold text-foreground mb-2">No Active Opportunities</h3>
               <p className="text-muted-foreground">
                 Check back later - our admin team scans for new opportunities regularly.
@@ -304,8 +439,7 @@ export default function PublicArbitrage() {
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         {getConfidenceBadge(opp.confidence)}
                         <Badge variant="secondary" className="gap-1">
-                          <TrendingUp className="w-3 h-3" />
-                          {(opp.expected_profit * 100).toFixed(1)}% profit
+                          ↗ {(opp.expected_profit * 100).toFixed(1)}% profit
                         </Badge>
                       </div>
                     </div>
@@ -315,9 +449,9 @@ export default function PublicArbitrage() {
                       className="gap-2"
                     >
                       {executingId === opp.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="animate-spin">⟳</span>
                       ) : (
-                        <Zap className="w-4 h-4" />
+                        "⚡"
                       )}
                       Execute Trade
                     </Button>
@@ -328,11 +462,7 @@ export default function PublicArbitrage() {
                     <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant={opp.market_1_position === 'BUY_YES' ? 'success' : 'destructive'} className="gap-1">
-                          {opp.market_1_position === 'BUY_YES' ? (
-                            <><ArrowUpRight className="w-3 h-3" /> BUY YES</>
-                          ) : (
-                            <><ArrowDownRight className="w-3 h-3" /> BUY NO</>
-                          )}
+                          {opp.market_1_position === 'BUY_YES' ? '↑ BUY YES' : '↓ BUY NO'}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           @ {(opp.market_1_prob * 100).toFixed(0)}%
@@ -345,18 +475,14 @@ export default function PublicArbitrage() {
                         rel="noopener noreferrer"
                         className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                       >
-                        View on Manifold <ExternalLink className="w-3 h-3" />
+                        View on Manifold ↗
                       </a>
                     </div>
 
                     <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant={opp.market_2_position === 'BUY_YES' ? 'success' : 'destructive'} className="gap-1">
-                          {opp.market_2_position === 'BUY_YES' ? (
-                            <><ArrowUpRight className="w-3 h-3" /> BUY YES</>
-                          ) : (
-                            <><ArrowDownRight className="w-3 h-3" /> BUY NO</>
-                          )}
+                          {opp.market_2_position === 'BUY_YES' ? '↑ BUY YES' : '↓ BUY NO'}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           @ {(opp.market_2_prob * 100).toFixed(0)}%
@@ -369,7 +495,7 @@ export default function PublicArbitrage() {
                         rel="noopener noreferrer"
                         className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                       >
-                        View on Manifold <ExternalLink className="w-3 h-3" />
+                        View on Manifold ↗
                       </a>
                     </div>
                   </div>
@@ -378,7 +504,7 @@ export default function PublicArbitrage() {
                   {opp.ai_analysis && (
                     <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
                       <div className="flex items-center gap-2 mb-1">
-                        <Eye className="w-4 h-4 text-primary" />
+                        <span className="text-primary">👁</span>
                         <span className="text-sm font-medium text-foreground">AI Analysis</span>
                       </div>
                       <p className="text-sm text-muted-foreground">{opp.ai_analysis}</p>
@@ -400,7 +526,7 @@ export default function PublicArbitrage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Key className="w-5 h-5 text-primary" />
+              <span className="text-primary">🔑</span>
               Execute Arbitrage Trade
             </DialogTitle>
             <DialogDescription>
@@ -443,19 +569,13 @@ export default function PublicArbitrage() {
               <Input
                 id="amount"
                 type="number"
-                min="10"
-                placeholder="100"
                 value={betAmount}
                 onChange={(e) => setBetAmount(e.target.value)}
+                min="10"
               />
               <p className="text-xs text-muted-foreground">
-                Amount will be split between both markets
+                This will be split between both markets
               </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-primary bg-primary/5 p-3 rounded-lg">
-              <Shield className="w-4 h-4 flex-shrink-0" />
-              <span>Your API key is transmitted securely and never saved to any database.</span>
             </div>
           </div>
 
@@ -465,9 +585,9 @@ export default function PublicArbitrage() {
             </Button>
             <Button onClick={handleExecute} disabled={!!executingId} className="gap-2">
               {executingId ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="animate-spin">⟳</span>
               ) : (
-                <Zap className="w-4 h-4" />
+                "⚡"
               )}
               Execute Trade
             </Button>
