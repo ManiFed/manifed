@@ -182,7 +182,9 @@ export default function Hub() {
         {/* Welcome - Bold Anthropic style */}
         <div className="mb-16 animate-slide-up">
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
-            Welcome back{username ? `, @${username}` : ""}
+            Welcome back{username ? (
+              <Link to={`/profile`} className="hover:text-primary transition-colors">, @{username}</Link>
+            ) : ""}
           </h1>
           <p className="text-xl text-muted-foreground max-w-xl">
             Your ManiFed dashboard for prediction market finance.

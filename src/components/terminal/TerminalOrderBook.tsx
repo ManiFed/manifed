@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface OrderLevel {
   price: number;
@@ -12,9 +13,10 @@ interface OrderLevel {
 interface TerminalOrderBookProps {
   marketId: string;
   currentProbability: number;
+  answerId?: string;
 }
 
-export default function TerminalOrderBook({ marketId, currentProbability }: TerminalOrderBookProps) {
+export default function TerminalOrderBook({ marketId, currentProbability, answerId }: TerminalOrderBookProps) {
   const [orderLevels, setOrderLevels] = useState<{ bids: OrderLevel[]; asks: OrderLevel[] }>({ bids: [], asks: [] });
   const [loading, setLoading] = useState(false);
   const [volume24h, setVolume24h] = useState<number>(0);
@@ -32,7 +34,7 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
     }
-  }, [marketId]);
+  }, [marketId, answerId]);
 
   const fetchOrderBook = async () => {
     setLoading(true);
@@ -50,14 +52,15 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
       if (betsResponse.ok) {
         const bets = await betsResponse.json();
         
-        // Filter for unfilled limit orders
-        const limitOrders = bets.filter((bet: any) => 
-          bet.limitProb !== undefined && 
-          bet.limitProb !== null &&
-          !bet.isCancelled && 
-          !bet.isFilled &&
-          (bet.orderAmount || bet.amount) > 0
-        );
+        // Filter for unfilled limit orders (optionally by answerId for MC markets)
+        const limitOrders = bets.filter((bet: any) => {
+          if (bet.limitProb === undefined || bet.limitProb === null) return false;
+          if (bet.isCancelled || bet.isFilled) return false;
+          if ((bet.orderAmount || bet.amount) <= 0) return false;
+          // Filter by answerId if provided
+          if (answerId && bet.answerId !== answerId) return false;
+          return true;
+        });
         
         // Aggregate by price level
         const bidLevels: { [key: number]: { amount: number; count: number } } = {};
@@ -86,7 +89,7 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
           }
         }
         
-        // Convert to arrays and sort
+        // Convert to arrays and sort - show ALL orders, not just top 6
         const bids = Object.entries(bidLevels)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
@@ -94,8 +97,7 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
             side: 'YES' as const,
             orderCount: data.count 
           }))
-          .sort((a, b) => b.price - a.price)
-          .slice(0, 6);
+          .sort((a, b) => b.price - a.price);
           
         const asks = Object.entries(askLevels)
           .map(([price, data]) => ({ 
@@ -104,8 +106,7 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
             side: 'NO' as const,
             orderCount: data.count 
           }))
-          .sort((a, b) => a.price - b.price)
-          .slice(0, 6);
+          .sort((a, b) => a.price - b.price);
         
         // Calculate spread
         if (bids.length > 0 && asks.length > 0) {
@@ -154,53 +155,55 @@ export default function TerminalOrderBook({ marketId, currentProbability }: Term
           No pending limit orders
         </div>
       ) : (
-        <div className="space-y-1">
-          {/* Asks (selling YES / buying NO) - show in reverse order */}
-          {orderLevels.asks.slice().reverse().map((level, i) => (
-            <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
-              <div
-                className="absolute right-0 h-full bg-red-900/30 transition-all duration-300"
-                style={{ width: `${(level.amount / maxAmount) * 100}%` }}
-              />
-              <span className="relative z-10 w-14 text-red-400 font-mono">{level.price}%</span>
-              <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
-                M${Math.round(level.amount).toLocaleString()}
+        <ScrollArea className="h-[200px]">
+          <div className="space-y-1 pr-2">
+            {/* Asks (selling YES / buying NO) - show in reverse order */}
+            {orderLevels.asks.slice().reverse().map((level, i) => (
+              <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
+                <div
+                  className="absolute right-0 h-full bg-red-900/30 transition-all duration-300"
+                  style={{ width: `${(level.amount / maxAmount) * 100}%` }}
+                />
+                <span className="relative z-10 w-14 text-red-400 font-mono">{level.price}%</span>
+                <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
+                  M${Math.round(level.amount).toLocaleString()}
+                </span>
+                <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
+                  ({level.orderCount})
+                </span>
+              </div>
+            ))}
+            
+            {/* Current price line with spread */}
+            <div className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 sticky top-0 bg-gray-900/90 z-10">
+              <span className="text-sm font-bold text-emerald-400 font-mono">
+                {(currentProbability * 100).toFixed(1)}%
               </span>
-              <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
-                ({level.orderCount})
-              </span>
+              {spread !== null && (
+                <span className="text-[10px] text-gray-500">
+                  Spread: {spread}%
+                </span>
+              )}
             </div>
-          ))}
-          
-          {/* Current price line with spread */}
-          <div className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1">
-            <span className="text-sm font-bold text-emerald-400 font-mono">
-              {(currentProbability * 100).toFixed(1)}%
-            </span>
-            {spread !== null && (
-              <span className="text-[10px] text-gray-500">
-                Spread: {spread}%
-              </span>
-            )}
+            
+            {/* Bids (buying YES) */}
+            {orderLevels.bids.map((level, i) => (
+              <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
+                <div
+                  className="absolute left-0 h-full bg-emerald-900/30 transition-all duration-300"
+                  style={{ width: `${(level.amount / maxAmount) * 100}%` }}
+                />
+                <span className="relative z-10 w-14 text-emerald-400 font-mono">{level.price}%</span>
+                <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
+                  M${Math.round(level.amount).toLocaleString()}
+                </span>
+                <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
+                  ({level.orderCount})
+                </span>
+              </div>
+            ))}
           </div>
-          
-          {/* Bids (buying YES) */}
-          {orderLevels.bids.map((level, i) => (
-            <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
-              <div
-                className="absolute left-0 h-full bg-emerald-900/30 transition-all duration-300"
-                style={{ width: `${(level.amount / maxAmount) * 100}%` }}
-              />
-              <span className="relative z-10 w-14 text-emerald-400 font-mono">{level.price}%</span>
-              <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
-                M${Math.round(level.amount).toLocaleString()}
-              </span>
-              <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
-                ({level.orderCount})
-              </span>
-            </div>
-          ))}
-        </div>
+        </ScrollArea>
       )}
     </Card>
   );
