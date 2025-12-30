@@ -9,7 +9,27 @@ import { DonationButton } from "@/components/DonationButton";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import manifedLogo from "@/assets/manifed-logo.png";
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from "lucide-react";
+import {
+  Landmark,
+  TrendingUp,
+  FileText,
+  Coins,
+  ArrowUpRight,
+  ArrowDownRight,
+  Bell,
+  LogOut,
+  Trophy,
+  Settings,
+  BarChart3,
+  Loader2,
+  Search,
+  Sparkles,
+  Store,
+  MoreHorizontal,
+  ChevronDown,
+  Activity,
+  Terminal,
+} from "lucide-react";
 interface Transaction {
   id: string;
   type: string;
@@ -27,10 +47,7 @@ interface Profile {
   equipped_badge: string | null;
 }
 export default function Hub() {
-  const {
-    balance,
-    fetchBalance
-  } = useUserBalance();
+  const { balance, fetchBalance } = useUserBalance();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [loanCount, setLoanCount] = useState(0);
@@ -47,16 +64,16 @@ export default function Hub() {
   const fetchHubData = async () => {
     try {
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
 
       // Fetch manifold settings
-      const {
-        data: settings
-      } = await supabase.from("user_manifold_settings").select("manifold_username, manifold_api_key, withdrawal_username").eq("user_id", user.id).maybeSingle();
+      const { data: settings } = await supabase
+        .from("user_manifold_settings")
+        .select("manifold_username, manifold_api_key, withdrawal_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
       setHasApiKey(!!settings?.manifold_api_key);
       setHasWithdrawalUsername(!!settings?.withdrawal_username);
       if (settings?.manifold_username) {
@@ -64,51 +81,58 @@ export default function Hub() {
       }
 
       // Fetch profile for verified badge
-      const {
-        data: profile
-      } = await supabase.from("profiles").select("equipped_badge").eq("user_id", user.id).maybeSingle();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("equipped_badge")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       // Fetch profile for verified badge - continued
       if (profile?.equipped_badge) {
-        const {
-          data: badgeItem
-        } = await supabase.from("market_items").select("category").eq("id", profile.equipped_badge).maybeSingle();
+        const { data: badgeItem } = await supabase
+          .from("market_items")
+          .select("category")
+          .eq("id", profile.equipped_badge)
+          .maybeSingle();
         setHasVerifiedBadge(badgeItem?.category === "badge");
       }
 
       // Fetch recent transactions
-      const {
-        data: transactionData
-      } = await supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", {
-        ascending: false
-      }).limit(5);
+      const { data: transactionData } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(5);
       setTransactions(transactionData || []);
 
       // Fetch active bonds
-      const {
-        data: bondData
-      } = await supabase.from("bonds").select("*").eq("user_id", user.id).eq("status", "active");
+      const { data: bondData } = await supabase.from("bonds").select("*").eq("user_id", user.id).eq("status", "active");
       setBonds(bondData || []);
 
       // Fetch investment count and total invested
-      const {
-        count
-      } = await supabase.from("investments").select("*", {
-        count: "exact",
-        head: true
-      }).eq("investor_user_id", user.id);
+      const { count } = await supabase
+        .from("investments")
+        .select("*", {
+          count: "exact",
+          head: true,
+        })
+        .eq("investor_user_id", user.id);
       setLoanCount(count || 0);
 
       // Calculate total invested from active investments
-      const {
-        data: investmentData
-      } = await supabase.from("investments").select("amount").eq("investor_user_id", user.id);
+      const { data: investmentData } = await supabase
+        .from("investments")
+        .select("amount")
+        .eq("investor_user_id", user.id);
       const investedTotal = investmentData?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
       setTotalInvested(investedTotal);
 
       // Generate notifications
       const notifs: string[] = [];
-      if (bondData?.some(b => new Date(b.maturity_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))) {
+      if (bondData?.some((b) => new Date(b.maturity_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))) {
         notifs.push("You have bonds maturing soon!");
       }
       setNotifications(notifs);
@@ -124,17 +148,24 @@ export default function Hub() {
   };
   const bondValue = bonds.reduce((sum, b) => sum + b.amount, 0);
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">
+    return (
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen relative overflow-hidden bg-background">
+  return (
+    <div className="min-h-screen relative overflow-hidden bg-background">
       {/* Header - Anthropic/Kalshi style */}
       <header className="sticky top-4 z-50 mx-4 md:mx-8">
         <div className="max-w-6xl mx-auto bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
           <div className="flex items-center justify-between py-3 px-6">
             <Link to="/hub" className="flex items-center gap-3">
-              <img alt="ManiFed" className="h-12 md:h-16" src="/lovable-uploads/49078672-4abf-4854-9148-af40981e4b6e.png" />
+              <img
+                alt="ManiFed"
+                className="h-12 md:h-16"
+                src="/lovable-uploads/49078672-4abf-4854-9148-af40981e4b6e.png"
+              />
             </Link>
 
             {/* Navigation */}
@@ -157,13 +188,20 @@ export default function Hub() {
             </nav>
 
             <div className="flex items-center gap-3">
-              {notifications.length > 0 && <div className="relative">
+              {notifications.length > 0 && (
+                <div className="relative">
                   <Bell className="w-5 h-5 text-muted-foreground" />
                   <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                     {notifications.length}
                   </span>
-                </div>}
-              <HeaderWallet balance={balance} hasApiKey={hasApiKey} hasWithdrawalUsername={hasWithdrawalUsername} onBalanceChange={fetchBalance} />
+                </div>
+              )}
+              <HeaderWallet
+                balance={balance}
+                hasApiKey={hasApiKey}
+                hasWithdrawalUsername={hasWithdrawalUsername}
+                onBalanceChange={fetchBalance}
+              />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="w-5 h-5" />
@@ -182,9 +220,14 @@ export default function Hub() {
         {/* Welcome - Bold Anthropic style */}
         <div className="mb-16 animate-slide-up">
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
-            Welcome back{username ? (
-              <Link to={`/profile`} className="hover:text-primary transition-colors">, @{username}</Link>
-            ) : ""}
+            Welcome back
+            {username ? (
+              <Link to={`/profile`} className="hover:text-primary transition-colors">
+                , @{username}
+              </Link>
+            ) : (
+              ""
+            )}
           </h1>
           <p className="text-xl text-muted-foreground max-w-xl">
             Your ManiFed dashboard for prediction market finance.
@@ -192,9 +235,12 @@ export default function Hub() {
         </div>
 
         {/* Portfolio Overview - Clean cards like Kalshi */}
-        <section className="mb-16 animate-slide-up" style={{
-        animationDelay: "50ms"
-      }}>
+        <section
+          className="mb-16 animate-slide-up"
+          style={{
+            animationDelay: "50ms",
+          }}
+        >
           <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">
             Portfolio Overview
           </h2>
@@ -202,39 +248,34 @@ export default function Hub() {
             <Card className="bg-card border-border/50">
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground mb-2">Total Portfolio</p>
-                <p className="text-4xl font-bold text-foreground">
-                  M${(totalInvested + bondValue).toLocaleString()}
-                </p>
+                <p className="text-4xl font-bold text-foreground">M${(totalInvested + bondValue).toLocaleString()}</p>
               </CardContent>
             </Card>
 
             <Card className="bg-card border-border/50">
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground mb-2">In Loans</p>
-                <p className="text-4xl font-bold text-foreground">
-                  M${totalInvested.toLocaleString()}
-                </p>
+                <p className="text-4xl font-bold text-foreground">M${totalInvested.toLocaleString()}</p>
               </CardContent>
             </Card>
 
             <Card className="bg-card border-border/50">
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground mb-2">In Bonds</p>
-                <p className="text-4xl font-bold text-foreground">
-                  M${bondValue.toLocaleString()}
-                </p>
+                <p className="text-4xl font-bold text-foreground">M${bondValue.toLocaleString()}</p>
               </CardContent>
             </Card>
           </div>
         </section>
 
         {/* Products Grid - Clean Kalshi/Anthropic style */}
-        <section className="mb-16 animate-slide-up" style={{
-        animationDelay: "100ms"
-      }}>
-          <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">
-            Products
-          </h2>
+        <section
+          className="mb-16 animate-slide-up"
+          style={{
+            animationDelay: "100ms",
+          }}
+        >
+          <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">Products</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* P2P Loans */}
             <Link to="/marketplace" className="group">
@@ -273,9 +314,7 @@ export default function Hub() {
                   <CardTitle className="text-2xl font-bold">Treasury Bonds</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-6">
-                    Fixed-income instruments with guaranteed 6% APY yields.
-                  </p>
+                  <p className="text-muted-foreground mb-6">Fixed-income instruments with guaranteed 6% APY yields.</p>
                   <div className="flex items-center gap-2 text-emerald-500 font-medium">
                     View Bonds
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -297,9 +336,7 @@ export default function Hub() {
                   <CardTitle className="text-2xl font-bold">ManiFed Fintech</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-6">
-                    AI-powered arbitrage, index funds, and advanced orders.
-                  </p>
+                  <p className="text-muted-foreground mb-6">AI-powered arbitrage, index funds, and advanced orders.</p>
                   <div className="flex items-center gap-2 text-violet-500 font-medium">
                     Access Tools
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -310,13 +347,14 @@ export default function Hub() {
           </div>
         </section>
 
-
-
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Activity Feed */}
-          <div className="lg:col-span-2 animate-slide-up" style={{
-          animationDelay: "150ms"
-        }}>
+          <div
+            className="lg:col-span-2 animate-slide-up"
+            style={{
+              animationDelay: "150ms",
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />
@@ -330,11 +368,17 @@ export default function Hub() {
             </div>
             <Card className="glass">
               <CardContent className="p-0">
-                {transactions.length > 0 ? <div className="divide-y divide-border/50">
-                    {transactions.map(tx => {
-                  const isPositive = tx.type === "deposit" || tx.type === "repayment" || tx.type === "loan_received" || tx.type === "bond_maturity";
-                  const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
-                  return <div key={tx.id} className="flex items-center justify-between p-4">
+                {transactions.length > 0 ? (
+                  <div className="divide-y divide-border/50">
+                    {transactions.map((tx) => {
+                      const isPositive =
+                        tx.type === "deposit" ||
+                        tx.type === "repayment" ||
+                        tx.type === "loan_received" ||
+                        tx.type === "bond_maturity";
+                      const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
+                      return (
+                        <div key={tx.id} className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${isPositive ? "bg-success/10" : "bg-muted"}`}>
                               <Icon className={`w-4 h-4 ${isPositive ? "text-success" : "text-muted-foreground"}`} />
@@ -349,38 +393,21 @@ export default function Hub() {
                           <p className={`font-semibold ${tx.amount >= 0 ? "text-success" : "text-foreground"}`}>
                             {tx.amount >= 0 ? "+" : ""}M${Math.abs(tx.amount).toLocaleString()}
                           </p>
-                        </div>;
-                })}
-                  </div> : <div className="p-8 text-center">
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center">
                     <Activity className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground">No recent activity</p>
-                  </div>}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Notifications */}
-          <div className="animate-slide-up" style={{
-          animationDelay: "200ms"
-        }}>
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-primary" />
-              Notifications
-            </h2>
-            <Card className="glass">
-              <CardContent className="p-4">
-                {notifications.length > 0 ? <div className="space-y-3">
-                    {notifications.map((notif, i) => <div key={i} className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                        <p className="text-sm text-foreground">{notif}</p>
-                      </div>)}
-                  </div> : <div className="text-center py-6">
-                    <Bell className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                    <p className="text-sm text-muted-foreground">No new notifications</p>
-                  </div>}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
-    </div>;
+    </div>
+  );
 }
