@@ -6,7 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Landmark, ArrowLeft, Newspaper, Info, Lightbulb, Send, Loader2, CheckCircle, TrendingUp, Calendar } from "lucide-react";
+import {
+  Landmark,
+  ArrowLeft,
+  Newspaper,
+  Info,
+  Lightbulb,
+  Send,
+  Loader2,
+  CheckCircle,
+  TrendingUp,
+  Calendar,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -28,7 +39,7 @@ const TERM_LABELS: Record<number, string> = {
   4: "4 Week",
   13: "13 Week",
   26: "26 Week",
-  52: "52 Week"
+  52: "52 Week",
 };
 export default function About() {
   const [news, setNews] = useState<TreasuryNewsItem[]>([]);
@@ -40,7 +51,7 @@ export default function About() {
   // Suggestion form
   const [suggestion, setSuggestion] = useState({
     title: "",
-    description: ""
+    description: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -50,28 +61,22 @@ export default function About() {
   const fetchData = async () => {
     try {
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
       setUserId(user?.id || null);
 
       // Fetch news
-      const {
-        data: newsData
-      } = await supabase.from("treasury_news").select("*").order("published_at", {
-        ascending: false
+      const { data: newsData } = await supabase.from("treasury_news").select("*").order("published_at", {
+        ascending: false,
       });
       if (newsData) {
         setNews(newsData as TreasuryNewsItem[]);
       }
 
       // Fetch rate history
-      const {
-        data: ratesData
-      } = await supabase.from("bond_rates").select("*").order("effective_date", {
-        ascending: false
+      const { data: ratesData } = await supabase.from("bond_rates").select("*").order("effective_date", {
+        ascending: false,
       });
       if (ratesData) {
         setRateHistory(ratesData as RateHistoryItem[]);
@@ -87,7 +92,7 @@ export default function About() {
       toast({
         title: "Error",
         description: "Please fill in all fields",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -95,27 +100,25 @@ export default function About() {
       toast({
         title: "Error",
         description: "Please sign in to submit a suggestion",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
     setIsSubmitting(true);
     try {
-      const {
-        error
-      } = await supabase.from("product_suggestions").insert({
+      const { error } = await supabase.from("product_suggestions").insert({
         user_id: userId,
         title: suggestion.title,
-        description: suggestion.description
+        description: suggestion.description,
       });
       if (error) throw error;
       toast({
         title: "Suggestion Submitted!",
-        description: "Thank you for your feedback!"
+        description: "Thank you for your feedback!",
       });
       setSuggestion({
         title: "",
-        description: ""
+        description: "",
       });
       setSubmitted(true);
     } catch (error) {
@@ -123,7 +126,7 @@ export default function About() {
       toast({
         title: "Error",
         description: "Failed to submit suggestion",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -131,22 +134,16 @@ export default function About() {
   };
 
   // Group rate history by date (latest only)
-  const currentRates = [4, 13, 26, 52].map(term => {
-    return rateHistory.find(r => r.term_weeks === term);
+  const currentRates = [4, 13, 26, 52].map((term) => {
+    return rateHistory.find((r) => r.term_weeks === term);
   });
-  return <div className="min-h-screen relative overflow-hidden">
-      {/* Trump Background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <img src={trumpPortrait} alt="" className="absolute -right-16 top-40 w-[500px] h-auto opacity-[0.05] rotate-6" />
-        <img src={trumpPortrait} alt="" className="absolute -left-24 bottom-10 w-[350px] h-auto opacity-[0.03] -rotate-12 scale-x-[-1]" />
-      </div>
-
+  return (
+    <div className="min-h-screen relative overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
-              
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
                 <p className="text-xs text-muted-foreground -mt-0.5">About & News</p>
@@ -160,7 +157,8 @@ export default function About() {
                   {isAuthenticated ? "Back to Hub" : "Back to Home"}
                 </Button>
               </Link>
-              {!isAuthenticated && <>
+              {!isAuthenticated && (
+                <>
                   <Link to="/auth">
                     <Button variant="ghost" size="sm">
                       Sign In
@@ -171,7 +169,8 @@ export default function About() {
                       Get Started
                     </Button>
                   </Link>
-                </>}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -189,9 +188,12 @@ export default function About() {
           </p>
         </div>
 
-        {isLoading ? <div className="flex items-center justify-center py-20">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div> : <div className="grid lg:grid-cols-3 gap-8">
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
             {/* Left Column - About & News */}
             <div className="lg:col-span-2 space-y-6">
               {/* About Section */}
@@ -216,18 +218,22 @@ export default function About() {
                       <strong className="text-foreground">Treasury Bonds:</strong> Fixed-income instruments with
                       guaranteed yields
                     </li>
-                    <li>Fintech: Use advanced trading tools, number go up.<strong className="text-foreground">Arbitrage Scanner:</strong> Find mispriced markets and profit
+                    <li>
+                      Fintech: Use advanced trading tools, number go up.
+                      <strong className="text-foreground">Arbitrage Scanner:</strong> Find mispriced markets and profit
                     </li>
-                    
                   </ul>
                   <p>We want to make Manifold profitable again.</p>
                 </CardContent>
               </Card>
 
               {/* News Section */}
-              <Card className="glass animate-slide-up" style={{
-            animationDelay: "50ms"
-          }}>
+              <Card
+                className="glass animate-slide-up"
+                style={{
+                  animationDelay: "50ms",
+                }}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Newspaper className="w-5 h-5 text-primary" />
@@ -236,18 +242,28 @@ export default function About() {
                   <CardDescription>Official announcements from the Treasury</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {news.length === 0 ? <p className="text-center text-muted-foreground py-8">No announcements yet</p> : <div className="space-y-4">
-                      {news.map((item, index) => <div key={item.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50 animate-slide-up" style={{
-                  animationDelay: `${100 + index * 50}ms`
-                }}>
+                  {news.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No announcements yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {news.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="p-4 rounded-lg bg-secondary/30 border border-border/50 animate-slide-up"
+                          style={{
+                            animationDelay: `${100 + index * 50}ms`,
+                          }}
+                        >
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                             <Calendar className="w-4 h-4" />
                             {format(new Date(item.published_at), "MMMM d, yyyy")}
                           </div>
                           <h3 className="font-medium text-foreground mb-2">{item.title}</h3>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.content}</p>
-                        </div>)}
-                    </div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -255,9 +271,12 @@ export default function About() {
             {/* Right Column - Rates & Suggestions */}
             <div className="space-y-6">
               {/* Current Rates */}
-              <Card className="glass animate-slide-up" style={{
-            animationDelay: "100ms"
-          }}>
+              <Card
+                className="glass animate-slide-up"
+                style={{
+                  animationDelay: "100ms",
+                }}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-primary" />
@@ -266,21 +285,26 @@ export default function About() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
-                    {[4, 13, 26, 52].map(term => {
-                  const rate = rateHistory.find(r => r.term_weeks === term);
-                  return <div key={term} className="p-3 rounded-lg bg-primary/10 text-center">
+                    {[4, 13, 26, 52].map((term) => {
+                      const rate = rateHistory.find((r) => r.term_weeks === term);
+                      return (
+                        <div key={term} className="p-3 rounded-lg bg-primary/10 text-center">
                           <p className="text-xs text-muted-foreground mb-1">{TERM_LABELS[term]}</p>
                           <p className="text-lg font-bold text-primary">{rate?.annual_yield || 6}%</p>
-                        </div>;
-                })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Suggestion Form */}
-              <Card className="glass animate-slide-up" style={{
-            animationDelay: "150ms"
-          }}>
+              <Card
+                className="glass animate-slide-up"
+                style={{
+                  animationDelay: "150ms",
+                }}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-primary" />
@@ -289,7 +313,8 @@ export default function About() {
                   <CardDescription>Have an idea for a new feature? Let us know!</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {submitted ? <div className="text-center py-8">
+                  {submitted ? (
+                    <div className="text-center py-8">
                       <CheckCircle className="w-12 h-12 mx-auto mb-4 text-success" />
                       <h3 className="font-medium text-foreground mb-2">Thank You!</h3>
                       <p className="text-sm text-muted-foreground mb-4">
@@ -298,39 +323,64 @@ export default function About() {
                       <Button variant="outline" onClick={() => setSubmitted(false)}>
                         Submit Another
                       </Button>
-                    </div> : <div className="space-y-4">
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
                       <div>
                         <Label>Product Title</Label>
-                        <Input placeholder="e.g., Options Trading" value={suggestion.title} onChange={e => setSuggestion({
-                    ...suggestion,
-                    title: e.target.value
-                  })} />
+                        <Input
+                          placeholder="e.g., Options Trading"
+                          value={suggestion.title}
+                          onChange={(e) =>
+                            setSuggestion({
+                              ...suggestion,
+                              title: e.target.value,
+                            })
+                          }
+                        />
                       </div>
                       <div>
                         <Label>Description</Label>
-                        <Textarea placeholder="Describe your idea and how it would help traders..." value={suggestion.description} onChange={e => setSuggestion({
-                    ...suggestion,
-                    description: e.target.value
-                  })} rows={4} />
+                        <Textarea
+                          placeholder="Describe your idea and how it would help traders..."
+                          value={suggestion.description}
+                          onChange={(e) =>
+                            setSuggestion({
+                              ...suggestion,
+                              description: e.target.value,
+                            })
+                          }
+                          rows={4}
+                        />
                       </div>
-                      <Button className="w-full gap-2" onClick={handleSubmitSuggestion} disabled={isSubmitting || !isAuthenticated}>
+                      <Button
+                        className="w-full gap-2"
+                        onClick={handleSubmitSuggestion}
+                        disabled={isSubmitting || !isAuthenticated}
+                      >
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         Submit Suggestion
                       </Button>
-                      {!isAuthenticated && <p className="text-xs text-muted-foreground text-center">
+                      {!isAuthenticated && (
+                        <p className="text-xs text-muted-foreground text-center">
                           <Link to="/auth" className="text-primary hover:underline">
                             Sign in
                           </Link>{" "}
                           to submit a suggestion
-                        </p>}
-                    </div>}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Contact */}
-              <Card className="glass animate-slide-up" style={{
-            animationDelay: "200ms"
-          }}>
+              <Card
+                className="glass animate-slide-up"
+                style={{
+                  animationDelay: "200ms",
+                }}
+              >
                 <CardHeader>
                   <CardTitle className="text-lg">Contact</CardTitle>
                 </CardHeader>
@@ -342,7 +392,9 @@ export default function About() {
                 </CardContent>
               </Card>
             </div>
-          </div>}
+          </div>
+        )}
       </main>
-    </div>;
+    </div>
+  );
 }
