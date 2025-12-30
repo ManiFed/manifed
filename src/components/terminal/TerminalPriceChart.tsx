@@ -173,7 +173,17 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
                 tickLine={false}
               />
               <YAxis 
-                domain={[0, 100]}
+                domain={(() => {
+                  if (chartData.length === 0) return [0, 100];
+                  const probs = chartData.map(d => d.prob);
+                  const minProb = Math.min(...probs);
+                  const maxProb = Math.max(...probs);
+                  const padding = Math.max(5, (maxProb - minProb) * 0.2);
+                  return [
+                    Math.max(0, Math.floor((minProb - padding) / 5) * 5),
+                    Math.min(100, Math.ceil((maxProb + padding) / 5) * 5)
+                  ];
+                })()}
                 tick={{ fontSize: 9, fill: '#6b7280' }}
                 axisLine={{ stroke: '#374151' }}
                 tickLine={false}
@@ -189,7 +199,6 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
                 labelStyle={{ color: '#9ca3af' }}
                 formatter={(value: number) => [`${value}%`, 'Probability']}
               />
-              <ReferenceLine y={50} stroke="#374151" strokeDasharray="3 3" />
               <Area
                 type="monotone"
                 dataKey="prob"

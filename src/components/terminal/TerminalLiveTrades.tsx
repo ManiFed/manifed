@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { useTradeSound } from "@/hooks/useTradeSound";
 
 interface Trade {
   id: string;
@@ -20,13 +21,16 @@ interface Trade {
 interface TerminalLiveTradesProps {
   marketId: string;
   answers?: { id: string; text: string }[];
+  selectedAnswerId?: string;
+  soundEnabled?: boolean;
 }
 
-export default function TerminalLiveTrades({ marketId, answers }: TerminalLiveTradesProps) {
+export default function TerminalLiveTrades({ marketId, answers, selectedAnswerId, soundEnabled = true }: TerminalLiveTradesProps) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
-  const lastFetchTime = useRef<number>(Date.now());
+  const lastTradeIdRef = useRef<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const { playTradeSound } = useTradeSound();
 
   useEffect(() => {
     if (marketId) {
@@ -40,7 +44,7 @@ export default function TerminalLiveTrades({ marketId, answers }: TerminalLiveTr
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
     }
-  }, [marketId]);
+  }, [marketId, selectedAnswerId]);
 
   const fetchTrades = async (isInitial: boolean) => {
     if (isInitial) setLoading(true);
@@ -53,30 +57,47 @@ export default function TerminalLiveTrades({ marketId, answers }: TerminalLiveTr
         const bets = await response.json();
 
         // Map to our trade format
-        const mappedTrades: Trade[] = bets.map((bet: any) => {
-          // Find answer text if this is MC market
-          let answerText = "";
-          if (bet.answerId && answers) {
-            const answer = answers.find((a) => a.id === bet.answerId);
-            answerText = answer?.text || "";
-          }
+        const mappedTrades: Trade[] = bets
+          .filter((bet: any) => {
+            // Filter by selected answer if MC market
+            if (selectedAnswerId && bet.answerId !== selectedAnswerId) return false;
+            return true;
+          })
+          .map((bet: any) => {
+            // Find answer text if this is MC market
+            let answerText = "";
+            if (bet.answerId && answers) {
+              const answer = answers.find((a) => a.id === bet.answerId);
+              answerText = answer?.text || "";
+            }
 
-          return {
-            id: bet.id,
-            createdTime: bet.createdTime,
-            amount: Math.abs(bet.amount),
-            outcome: bet.outcome,
-            probBefore: bet.probBefore,
-            probAfter: bet.probAfter,
-            shares: bet.shares,
-            isApi: bet.isApi,
-            answerId: bet.answerId,
-            answerText,
-          };
-        });
+            return {
+              id: bet.id,
+              createdTime: bet.createdTime,
+              amount: Math.abs(bet.amount),
+              outcome: bet.outcome,
+              probBefore: bet.probBefore,
+              probAfter: bet.probAfter,
+              shares: bet.shares,
+              isApi: bet.isApi,
+              answerId: bet.answerId,
+              answerText,
+            };
+          });
+
+        // Play sound if new trade detected
+        if (!isInitial && soundEnabled && mappedTrades.length > 0) {
+          const latestTrade = mappedTrades[0];
+          if (lastTradeIdRef.current && latestTrade.id !== lastTradeIdRef.current) {
+            playTradeSound('newTrade');
+          }
+        }
+        
+        if (mappedTrades.length > 0) {
+          lastTradeIdRef.current = mappedTrades[0].id;
+        }
 
         setTrades(mappedTrades);
-        lastFetchTime.current = Date.now();
       }
     } catch (err) {
       console.error("Failed to fetch trades:", err);
@@ -95,12 +116,6 @@ export default function TerminalLiveTrades({ marketId, answers }: TerminalLiveTr
     if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
     if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
     return date.toLocaleDateString();
-  };
-
-  const getProbChange = (before: number, after: number) => {
-    const change = ((after - before) * 100).toFixed(1);
-    const sign = after > before ? "+" : "";
-    return `${sign}${change}%`;
   };
 
   return (

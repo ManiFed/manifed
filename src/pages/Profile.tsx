@@ -6,46 +6,41 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import {
-  Landmark,
-  User,
-  Sparkles,
-  Award,
-  Image,
-  Zap,
-  Loader2,
-  Settings,
-  Edit2,
-  Save,
-} from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Profile {
   id: string;
   user_id: string;
   username: string | null;
   avatar_url: string | null;
-  equipped_flair: string | null;
-  equipped_badge: string | null;
-  equipped_background: string | null;
-  equipped_effect: string | null;
 }
 
-interface MarketItem {
+interface ManualLoan {
   id: string;
-  name: string;
-  category: string;
-  image_url: string | null;
+  description: string;
+  amount: number;
+  is_liability: boolean;
+  created_at: string;
 }
 
 export default function Profile() {
   const { userId } = useParams();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [equippedItems, setEquippedItems] = useState<MarketItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Financial data
+  const [balance, setBalance] = useState(0);
+  const [bondValue, setBondValue] = useState(0);
+  const [loanInvestments, setLoanInvestments] = useState(0);
+  const [liabilities, setLiabilities] = useState(0);
+  const [manualLoans, setManualLoans] = useState<ManualLoan[]>([]);
+  const [newLoanDesc, setNewLoanDesc] = useState('');
+  const [newLoanAmount, setNewLoanAmount] = useState('');
+  const [newLoanIsLiability, setNewLoanIsLiability] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -70,7 +65,6 @@ export default function Profile() {
         .eq('user_id', targetUserId)
         .maybeSingle();
 
-      // Create profile if doesn't exist and is owner
       if (!profileData && user?.id === targetUserId) {
         const { data: newProfile } = await supabase
           .from('profiles')
@@ -83,25 +77,46 @@ export default function Profile() {
       if (profileData) {
         setProfile(profileData as Profile);
         setNewUsername(profileData.username || '');
+      }
 
-        // Fetch equipped items
-        const equippedIds = [
-          profileData.equipped_flair,
-          profileData.equipped_badge,
-          profileData.equipped_background,
-          profileData.equipped_effect,
-        ].filter(Boolean);
+      // Fetch financial data
+      const { data: balanceData } = await supabase
+        .from('user_balances')
+        .select('balance')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      setBalance(balanceData?.balance || 0);
 
-        if (equippedIds.length > 0) {
-          const { data: itemsData } = await supabase
-            .from('market_items')
-            .select('*')
-            .in('id', equippedIds);
-          
-          if (itemsData) {
-            setEquippedItems(itemsData as MarketItem[]);
-          }
-        }
+      // Fetch bonds
+      const { data: bonds } = await supabase
+        .from('bonds')
+        .select('amount')
+        .eq('user_id', targetUserId)
+        .eq('status', 'active');
+      const totalBonds = bonds?.reduce((sum, b) => sum + b.amount, 0) || 0;
+      setBondValue(totalBonds);
+
+      // Fetch loan investments
+      const { data: investments } = await supabase
+        .from('investments')
+        .select('amount')
+        .eq('investor_user_id', targetUserId);
+      const totalInvested = investments?.reduce((sum, i) => sum + i.amount, 0) || 0;
+      setLoanInvestments(totalInvested);
+
+      // Fetch loans where user is borrower (liabilities)
+      const { data: userLoans } = await supabase
+        .from('loans')
+        .select('funded_amount')
+        .eq('borrower_user_id', targetUserId)
+        .in('status', ['active', 'funding']);
+      const totalLiabilities = userLoans?.reduce((sum, l) => sum + l.funded_amount, 0) || 0;
+      setLiabilities(totalLiabilities);
+
+      // Manual loans stored in localStorage
+      const stored = localStorage.getItem(`manual_loans_${targetUserId}`);
+      if (stored) {
+        setManualLoans(JSON.parse(stored));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -131,68 +146,68 @@ export default function Profile() {
     }
   };
 
-  const getItemByCategory = (category: string) => {
-    return equippedItems.find(item => item.category === category);
+  const addManualLoan = () => {
+    if (!newLoanDesc || !newLoanAmount || !profile) return;
+    const loan: ManualLoan = {
+      id: crypto.randomUUID(),
+      description: newLoanDesc,
+      amount: parseFloat(newLoanAmount),
+      is_liability: newLoanIsLiability,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [...manualLoans, loan];
+    setManualLoans(updated);
+    localStorage.setItem(`manual_loans_${profile.user_id}`, JSON.stringify(updated));
+    setNewLoanDesc('');
+    setNewLoanAmount('');
+    toast({ title: 'Loan added' });
   };
+
+  const removeManualLoan = (id: string) => {
+    if (!profile) return;
+    const updated = manualLoans.filter(l => l.id !== id);
+    setManualLoans(updated);
+    localStorage.setItem(`manual_loans_${profile.user_id}`, JSON.stringify(updated));
+  };
+
+  // Calculate net worth
+  const manualAssets = manualLoans.filter(l => !l.is_liability).reduce((sum, l) => sum + l.amount, 0);
+  const manualLiabilities = manualLoans.filter(l => l.is_liability).reduce((sum, l) => sum + l.amount, 0);
+  const netWorth = balance + bondValue + loanInvestments + manualAssets - liabilities - manualLiabilities;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/hub" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
-                <Landmark className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Profile</p>
-              </div>
+              <span className="text-lg font-bold text-gradient">ManiFed</span>
             </Link>
-
-            <div className="flex items-center gap-3">
-              {isOwner && (
-                <>
-                  <Link to="/market">
-                    <Button variant="outline" size="sm">Shop</Button>
-                  </Link>
-                  <Link to="/settings">
-                    <Button variant="ghost" size="icon">
-                      <Settings className="w-5 h-5" />
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </div>
+            {isOwner && (
+              <div className="flex items-center gap-3">
+                <Link to="/market"><Button variant="outline" size="sm">Shop</Button></Link>
+                <Link to="/settings"><Button variant="ghost" size="sm">Settings</Button></Link>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card className="glass animate-slide-up">
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        {/* Profile Header */}
+        <Card className="glass">
           <CardHeader className="text-center">
-            {/* Avatar with effects */}
-            <div className="relative mx-auto mb-4">
-              <div className={`w-24 h-24 rounded-full bg-gradient-primary flex items-center justify-center ${getItemByCategory('effect') ? 'animate-pulse-slow glow' : ''}`}>
-                <User className="w-12 h-12 text-primary-foreground" />
-              </div>
-              {getItemByCategory('flair') && (
-                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-              )}
+            <div className="w-20 h-20 rounded-full bg-gradient-primary mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-primary-foreground">
+              {profile?.username?.charAt(0).toUpperCase() || '?'}
             </div>
-
-            {/* Username */}
             {isEditing ? (
               <div className="flex items-center justify-center gap-2">
                 <Input
@@ -201,71 +216,115 @@ export default function Profile() {
                   className="max-w-[200px] text-center"
                   placeholder="Enter username"
                 />
-                <Button size="sm" onClick={handleSaveUsername} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                </Button>
+                <Button size="sm" onClick={handleSaveUsername} disabled={isSaving}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
               </div>
             ) : (
               <div className="flex items-center justify-center gap-2">
-                <CardTitle className="text-2xl">
-                  {profile?.username || 'Anonymous User'}
-                </CardTitle>
-                {isOwner && (
-                  <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                )}
+                <CardTitle className="text-2xl">{profile?.username || 'Anonymous User'}</CardTitle>
+                {isOwner && <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>Edit</Button>}
               </div>
-            )}
-
-            {/* Badge */}
-            {getItemByCategory('badge') && (
-              <Badge variant="secondary" className="mt-2 gap-1">
-                <Award className="w-3 h-3" />
-                {getItemByCategory('badge')?.name}
-              </Badge>
             )}
           </CardHeader>
+        </Card>
 
-          <CardContent className="space-y-6">
-            {/* Equipped Items */}
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Equipped Items</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { category: 'flair', icon: Sparkles, label: 'Flair' },
-                  { category: 'badge', icon: Award, label: 'Badge' },
-                  { category: 'background', icon: Image, label: 'Background' },
-                  { category: 'effect', icon: Zap, label: 'Effect' },
-                ].map(({ category, icon: Icon, label }) => {
-                  const item = getItemByCategory(category);
-                  return (
-                    <div key={category} className="p-3 rounded-lg bg-secondary/30 border border-border/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Icon className="w-4 h-4 text-primary" />
-                        <span className="text-xs text-muted-foreground">{label}</span>
-                      </div>
-                      <p className="text-sm font-medium text-foreground">
-                        {item?.name || 'None'}
-                      </p>
-                    </div>
-                  );
-                })}
+        {/* Net Worth Card */}
+        <Card className="glass border-emerald-500/30">
+          <CardHeader>
+            <CardTitle className="text-lg">Net Worth</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-4xl font-bold ${netWorth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              M${netWorth.toLocaleString()}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 text-sm">
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Balance</div>
+                <div className="font-mono text-foreground">M${balance.toLocaleString()}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Bonds</div>
+                <div className="font-mono text-foreground">M${bondValue.toLocaleString()}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Loan Investments</div>
+                <div className="font-mono text-foreground">M${loanInvestments.toLocaleString()}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Liabilities</div>
+                <div className="font-mono text-red-400">-M${liabilities.toLocaleString()}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Manual Assets</div>
+                <div className="font-mono text-emerald-400">+M${manualAssets.toLocaleString()}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="text-muted-foreground mb-1">Manual Debts</div>
+                <div className="font-mono text-red-400">-M${manualLiabilities.toLocaleString()}</div>
               </div>
             </div>
-
-            {isOwner && (
-              <div className="text-center pt-4 border-t border-border/50">
-                <Link to="/market">
-                  <Button variant="default" className="gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    Get More Items
-                  </Button>
-                </Link>
-              </div>
-            )}
           </CardContent>
         </Card>
+
+        {/* Manual Loans Tracker */}
+        {isOwner && (
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle className="text-lg">Manual Loan Tracker</CardTitle>
+              <p className="text-sm text-muted-foreground">Track loans made outside this platform</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Description (e.g., Loaned to @user)"
+                  value={newLoanDesc}
+                  onChange={(e) => setNewLoanDesc(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={newLoanAmount}
+                  onChange={(e) => setNewLoanAmount(e.target.value)}
+                  className="w-28"
+                />
+                <Button
+                  variant={newLoanIsLiability ? "destructive" : "default"}
+                  onClick={() => setNewLoanIsLiability(!newLoanIsLiability)}
+                  className="w-24"
+                >
+                  {newLoanIsLiability ? 'Debt' : 'Asset'}
+                </Button>
+                <Button onClick={addManualLoan}>Add</Button>
+              </div>
+
+              <ScrollArea className="h-48">
+                {manualLoans.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">No manual loans tracked</div>
+                ) : (
+                  <div className="space-y-2">
+                    {manualLoans.map((loan) => (
+                      <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                        <div>
+                          <div className="font-medium">{loan.description}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(loan.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant={loan.is_liability ? "destructive" : "default"}>
+                            {loan.is_liability ? '-' : '+'}M${loan.amount.toLocaleString()}
+                          </Badge>
+                          <Button variant="ghost" size="sm" onClick={() => removeManualLoan(loan.id)}>×</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

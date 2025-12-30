@@ -568,6 +568,19 @@ function TerminalMain() {
       return true;
     }
 
+    // Limit Sell syntax: LS@{price} - creates a limit sell order
+    const limitSell = /^LS@(\d+)$/;
+    match = trimmed.match(limitSell);
+    if (match && (autoExecute || forceExecute)) {
+      const [, price] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      // Limit sell = place a NO limit order at (100 - price)
+      // This will sell YES shares when price rises to target
+      createLimitSellOrder(parseInt(price), answerId);
+      setCommandInput("");
+      return true;
+    }
+
     // Check for MC trading on specific option: N:amountB or N:amountS
     const mcTrade = /^(\d+):(\d+)(B|S)$/;
     match = trimmed.match(mcTrade);
@@ -659,6 +672,54 @@ function TerminalMain() {
     }
 
     return false;
+  };
+
+  // Create limit sell order using edge function
+  const createLimitSellOrder = async (targetPrice: number, answerId?: string) => {
+    if (!activeMarket || !apiKey) {
+      addLog("Limit Sell", false, "No market or API key");
+      return;
+    }
+
+    // Find positions to sell
+    const posToSell = positions.find(p => 
+      p.outcome === "YES" && p.shares > 0 && 
+      (answerId ? p.answerId === answerId : true)
+    );
+
+    if (!posToSell || posToSell.shares <= 0) {
+      addLog("Limit Sell", false, "No YES position to sell");
+      toast.error("No YES position to sell");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("limit-sell-order", {
+        body: {
+          action: "create-order",
+          marketId: activeMarket.id,
+          marketUrl: activeMarket.url,
+          marketQuestion: activeMarket.question,
+          targetExitPrice: targetPrice,
+          sharesHeld: posToSell.shares,
+          entryPrice: Math.round(activeMarket.probability * 100),
+          answerId,
+        },
+      });
+
+      if (error) throw error;
+      if (data.success) {
+        addLog("Limit Sell", true, `Exit @${targetPrice}% for ${posToSell.shares.toFixed(0)} shares`);
+        toast.success(`Limit sell order created - will sell when price reaches ${targetPrice}%`);
+      } else {
+        addLog("Limit Sell", false, data.error || "Failed");
+        toast.error(data.error || "Failed to create limit sell");
+      }
+    } catch (err) {
+      console.error("Limit sell error:", err);
+      addLog("Limit Sell", false, "Failed to create order");
+      toast.error("Failed to create limit sell order");
+    }
   };
 
   const handleCommandChange = (value: string) => {
@@ -906,6 +967,15 @@ function TerminalMain() {
                         </Badge>
                       )}
                     </div>
+                    
+                    {/* Show selected MC option name at top if applicable */}
+                    {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && (
+                      <div className="text-sm text-purple-400 mb-1 font-mono">
+                        Trading: #{selectedMcIndex} {mcOptions[selectedMcIndex - 1].text.slice(0, 50)}
+                        {mcOptions[selectedMcIndex - 1].text.length > 50 ? "..." : ""}
+                      </div>
+                    )}
+                    
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
 
                     {/* Multiple Choice Options - Clickable to add to command */}
@@ -943,7 +1013,9 @@ function TerminalMain() {
                       </div>
                     ) : (
                       <div className="text-4xl font-bold text-emerald-400">
-                        {(activeMarket.probability * 100).toFixed(1)}%
+                        {typeof activeMarket.probability === 'number' && !isNaN(activeMarket.probability)
+                          ? `${(activeMarket.probability * 100).toFixed(1)}%`
+                          : 'Loading...'}
                       </div>
                     )}
                   </div>
@@ -986,6 +1058,7 @@ function TerminalMain() {
                 <span className="text-gray-400">30/100B@45/</span> Limit with 30min cancel
               </div>
               <div>
+                <span className="text-gray-400">LS@55</span> Limit sell @55% •{" "}
                 <span className="text-gray-400">Cmd+X</span> Sell all positions
               </div>
             </div>
@@ -1196,12 +1269,27 @@ function TerminalMain() {
           <div className="w-80 flex-shrink-0 space-y-4">
             {/* Price Chart */}
             {activeMarket && (
-              <TerminalPriceChart marketId={activeMarket.id} currentProbability={activeMarket.probability} />
+              <TerminalPriceChart 
+                marketId={activeMarket.id} 
+                currentProbability={
+                  mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
+                    ? mcOptions[selectedMcIndex - 1].probability
+                    : activeMarket.probability
+                } 
+              />
             )}
 
             {/* Order Book */}
             {activeMarket && (
-              <TerminalOrderBook marketId={activeMarket.id} currentProbability={activeMarket.probability} />
+              <TerminalOrderBook 
+                marketId={activeMarket.id} 
+                currentProbability={
+                  mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
+                    ? mcOptions[selectedMcIndex - 1].probability
+                    : activeMarket.probability
+                }
+                answerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined}
+              />
             )}
 
             {/* Live Trades Log */}
@@ -1209,6 +1297,8 @@ function TerminalMain() {
               <TerminalLiveTrades
                 marketId={activeMarket.id}
                 answers={activeMarket.answers?.map((a) => ({ id: a.id, text: a.text }))}
+                selectedAnswerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined}
+                soundEnabled={true}
               />
             )}
 
