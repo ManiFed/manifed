@@ -8,15 +8,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 interface Hotkey {
   id: string;
   key: string;
-  side: 'YES' | 'NO';
+  side: 'YES' | 'NO' | 'STRADDLE';
   amount: number;
-  orderType: 'market' | 'limit-fixed' | 'limit-relative';
+  orderType: 'market' | 'limit-fixed' | 'limit-relative' | 'straddle';
   limitPrice?: number;
   relativeOffset?: number;
   expirationMinutes?: number;
   mcOptionIndex?: number;
   note?: string;
   color?: string;
+  straddleDelta?: number;
 }
 
 interface HotkeyDisplayPanelProps {
@@ -47,6 +48,7 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
     if (hotkey.orderType === 'market') return 'MKT';
     if (hotkey.orderType === 'limit-fixed') return `@${hotkey.limitPrice}%`;
     if (hotkey.orderType === 'limit-relative') return `±${hotkey.relativeOffset}%`;
+    if (hotkey.orderType === 'straddle') return `ST±${hotkey.straddleDelta}%`;
     return '';
   };
 
@@ -101,9 +103,11 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
                   <span className={`px-1.5 py-0.5 rounded ${
                     hotkey.side === 'YES' 
                       ? 'bg-emerald-500/30 text-emerald-300' 
+                      : hotkey.side === 'STRADDLE'
+                      ? 'bg-purple-500/30 text-purple-300'
                       : 'bg-red-500/30 text-red-300'
                   }`}>
-                    {hotkey.side}
+                    {hotkey.side === 'STRADDLE' ? 'STR' : hotkey.side}
                   </span>
                   <span className="text-gray-300">M${hotkey.amount}</span>
                   <span className="text-gray-500">{getOrderTypeLabel(hotkey)}</span>

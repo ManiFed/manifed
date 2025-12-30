@@ -40,10 +40,11 @@ interface ExecutionLog {
 interface Hotkey {
   id: string;
   key: string;
-  side: "YES" | "NO";
+  side: "YES" | "NO" | "STRADDLE";
   amount: number;
-  orderType: "market" | "limit-fixed" | "limit-relative";
+  orderType: "market" | "limit-fixed" | "limit-relative" | "straddle";
   limitPrice?: number;
+  straddleDelta?: number; // For straddle orders: how far from current price to place limits
   relativeOffset?: number;
   expirationMinutes?: number;
   mcOptionIndex?: number; // For MC markets: specific option index (1-based), 0 or undefined = use selected
@@ -232,7 +233,7 @@ function TerminalMain() {
     localStorage.setItem(STORAGE_KEYS.HOTKEYS, JSON.stringify(hotkeys));
   }, [hotkeys]);
 
-  // Poll active market probability
+  // Poll active market probability AND MC options in real-time
   useEffect(() => {
     if (activeMarket && apiKey) {
       const pollMarket = async () => {
@@ -240,7 +241,19 @@ function TerminalMain() {
           const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`);
           if (response.ok) {
             const data = await response.json();
-            setActiveMarket((prev) => (prev ? { ...prev, probability: data.probability } : null));
+            setActiveMarket((prev) => (prev ? { ...prev, probability: data.probability, answers: data.answers } : null));
+            
+            // Update MC options with live probabilities
+            if (data.outcomeType === "MULTIPLE_CHOICE" && data.answers && data.answers.length > 0) {
+              const updatedOptions = data.answers.map((a: any, i: number) => ({
+                index: i + 1,
+                id: a.id,
+                text: a.text,
+                probability: a.probability ?? a.prob ?? 0,
+              }));
+              setMcOptions(updatedOptions);
+            }
+            
             setIsConnected(true);
           } else {
             setIsConnected(false);
@@ -379,7 +392,7 @@ function TerminalMain() {
         index: i + 1,
         id: a.id,
         text: a.text,
-        probability: a.probability,
+        probability: a.probability ?? 0,
       }));
       setMcOptions(options);
       setSelectedMcIndex(1);
@@ -581,6 +594,29 @@ function TerminalMain() {
       return true;
     }
 
+    // Straddle syntax: ST{delta}/{amount}/ - places YES limit at (current - delta) and NO limit at (current + delta)
+    // Example: ST5/100/ places 100M YES @(current-5%) and 100M NO @(current+5%)
+    const straddleOrder = /^ST(\d+)\/(\d+)\/$/;
+    match = trimmed.match(straddleOrder);
+    if (match) {
+      const [, delta, amount] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeStraddle(parseInt(delta), parseInt(amount), undefined, answerId);
+      setCommandInput("");
+      return true;
+    }
+
+    // Straddle with expiry: {minutes}/ST{delta}/{amount}/
+    const straddleWithExpiry = /^(\d+)\/ST(\d+)\/(\d+)\/$/;
+    match = trimmed.match(straddleWithExpiry);
+    if (match) {
+      const [, minutes, delta, amount] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      executeStraddle(parseInt(delta), parseInt(amount), parseInt(minutes), answerId);
+      setCommandInput("");
+      return true;
+    }
+
     // Check for MC trading on specific option: N:amountB or N:amountS
     const mcTrade = /^(\d+):(\d+)(B|S)$/;
     match = trimmed.match(mcTrade);
@@ -722,6 +758,31 @@ function TerminalMain() {
     }
   };
 
+  // Execute straddle order - places YES limit below current price and NO limit above current price
+  const executeStraddle = async (delta: number, amount: number, expirationMinutes?: number, answerId?: string) => {
+    if (!activeMarket || !apiKey) {
+      addLog("Straddle", false, "No market or API key");
+      return;
+    }
+
+    const currentProb = mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
+      ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100)
+      : Math.round(activeMarket.probability * 100);
+    
+    const yesLimitPrice = Math.max(1, currentProb - delta);
+    const noLimitPrice = Math.min(99, currentProb + delta);
+    
+    addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (delta: ${delta})`);
+    
+    // Place YES limit order below current price
+    await executeTrade("YES", amount, yesLimitPrice, expirationMinutes, answerId);
+    
+    // Place NO limit order above current price
+    await executeTrade("NO", amount, noLimitPrice, expirationMinutes, answerId);
+    
+    toast.success(`Straddle placed: YES @${yesLimitPrice}% / NO @${noLimitPrice}%`);
+  };
+
   const handleCommandChange = (value: string) => {
     setCommandInput(value);
     parseAndExecuteCommand(value);
@@ -794,7 +855,12 @@ function TerminalMain() {
           answerId = mcOptions[optionIdx - 1]?.id;
         }
 
-        executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationMinutes, answerId);
+        // Handle straddle hotkeys
+        if (hotkey.orderType === "straddle" && hotkey.straddleDelta) {
+          executeStraddle(hotkey.straddleDelta, hotkey.amount, hotkey.expirationMinutes, answerId);
+        } else if (hotkey.side !== "STRADDLE") {
+          executeTrade(hotkey.side, hotkey.amount, limitPrice, hotkey.expirationMinutes, answerId);
+        }
       }
     };
 
@@ -1003,9 +1069,11 @@ function TerminalMain() {
                                 </span>
                               </div>
                               <span
-                                className={`font-mono ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}
+                                className={`font-mono font-bold ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}
                               >
-                                {(opt.probability * 100).toFixed(1)}%
+                                {typeof opt.probability === 'number' && !isNaN(opt.probability)
+                                  ? `${(opt.probability * 100).toFixed(1)}%`
+                                  : '—'}
                               </span>
                             </div>
                           ))}
@@ -1015,7 +1083,7 @@ function TerminalMain() {
                       <div className="text-4xl font-bold text-emerald-400">
                         {typeof activeMarket.probability === 'number' && !isNaN(activeMarket.probability)
                           ? `${(activeMarket.probability * 100).toFixed(1)}%`
-                          : 'Loading...'}
+                          : '—'}
                       </div>
                     )}
                   </div>
@@ -1060,6 +1128,10 @@ function TerminalMain() {
               <div>
                 <span className="text-gray-400">LS@55</span> Limit sell @55% •{" "}
                 <span className="text-gray-400">Cmd+X</span> Sell all positions
+              </div>
+              <div>
+                <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 •{" "}
+                <span className="text-purple-400">30/ST5/100/</span> Straddle with 30min expiry
               </div>
             </div>
 
@@ -1130,32 +1202,50 @@ function TerminalMain() {
                             </Button>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <Select
-                              value={hotkey.side}
-                              onValueChange={(v) => updateHotkey(hotkey.id, { side: v as "YES" | "NO" })}
-                            >
-                              <SelectTrigger className="bg-gray-700 border-gray-600">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="YES">YES</SelectItem>
-                                <SelectItem value="NO">NO</SelectItem>
-                              </SelectContent>
-                            </Select>
+                          {hotkey.orderType !== "straddle" && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Select
+                                value={hotkey.side}
+                                onValueChange={(v) => updateHotkey(hotkey.id, { side: v as "YES" | "NO" | "STRADDLE" })}
+                              >
+                                <SelectTrigger className="bg-gray-700 border-gray-600">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="YES">YES</SelectItem>
+                                  <SelectItem value="NO">NO</SelectItem>
+                                </SelectContent>
+                              </Select>
 
+                              <Input
+                                type="number"
+                                value={hotkey.amount}
+                                onChange={(e) => updateHotkey(hotkey.id, { amount: parseInt(e.target.value) || 0 })}
+                                placeholder="Amount"
+                                className="bg-gray-700 border-gray-600"
+                              />
+                            </div>
+                          )}
+
+                          {hotkey.orderType === "straddle" && (
                             <Input
                               type="number"
                               value={hotkey.amount}
                               onChange={(e) => updateHotkey(hotkey.id, { amount: parseInt(e.target.value) || 0 })}
-                              placeholder="Amount"
+                              placeholder="Amount per side"
                               className="bg-gray-700 border-gray-600"
                             />
-                          </div>
+                          )}
 
                           <Select
                             value={hotkey.orderType}
-                            onValueChange={(v) => updateHotkey(hotkey.id, { orderType: v as Hotkey["orderType"] })}
+                            onValueChange={(v) => {
+                              const updates: Partial<Hotkey> = { orderType: v as Hotkey["orderType"] };
+                              if (v === "straddle") {
+                                updates.side = "STRADDLE";
+                              }
+                              updateHotkey(hotkey.id, updates);
+                            }}
                           >
                             <SelectTrigger className="bg-gray-700 border-gray-600">
                               <SelectValue />
@@ -1164,6 +1254,7 @@ function TerminalMain() {
                               <SelectItem value="market">Market Order</SelectItem>
                               <SelectItem value="limit-fixed">Limit (Fixed %)</SelectItem>
                               <SelectItem value="limit-relative">Limit (Relative %)</SelectItem>
+                              <SelectItem value="straddle">Straddle (Market Maker)</SelectItem>
                             </SelectContent>
                           </Select>
 
@@ -1199,6 +1290,18 @@ function TerminalMain() {
                                 updateHotkey(hotkey.id, { expirationMinutes: parseInt(e.target.value) || undefined })
                               }
                               placeholder="Expiration (minutes)"
+                              className="bg-gray-700 border-gray-600"
+                            />
+                          )}
+
+                          {hotkey.orderType === "straddle" && (
+                            <Input
+                              type="number"
+                              value={hotkey.straddleDelta || ""}
+                              onChange={(e) =>
+                                updateHotkey(hotkey.id, { straddleDelta: parseInt(e.target.value) || undefined })
+                              }
+                              placeholder="Delta % (distance from current)"
                               className="bg-gray-700 border-gray-600"
                             />
                           )}

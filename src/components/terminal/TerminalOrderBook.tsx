@@ -37,7 +37,6 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
   }, [marketId, answerId]);
 
   const fetchOrderBook = async () => {
-    setLoading(true);
     try {
       // Fetch market details for volume and liquidity
       const marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
@@ -47,53 +46,60 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         setLiquidity(market.totalLiquidity || 0);
       }
 
-      // Fetch pending limit orders to show order book depth
-      const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=200`);
+      // Fetch ALL bets to get complete order book - use larger limit
+      const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=1000`);
       if (betsResponse.ok) {
         const bets = await betsResponse.json();
         
-        // Filter for unfilled limit orders (optionally by answerId for MC markets)
+        // Filter for unfilled limit orders only
         const limitOrders = bets.filter((bet: any) => {
+          // Must have a limit probability set
           if (bet.limitProb === undefined || bet.limitProb === null) return false;
+          // Skip cancelled or fully filled orders
           if (bet.isCancelled || bet.isFilled) return false;
-          if ((bet.orderAmount || bet.amount) <= 0) return false;
-          // Filter by answerId if provided
+          // Calculate remaining amount
+          const orderAmount = bet.orderAmount || bet.amount || 0;
+          const filledAmount = bet.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
+          const remaining = orderAmount - filledAmount;
+          if (remaining <= 0) return false;
+          // Filter by answerId for MC markets
           if (answerId && bet.answerId !== answerId) return false;
           return true;
         });
         
-        // Aggregate by price level
+        // Aggregate by price level with precise remaining amounts
         const bidLevels: { [key: number]: { amount: number; count: number } } = {};
         const askLevels: { [key: number]: { amount: number; count: number } } = {};
         
         for (const order of limitOrders) {
           const limitProb = order.limitProb;
           const price = Math.round(limitProb * 100);
-          const amount = Math.abs(order.orderAmount || order.amount || 0);
+          const orderAmount = order.orderAmount || order.amount || 0;
           const filledAmount = order.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
-          const remainingAmount = Math.max(0, amount - filledAmount);
+          const remainingAmount = Math.max(0, orderAmount - filledAmount);
           
           if (remainingAmount <= 0) continue;
           
           if (order.outcome === 'YES') {
-            // YES limit buy = bid (wanting to buy YES at this price)
+            // YES limit buy = bid (wanting to buy YES at this price or lower)
             if (!bidLevels[price]) bidLevels[price] = { amount: 0, count: 0 };
             bidLevels[price].amount += remainingAmount;
             bidLevels[price].count += 1;
           } else {
-            // NO limit buy = ask (wanting to sell YES / buy NO at this price)
-            const askPrice = 100 - price;
-            if (!askLevels[askPrice]) askLevels[askPrice] = { amount: 0, count: 0 };
-            askLevels[askPrice].amount += remainingAmount;
-            askLevels[askPrice].count += 1;
+            // NO limit buy at price X means they want to sell YES at price (100-X)
+            // So if someone buys NO at 40%, that's like selling YES at 60%
+            const effectiveAskPrice = 100 - price;
+            if (!askLevels[effectiveAskPrice]) askLevels[effectiveAskPrice] = { amount: 0, count: 0 };
+            askLevels[effectiveAskPrice].amount += remainingAmount;
+            askLevels[effectiveAskPrice].count += 1;
           }
         }
         
-        // Convert to arrays and sort - show ALL orders, not just top 6
+        // Convert to arrays - bids sorted high to low, asks sorted low to high
         const bids = Object.entries(bidLevels)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
-            amount: data.amount, 
+            amount: Math.round(data.amount), 
             side: 'YES' as const,
             orderCount: data.count 
           }))
@@ -102,13 +108,13 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         const asks = Object.entries(askLevels)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
-            amount: data.amount, 
+            amount: Math.round(data.amount), 
             side: 'NO' as const,
             orderCount: data.count 
           }))
           .sort((a, b) => a.price - b.price);
         
-        // Calculate spread
+        // Calculate spread from best bid and best ask
         if (bids.length > 0 && asks.length > 0) {
           const bestBid = bids[0].price;
           const bestAsk = asks[0].price;
