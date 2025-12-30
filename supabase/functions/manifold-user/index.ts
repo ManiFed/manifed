@@ -154,20 +154,36 @@ serve(async (req) => {
 
     console.log(`Fetching Manifold user data for: ${username}`);
 
-    // Fetch user data from Manifold API
-    const userResponse = await fetch(`https://api.manifold.markets/v0/user/${username}`);
+    // Fetch user data from Manifold API - try exact match first
+    let userResponse = await fetch(`https://api.manifold.markets/v0/user/${encodeURIComponent(username)}`);
+    let userData: ManifoldUser | null = null;
 
-    if (!userResponse.ok) {
-      if (userResponse.status === 404) {
-        return new Response(JSON.stringify({ error: "User not found on Manifold Markets" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    if (userResponse.ok) {
+      userData = await userResponse.json();
+    } else if (userResponse.status === 404) {
+      // Try case-insensitive search as fallback
+      console.log(`Exact match not found, trying search for: ${username}`);
+      const searchResponse = await fetch(`https://api.manifold.markets/v0/search-users?term=${encodeURIComponent(username)}&limit=10`);
+      
+      if (searchResponse.ok) {
+        const searchResults: ManifoldUser[] = await searchResponse.json();
+        // Find case-insensitive match
+        const match = searchResults.find(
+          (u) => u.username.toLowerCase() === username.toLowerCase()
+        );
+        if (match) {
+          console.log(`Found case-insensitive match: ${match.username}`);
+          userData = match;
+        }
       }
-      throw new Error(`Failed to fetch user: ${userResponse.status}`);
     }
 
-    const userData: ManifoldUser = await userResponse.json();
+    if (!userData) {
+      return new Response(JSON.stringify({ error: "User not found on Manifold Markets" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.log(`Found user: ${userData.name} (${userData.username})`);
 
     // Fetch portfolio data
