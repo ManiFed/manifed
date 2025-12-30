@@ -15,6 +15,7 @@ import TerminalWatchlist from "@/components/terminal/TerminalWatchlist";
 import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
 import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
 import TerminalPositions from "@/components/terminal/TerminalPositions";
+import TerminalLiveTrades from "@/components/terminal/TerminalLiveTrades";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
 
@@ -250,7 +251,8 @@ function TerminalMain() {
       };
 
       pollMarket();
-      pollingRef.current = setInterval(pollMarket, 3000);
+      // Poll every 1 second for real-time feel
+      pollingRef.current = setInterval(pollMarket, 1000);
 
       return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
@@ -1199,6 +1201,14 @@ function TerminalMain() {
               <TerminalOrderBook
                 marketId={activeMarket.id}
                 currentProbability={activeMarket.probability}
+              />
+            )}
+
+            {/* Live Trades Log */}
+            {activeMarket && (
+              <TerminalLiveTrades
+                marketId={activeMarket.id}
+                answers={activeMarket.answers?.map(a => ({ id: a.id, text: a.text }))}
               />
             )}
 
