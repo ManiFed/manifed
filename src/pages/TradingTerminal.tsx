@@ -721,7 +721,12 @@ function TerminalMain() {
   };
 
   // Create limit sell order using edge function
-  const createLimitSellOrder = async (targetPrice: number, amount?: number, expirationMinutes?: number, answerId?: string) => {
+  const createLimitSellOrder = async (
+    targetPrice: number,
+    amount?: number,
+    expirationMinutes?: number,
+    answerId?: string,
+  ) => {
     if (!activeMarket || !apiKey) {
       addLog("Limit Sell", false, "No market or API key");
       return;
@@ -786,11 +791,15 @@ function TerminalMain() {
 
     const yesLimitPrice = Math.max(1, currentProb - delta);
     const noLimitPrice = Math.min(99, currentProb + delta);
-    
+
     // Split the amount across both orders
     const amountPerSide = Math.floor(totalAmount / 2);
 
-    addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (M$${amountPerSide} each, delta: ${delta})`);
+    addLog(
+      "Straddle",
+      true,
+      `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (M$${amountPerSide} each, delta: ${delta})`,
+    );
 
     // Place YES limit order below current price
     await executeTrade("YES", amountPerSide, yesLimitPrice, expirationMinutes, answerId);
@@ -830,7 +839,9 @@ function TerminalMain() {
       const userId = meData.id;
 
       // Fetch bets for this market
-      const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${activeMarket.id}&userId=${userId}&limit=100`);
+      const betsResponse = await fetch(
+        `https://api.manifold.markets/v0/bets?contractId=${activeMarket.id}&userId=${userId}&limit=100`,
+      );
       if (!betsResponse.ok) return;
       const bets = await betsResponse.json();
 
@@ -1216,22 +1227,27 @@ function TerminalMain() {
 
             {/* Syntax Guide - Collapsible */}
             <details className="text-xs text-gray-500">
-              <summary className="cursor-pointer hover:text-gray-300 mb-2">Syntax Guide ▾</summary>
+              <summary className="cursor-pointer hover:text-gray-300 mb-2">Syntax Guide</summary>
               <div className="space-y-1 pl-2 border-l border-gray-700">
                 <div>
-                  <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span> Buy NO
+                  <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span> Buy
+                  NO
                 </div>
                 <div>
-                  <span className="text-gray-400">/100B@45/</span> Limit YES @45% • <span className="text-gray-400">30/100B@45/</span> With 30min cancel
+                  <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
+                  <span className="text-gray-400">30/100B@45/</span> With 30min cancel
                 </div>
                 <div>
-                  <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% • <span className="text-yellow-400">30/LS100@55</span> With expiry
+                  <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% •{" "}
+                  <span className="text-yellow-400">30/LS100@55</span> With expiry
                 </div>
                 <div>
-                  <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split • <span className="text-purple-400">30/ST5/100/</span> With expiry
+                  <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split •{" "}
+                  <span className="text-purple-400">30/ST5/100/</span> With expiry
                 </div>
                 <div>
-                  <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits • <span className="text-gray-400">Cmd+L</span> Cancel all limits
+                  <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits •{" "}
+                  <span className="text-gray-400">Cmd+L</span> Cancel all limits
                 </div>
               </div>
             </details>
