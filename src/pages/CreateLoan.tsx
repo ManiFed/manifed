@@ -86,11 +86,6 @@ export default function CreateLoan() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) {
-          setHasApiKey(false);
-          setIsCheckingApiKey(false);
-          return;
-        }
 
         const { data } = await supabase
           .from("user_manifold_settings")
