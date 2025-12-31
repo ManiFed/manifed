@@ -219,8 +219,7 @@ export default function About() {
                       guaranteed yields
                     </li>
                     <li>
-                      Fintech: Use advanced trading tools, number go up.
-                      <strong className="text-foreground">Arbitrage Scanner:</strong> Find mispriced markets and profit
+                      <strong className="text-foreground">Fintech:</strong> Use advanced trading tools, number go up
                     </li>
                   </ul>
                   <p>We want to make Manifold profitable again.</p>
