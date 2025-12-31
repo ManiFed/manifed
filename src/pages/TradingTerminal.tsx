@@ -241,8 +241,10 @@ function TerminalMain() {
           const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`);
           if (response.ok) {
             const data = await response.json();
-            setActiveMarket((prev) => (prev ? { ...prev, probability: data.probability, answers: data.answers } : null));
-            
+            setActiveMarket((prev) =>
+              prev ? { ...prev, probability: data.probability, answers: data.answers } : null,
+            );
+
             // Update MC options with live probabilities
             if (data.outcomeType === "MULTIPLE_CHOICE" && data.answers && data.answers.length > 0) {
               const updatedOptions = data.answers.map((a: any, i: number) => ({
@@ -253,7 +255,7 @@ function TerminalMain() {
               }));
               setMcOptions(updatedOptions);
             }
-            
+
             setIsConnected(true);
           } else {
             setIsConnected(false);
@@ -718,9 +720,8 @@ function TerminalMain() {
     }
 
     // Find positions to sell
-    const posToSell = positions.find(p => 
-      p.outcome === "YES" && p.shares > 0 && 
-      (answerId ? p.answerId === answerId : true)
+    const posToSell = positions.find(
+      (p) => p.outcome === "YES" && p.shares > 0 && (answerId ? p.answerId === answerId : true),
     );
 
     if (!posToSell || posToSell.shares <= 0) {
@@ -765,21 +766,22 @@ function TerminalMain() {
       return;
     }
 
-    const currentProb = mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
-      ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100)
-      : Math.round(activeMarket.probability * 100);
-    
+    const currentProb =
+      mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
+        ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100)
+        : Math.round(activeMarket.probability * 100);
+
     const yesLimitPrice = Math.max(1, currentProb - delta);
     const noLimitPrice = Math.min(99, currentProb + delta);
-    
+
     addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (delta: ${delta})`);
-    
+
     // Place YES limit order below current price
     await executeTrade("YES", amount, yesLimitPrice, expirationMinutes, answerId);
-    
+
     // Place NO limit order above current price
     await executeTrade("NO", amount, noLimitPrice, expirationMinutes, answerId);
-    
+
     toast.success(`Straddle placed: YES @${yesLimitPrice}% / NO @${noLimitPrice}%`);
   };
 
@@ -1033,7 +1035,7 @@ function TerminalMain() {
                         </Badge>
                       )}
                     </div>
-                    
+
                     {/* Show selected MC option name at top if applicable */}
                     {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && (
                       <div className="text-sm text-purple-400 mb-1 font-mono">
@@ -1041,7 +1043,7 @@ function TerminalMain() {
                         {mcOptions[selectedMcIndex - 1].text.length > 50 ? "..." : ""}
                       </div>
                     )}
-                    
+
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
 
                     {/* Multiple Choice Options - Clickable to add to command */}
@@ -1071,9 +1073,9 @@ function TerminalMain() {
                               <span
                                 className={`font-mono font-bold ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}
                               >
-                                {typeof opt.probability === 'number' && !isNaN(opt.probability)
+                                {typeof opt.probability === "number" && !isNaN(opt.probability)
                                   ? `${(opt.probability * 100).toFixed(1)}%`
-                                  : '—'}
+                                  : "—"}
                               </span>
                             </div>
                           ))}
@@ -1081,9 +1083,9 @@ function TerminalMain() {
                       </div>
                     ) : (
                       <div className="text-4xl font-bold text-emerald-400">
-                        {typeof activeMarket.probability === 'number' && !isNaN(activeMarket.probability)
+                        {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability)
                           ? `${(activeMarket.probability * 100).toFixed(1)}%`
-                          : '—'}
+                          : "—"}
                       </div>
                     )}
                   </div>
@@ -1102,11 +1104,7 @@ function TerminalMain() {
                 value={commandInput}
                 onChange={(e) => handleCommandChange(e.target.value)}
                 onKeyDown={handleCommandKeyDown}
-                placeholder={
-                  activeMarket && apiKey
-                    ? "100B = Buy YES, 100S = Buy NO, 100B@45L = Limit order..."
-                    : "Select a market first..."
-                }
+                placeholder={activeMarket && apiKey ? "Enter command here" : "Select a market first..."}
                 disabled={!activeMarket || !apiKey}
                 className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4"
               />
@@ -1372,20 +1370,20 @@ function TerminalMain() {
           <div className="w-80 flex-shrink-0 space-y-4">
             {/* Price Chart */}
             {activeMarket && (
-              <TerminalPriceChart 
-                marketId={activeMarket.id} 
+              <TerminalPriceChart
+                marketId={activeMarket.id}
                 currentProbability={
                   mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
                     ? mcOptions[selectedMcIndex - 1].probability
                     : activeMarket.probability
-                } 
+                }
               />
             )}
 
             {/* Order Book */}
             {activeMarket && (
-              <TerminalOrderBook 
-                marketId={activeMarket.id} 
+              <TerminalOrderBook
+                marketId={activeMarket.id}
                 currentProbability={
                   mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
                     ? mcOptions[selectedMcIndex - 1].probability
