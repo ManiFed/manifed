@@ -124,11 +124,27 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                   </div>
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">/100B@45/</code>
-                    <span className="text-gray-400">Limit YES @45%</span>
+                    <span className="text-gray-400">Buy 100 YES @45%</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">30/100B@45/</code>
                     <span className="text-gray-400">Limit YES @45%, cancel in 30 min</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-orange-400 w-28">LS100@45</code>
+                    <span className="text-gray-400">Sell M$100 worth of my position @45</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-orange-400 w-28">30/LS100@45</code>
+                    <span className="text-gray-400">Limit sell @45, cancel in 30 min</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-purple-400 w-28">ST5/100/</code>
+                    <span className="text-gray-400">File M$100 worth of limit orders at ±5% the current price</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-purple-400 w-28">30/ST5/100/</code>
+                    <span className="text-gray-400">Straddle order at ±5%, cancel in 30 min</span>
                   </div>
                 </div>
               </div>
