@@ -18,6 +18,7 @@ import TerminalPositions from "@/components/terminal/TerminalPositions";
 import TerminalLiveTrades from "@/components/terminal/TerminalLiveTrades";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
+import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
   id: string;
   question: string;
@@ -945,7 +946,120 @@ function TerminalMain() {
     return match ? `https://www.youtube.com/embed/${match[1]}` : null;
   };
   const embedUrl = getYoutubeEmbedUrl(youtubeUrl);
-  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 font-mono">
+  
+  // Active dropdown state - only one can be open at a time
+  const [activeDropdown, setActiveDropdown] = useState<'syntax' | 'description' | 'comments' | null>(null);
+  const [marketComments, setMarketComments] = useState<any[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  
+  // Fetch comments when dropdown opens
+  useEffect(() => {
+    if (activeDropdown === 'comments' && activeMarket) {
+      fetchMarketComments();
+    }
+  }, [activeDropdown, activeMarket?.id]);
+  
+  const fetchMarketComments = async () => {
+    if (!activeMarket) return;
+    setLoadingComments(true);
+    try {
+      const response = await fetch(`https://api.manifold.markets/v0/comments?contractId=${activeMarket.id}&limit=20`);
+      if (response.ok) {
+        const comments = await response.json();
+        setMarketComments(comments);
+      }
+    } catch (err) {
+      console.error('Failed to fetch comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+  
+  // Calculate price impact preview
+  const getPriceImpactPreview = useCallback(() => {
+    if (!activeMarket || autoExecute) return null;
+    
+    const trimmed = commandInput.trim().toUpperCase();
+    const currentProb = mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] 
+      ? mcOptions[selectedMcIndex - 1].probability * 100 
+      : activeMarket.probability * 100;
+    
+    // Market order pattern: {amount}{B|S}
+    const marketOrder = /^(\d+)(B|S)$/;
+    let match = trimmed.match(marketOrder);
+    if (match) {
+      const [, amountStr, side] = match;
+      const amount = parseInt(amountStr);
+      // Rough estimate: each M$10 moves the market ~0.5-1% depending on liquidity
+      // Using a simple approximation based on typical liquidity
+      const liquidityFactor = Math.max(100, liquidity || 1000);
+      const impact = (amount / liquidityFactor) * 50; // rough estimate
+      const newProb = side === 'B' 
+        ? Math.min(99, currentProb + impact)
+        : Math.max(1, currentProb - impact);
+      return {
+        type: 'market',
+        side: side === 'B' ? 'YES' : 'NO',
+        currentProb: currentProb.toFixed(1),
+        newProb: newProb.toFixed(1),
+        change: (newProb - currentProb).toFixed(1)
+      };
+    }
+    
+    // Limit order patterns
+    const limitNoExpirySlash = /^\/(\d+)(B|S)@(\d+)\/$/;
+    match = trimmed.match(limitNoExpirySlash);
+    if (match) {
+      const [, , side, price] = match;
+      return {
+        type: 'limit',
+        side: side === 'B' ? 'YES' : 'NO',
+        limitPrice: price,
+        currentProb: currentProb.toFixed(1)
+      };
+    }
+    
+    const limitNoExpiryEnter = /^\/(\d+)(B|S)@(\d+)$/;
+    match = trimmed.match(limitNoExpiryEnter);
+    if (match) {
+      const [, , side, price] = match;
+      return {
+        type: 'limit',
+        side: side === 'B' ? 'YES' : 'NO',
+        limitPrice: price,
+        currentProb: currentProb.toFixed(1)
+      };
+    }
+    
+    const limitWithExpiry = /^(\d+)\/(\d+)(B|S)@(\d+)\/$/;
+    match = trimmed.match(limitWithExpiry);
+    if (match) {
+      const [, , , side, price] = match;
+      return {
+        type: 'limit',
+        side: side === 'B' ? 'YES' : 'NO',
+        limitPrice: price,
+        currentProb: currentProb.toFixed(1)
+      };
+    }
+    
+    return null;
+  }, [commandInput, activeMarket, autoExecute, mcOptions, selectedMcIndex]);
+  
+  const priceImpact = getPriceImpactPreview();
+  const [liquidity, setLiquidity] = useState(1000);
+  
+  // Fetch liquidity for price impact calculation
+  useEffect(() => {
+    if (activeMarket) {
+      fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`)
+        .then(res => res.json())
+        .then(data => setLiquidity(data.totalLiquidity || 1000))
+        .catch(() => {});
+    }
+  }, [activeMarket?.id]);
+  
+  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 pb-16 font-mono overflow-y-auto">
       <div className="max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
@@ -1071,8 +1185,28 @@ function TerminalMain() {
                               </span>
                             </div>)}
                         </ScrollArea>
-                      </div> : <div className="text-4xl font-bold text-emerald-400">
-                        {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability) ? `${(activeMarket.probability * 100).toFixed(1)}%` : "—"}
+                      </div> : <div className="flex items-center gap-3">
+                        <div className="text-4xl font-bold text-emerald-400">
+                          {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability) ? `${(activeMarket.probability * 100).toFixed(1)}%` : "—"}
+                        </div>
+                        {/* Price impact preview when auto mode is off */}
+                        {!autoExecute && priceImpact && (
+                          <div className="text-sm">
+                            {priceImpact.type === 'market' ? (
+                              <span className={priceImpact.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}>
+                                → {priceImpact.newProb}% 
+                                <span className="text-gray-500 ml-1">
+                                  ({parseFloat(priceImpact.change) >= 0 ? '+' : ''}{priceImpact.change}%)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-yellow-400">
+                                Limit @{priceImpact.limitPrice}%
+                                <span className="text-gray-500 ml-1">(if filled)</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>}
                   </div>
                 </div>
@@ -1088,32 +1222,102 @@ function TerminalMain() {
               </div>
             </div>
 
-            {/* Syntax Guide - Collapsible */}
-            <details className="text-xs text-gray-500">
-              <summary className="cursor-pointer hover:text-gray-300 mb-2">Syntax Guide</summary>
-              <div className="space-y-1 pl-2 border-l border-gray-700">
-                <div>
-                  <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span> Buy
-                  NO
+            {/* Dropdowns Row - Syntax, Description, Comments */}
+            <div className="flex items-center gap-2 text-xs">
+              {/* Syntax Guide Dropdown */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveDropdown(activeDropdown === 'syntax' ? null : 'syntax')}
+                className={`h-6 px-2 text-[10px] ${activeDropdown === 'syntax' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-white'}`}
+              >
+                Syntax Guide {activeDropdown === 'syntax' ? '▲' : '▼'}
+              </Button>
+              
+              {/* Market Description Dropdown */}
+              {activeMarket && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveDropdown(activeDropdown === 'description' ? null : 'description')}
+                  className={`h-6 px-2 text-[10px] ${activeDropdown === 'description' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Description {activeDropdown === 'description' ? '▲' : '▼'}
+                </Button>
+              )}
+              
+              {/* Recent Comments Dropdown */}
+              {activeMarket && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActiveDropdown(activeDropdown === 'comments' ? null : 'comments')}
+                  className={`h-6 px-2 text-[10px] ${activeDropdown === 'comments' ? 'bg-gray-800 text-white' : 'text-gray-500 hover:text-white'}`}
+                >
+                  Comments {activeDropdown === 'comments' ? '▲' : '▼'}
+                </Button>
+              )}
+            </div>
+            
+            {/* Dropdown Content */}
+            {activeDropdown === 'syntax' && (
+              <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs text-gray-500">
+                <div className="space-y-1">
+                  <div>
+                    <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span> Buy NO
+                  </div>
+                  <div>
+                    <span className="text-gray-400">/100B@45/</span> Limit YES @45% • <span className="text-gray-400">30/100B@45/</span> With 30min cancel
+                  </div>
+                  <div>
+                    <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% • <span className="text-yellow-400">30/LS100@55</span> With expiry
+                  </div>
+                  <div>
+                    <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split • <span className="text-purple-400">30/ST5/100/</span> With expiry
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits • <span className="text-gray-400">Cmd+L</span> Cancel all limits
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
-                  <span className="text-gray-400">30/100B@45/</span> With 30min cancel
+              </Card>
+            )}
+            
+            {activeDropdown === 'description' && activeMarket && (
+              <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
+                <div className="text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+                  {activeMarket.question}
+                  <p className="text-gray-500 mt-2">
+                    <a href={activeMarket.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
+                      View on Manifold →
+                    </a>
+                  </p>
                 </div>
-                <div>
-                  <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% •{" "}
-                  <span className="text-yellow-400">30/LS100@55</span> With expiry
-                </div>
-                <div>
-                  <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split •{" "}
-                  <span className="text-purple-400">30/ST5/100/</span> With expiry
-                </div>
-                <div>
-                  <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits •{" "}
-                  <span className="text-gray-400">Cmd+L</span> Cancel all limits
-                </div>
-              </div>
-            </details>
+              </Card>
+            )}
+            
+            {activeDropdown === 'comments' && activeMarket && (
+              <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
+                {loadingComments ? (
+                  <div className="text-gray-500 text-center py-4">Loading comments...</div>
+                ) : marketComments.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">No recent comments</div>
+                ) : (
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-3">
+                      {marketComments.slice(0, 10).map((comment: any) => (
+                        <div key={comment.id} className="border-b border-gray-800 pb-2 last:border-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-emerald-400 font-medium">@{comment.userName || 'Anonymous'}</span>
+                            <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-gray-400 line-clamp-3">{comment.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </Card>
+            )}
 
             {/* Logs & Config Tabs */}
             <Tabs defaultValue="logs" className="w-full">
@@ -1149,83 +1353,120 @@ function TerminalMain() {
                 <Card className="bg-gray-900/50 border-gray-800 p-3">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-3">
-                      {hotkeys.map(hotkey => <div key={hotkey.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Input value={hotkey.key} onChange={e => updateHotkey(hotkey.id, {
-                          key: e.target.value.slice(0, 1)
-                        })} placeholder="Key" className="w-12 bg-gray-700 border-gray-600 text-center uppercase" maxLength={1} />
-                            <Button variant="ghost" size="sm" onClick={() => deleteHotkey(hotkey.id)} className="text-red-400 hover:text-red-300">
-                              ✕
-                            </Button>
+                      {/* Syntax-based hotkey creation */}
+                      <div className="p-3 bg-gray-800/50 rounded-lg space-y-2">
+                        <div className="text-xs text-gray-500 mb-2">
+                          Add hotkey using syntax: <span className="text-emerald-400">[key]:[syntax]</span>
+                        </div>
+                        <div className="text-[10px] text-gray-600 space-y-0.5">
+                          <div>• <span className="text-gray-400">Q:100B</span> → Q key = 100 YES market</div>
+                          <div>• <span className="text-gray-400">W:50S</span> → W key = 50 NO market</div>
+                          <div>• <span className="text-gray-400">E:/100B@45/</span> → E key = limit YES @45%</div>
+                          <div>• <span className="text-gray-400">R:ST5/100/</span> → R key = straddle ±5%</div>
+                        </div>
+                        <Input 
+                          placeholder="e.g. Q:100B or W:ST5/200/"
+                          className="bg-gray-700 border-gray-600 font-mono text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const input = e.currentTarget.value.trim().toUpperCase();
+                              const colonIndex = input.indexOf(':');
+                              if (colonIndex === -1 || colonIndex === 0) {
+                                toast.error('Invalid format. Use KEY:SYNTAX (e.g., Q:100B)');
+                                return;
+                              }
+                              const key = input.slice(0, colonIndex).slice(0, 1);
+                              const syntax = input.slice(colonIndex + 1);
+                              
+                              // Parse the syntax to create hotkey
+                              const newHotkey: Hotkey = {
+                                id: crypto.randomUUID(),
+                                key,
+                                side: 'YES',
+                                amount: 10,
+                                orderType: 'market'
+                              };
+                              
+                              // Market order: 100B or 100S
+                              const marketMatch = syntax.match(/^(\d+)(B|S)$/);
+                              if (marketMatch) {
+                                newHotkey.side = marketMatch[2] === 'B' ? 'YES' : 'NO';
+                                newHotkey.amount = parseInt(marketMatch[1]);
+                                newHotkey.orderType = 'market';
+                                setHotkeys([...hotkeys, newHotkey]);
+                                e.currentTarget.value = '';
+                                toast.success(`Hotkey ${key} added: ${newHotkey.amount}M ${newHotkey.side}`);
+                                return;
+                              }
+                              
+                              // Limit order: /100B@45/ or 30/100B@45/
+                              const limitMatch = syntax.match(/^(\d+)?\/(\d+)(B|S)@(\d+)\/$/);
+                              if (limitMatch) {
+                                newHotkey.side = limitMatch[3] === 'B' ? 'YES' : 'NO';
+                                newHotkey.amount = parseInt(limitMatch[2]);
+                                newHotkey.orderType = 'limit-fixed';
+                                newHotkey.limitPrice = parseInt(limitMatch[4]);
+                                if (limitMatch[1]) newHotkey.expirationMinutes = parseInt(limitMatch[1]);
+                                setHotkeys([...hotkeys, newHotkey]);
+                                e.currentTarget.value = '';
+                                toast.success(`Hotkey ${key} added: ${newHotkey.amount}M ${newHotkey.side} @${newHotkey.limitPrice}%`);
+                                return;
+                              }
+                              
+                              // Straddle: ST5/100/ or 30/ST5/100/
+                              const straddleMatch = syntax.match(/^(\d+)?\/??ST(\d+)\/(\d+)\/$/);
+                              if (straddleMatch) {
+                                newHotkey.side = 'STRADDLE';
+                                newHotkey.orderType = 'straddle';
+                                newHotkey.straddleDelta = parseInt(straddleMatch[2]);
+                                newHotkey.amount = parseInt(straddleMatch[3]);
+                                if (straddleMatch[1]) newHotkey.expirationMinutes = parseInt(straddleMatch[1]);
+                                setHotkeys([...hotkeys, newHotkey]);
+                                e.currentTarget.value = '';
+                                toast.success(`Hotkey ${key} added: Straddle ±${newHotkey.straddleDelta}% M$${newHotkey.amount}`);
+                                return;
+                              }
+                              
+                              toast.error('Could not parse syntax. Try: 100B, /100B@45/, ST5/100/');
+                            }
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Display existing hotkeys */}
+                      {hotkeys.map(hotkey => (
+                        <div key={hotkey.id} className="p-2 bg-gray-800/30 rounded flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="w-8 h-8 flex items-center justify-center text-lg font-bold border-emerald-500/50 text-emerald-400">
+                              {hotkey.key || '?'}
+                            </Badge>
+                            <div className="text-xs">
+                              <span className={hotkey.side === 'YES' ? 'text-emerald-400' : hotkey.side === 'NO' ? 'text-red-400' : 'text-purple-400'}>
+                                {hotkey.side === 'STRADDLE' ? 'STR' : hotkey.side}
+                              </span>
+                              <span className="text-gray-400 ml-1">M${hotkey.amount}</span>
+                              {hotkey.orderType === 'limit-fixed' && hotkey.limitPrice && (
+                                <span className="text-yellow-400 ml-1">@{hotkey.limitPrice}%</span>
+                              )}
+                              {hotkey.orderType === 'straddle' && hotkey.straddleDelta && (
+                                <span className="text-purple-400 ml-1">±{hotkey.straddleDelta}%</span>
+                              )}
+                              {hotkey.expirationMinutes && (
+                                <span className="text-gray-500 ml-1">{hotkey.expirationMinutes}m</span>
+                              )}
+                            </div>
                           </div>
-
-                          {hotkey.orderType !== "straddle" && <div className="grid grid-cols-2 gap-2">
-                              <Select value={hotkey.side} onValueChange={v => updateHotkey(hotkey.id, {
-                          side: v as "YES" | "NO" | "STRADDLE"
-                        })}>
-                                <SelectTrigger className="bg-gray-700 border-gray-600">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="YES">YES</SelectItem>
-                                  <SelectItem value="NO">NO</SelectItem>
-                                </SelectContent>
-                              </Select>
-
-                              <Input type="number" value={hotkey.amount} onChange={e => updateHotkey(hotkey.id, {
-                          amount: parseInt(e.target.value) || 0
-                        })} placeholder="Amount" className="bg-gray-700 border-gray-600" />
-                            </div>}
-
-                          {hotkey.orderType === "straddle" && <Input type="number" value={hotkey.amount} onChange={e => updateHotkey(hotkey.id, {
-                        amount: parseInt(e.target.value) || 0
-                      })} placeholder="Amount per side" className="bg-gray-700 border-gray-600" />}
-
-                          <Select value={hotkey.orderType} onValueChange={v => {
-                        const updates: Partial<Hotkey> = {
-                          orderType: v as Hotkey["orderType"]
-                        };
-                        if (v === "straddle") {
-                          updates.side = "STRADDLE";
-                        }
-                        updateHotkey(hotkey.id, updates);
-                      }}>
-                            <SelectTrigger className="bg-gray-700 border-gray-600">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="market">Market Order</SelectItem>
-                              <SelectItem value="limit-fixed">Limit (Fixed %)</SelectItem>
-                              <SelectItem value="limit-relative">Limit (Relative %)</SelectItem>
-                              <SelectItem value="straddle">Straddle (Market Maker)</SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          {hotkey.orderType === "limit-fixed" && <Input type="number" value={hotkey.limitPrice || ""} onChange={e => updateHotkey(hotkey.id, {
-                        limitPrice: parseInt(e.target.value) || undefined
-                      })} placeholder="Limit price %" className="bg-gray-700 border-gray-600" />}
-
-                          {hotkey.orderType === "limit-relative" && <Input type="number" value={hotkey.relativeOffset || ""} onChange={e => updateHotkey(hotkey.id, {
-                        relativeOffset: parseInt(e.target.value) || undefined
-                      })} placeholder="Offset (+/- %)" className="bg-gray-700 border-gray-600" />}
-
-                          {hotkey.orderType !== "market" && <Input type="number" value={hotkey.expirationMinutes || ""} onChange={e => updateHotkey(hotkey.id, {
-                        expirationMinutes: parseInt(e.target.value) || undefined
-                      })} placeholder="Expiration (minutes)" className="bg-gray-700 border-gray-600" />}
-
-                          {hotkey.orderType === "straddle" && <Input type="number" value={hotkey.straddleDelta || ""} onChange={e => updateHotkey(hotkey.id, {
-                        straddleDelta: parseInt(e.target.value) || undefined
-                      })} placeholder="Delta % (distance from current)" className="bg-gray-700 border-gray-600" />}
-
-                          {/* MC Option Index for hotkey */}
-                          <Input type="number" value={hotkey.mcOptionIndex || ""} onChange={e => updateHotkey(hotkey.id, {
-                        mcOptionIndex: parseInt(e.target.value) || undefined
-                      })} placeholder="MC Option # (leave empty for selected)" className="bg-gray-700 border-gray-600" min={0} />
-                        </div>)}
-
-                      <Button onClick={addHotkey} variant="outline" className="w-full border-dashed border-gray-700 text-gray-400">
-                        + Add Hotkey
-                      </Button>
+                          <Button variant="ghost" size="sm" onClick={() => deleteHotkey(hotkey.id)} className="text-red-400 hover:text-red-300 h-6 w-6 p-0">
+                            ✕
+                          </Button>
+                        </div>
+                      ))}
+                      
+                      {hotkeys.length === 0 && (
+                        <div className="text-center text-gray-500 text-xs py-4">
+                          No hotkeys configured. Add one above using syntax.
+                        </div>
+                      )}
                     </div>
                   </ScrollArea>
                 </Card>
@@ -1297,9 +1538,37 @@ function TerminalMain() {
     </div>;
 }
 
+// Mobile block component
+function MobileBlockScreen() {
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col items-center justify-center p-6">
+      <div className="text-center space-y-4 max-w-md">
+        <span className="text-6xl">📱</span>
+        <h1 className="text-2xl font-bold text-white">Desktop Only</h1>
+        <p className="text-gray-400">
+          The Trading Terminal requires a keyboard and larger screen for the best experience. 
+          Please access this page from a desktop or laptop computer.
+        </p>
+        <Link to="/fintech/menu">
+          <Button variant="outline" className="mt-4 border-gray-700">
+            ← Back to Fintech Menu
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // Main export with landing page
 export default function TradingTerminal() {
   const [showTerminal, setShowTerminal] = useState(false);
+  const isMobile = useIsMobile();
+  
+  // Block mobile users
+  if (isMobile) {
+    return <MobileBlockScreen />;
+  }
+  
   if (!showTerminal) {
     return <TerminalLanding onEnter={() => setShowTerminal(true)} />;
   }

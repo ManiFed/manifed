@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { RefreshCw } from "lucide-react";
 
 interface BetPoint {
   time: number;
@@ -178,6 +179,20 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
             </AreaChart>
           </ResponsiveContainer>
         )}
+      </div>
+
+      {/* Refresh Button */}
+      <div className="mt-2 flex justify-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchBetHistory}
+          disabled={loading}
+          className="h-6 px-2 text-[10px] text-gray-500 hover:text-white gap-1"
+        >
+          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
     </Card>
   );
