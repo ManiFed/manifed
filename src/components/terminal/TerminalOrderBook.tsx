@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OrderLevel {
   price: number;
@@ -46,7 +47,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         setLiquidity(market.totalLiquidity || 0);
       }
 
-      // Fetch ALL bets to get complete order book - use larger limit
+      // Fetch bets to get limit orders
       const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=1000`);
       if (betsResponse.ok) {
         const bets = await betsResponse.json();
@@ -67,7 +68,10 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           return true;
         });
         
-        // Aggregate by price level with precise remaining amounts
+        const currentProbPercent = Math.round(currentProbability * 100);
+        
+        // Bids: YES limit orders BELOW current probability (people wanting to buy YES cheaper)
+        // Asks: NO limit orders BELOW current probability (people wanting to buy NO, which means selling YES)
         const bidLevels: { [key: number]: { amount: number; count: number } } = {};
         const askLevels: { [key: number]: { amount: number; count: number } } = {};
         
@@ -81,21 +85,28 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           if (remainingAmount <= 0) continue;
           
           if (order.outcome === 'YES') {
-            // YES limit buy = bid (wanting to buy YES at this price or lower)
-            if (!bidLevels[price]) bidLevels[price] = { amount: 0, count: 0 };
-            bidLevels[price].amount += remainingAmount;
-            bidLevels[price].count += 1;
+            // YES limit order at price X means buyer wants YES at X% or lower
+            // These are bids (buy orders) - should be BELOW current price
+            if (price < currentProbPercent) {
+              if (!bidLevels[price]) bidLevels[price] = { amount: 0, count: 0 };
+              bidLevels[price].amount += remainingAmount;
+              bidLevels[price].count += 1;
+            }
           } else {
-            // NO limit buy at price X means they want to sell YES at price (100-X)
-            // So if someone buys NO at 40%, that's like selling YES at 60%
-            const effectiveAskPrice = 100 - price;
-            if (!askLevels[effectiveAskPrice]) askLevels[effectiveAskPrice] = { amount: 0, count: 0 };
-            askLevels[effectiveAskPrice].amount += remainingAmount;
-            askLevels[effectiveAskPrice].count += 1;
+            // NO limit order at price X means buyer wants NO at X% or lower
+            // From YES perspective, this is equivalent to selling YES at (100-X)%
+            // So NO order at 40% = selling YES at 60%
+            // These become asks when they're ABOVE current price
+            const effectiveYesPrice = 100 - price;
+            if (effectiveYesPrice > currentProbPercent) {
+              if (!askLevels[effectiveYesPrice]) askLevels[effectiveYesPrice] = { amount: 0, count: 0 };
+              askLevels[effectiveYesPrice].amount += remainingAmount;
+              askLevels[effectiveYesPrice].count += 1;
+            }
           }
         }
         
-        // Convert to arrays - bids sorted high to low, asks sorted low to high
+        // Convert to arrays - bids sorted high to low (best bid first), asks sorted low to high (best ask first)
         const bids = Object.entries(bidLevels)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
@@ -163,7 +174,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
       ) : (
         <ScrollArea className="h-[200px]">
           <div className="space-y-1 pr-2">
-            {/* Asks (selling YES / buying NO) - show in reverse order */}
+            {/* Asks (selling YES / NO orders above current) - show in reverse order so lowest ask is closest to spread */}
             {orderLevels.asks.slice().reverse().map((level, i) => (
               <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
                 <div
@@ -192,7 +203,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
               )}
             </div>
             
-            {/* Bids (buying YES) */}
+            {/* Bids (buying YES below current) */}
             {orderLevels.bids.map((level, i) => (
               <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
                 <div

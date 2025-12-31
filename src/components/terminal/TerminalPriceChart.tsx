@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 interface BetPoint {
   time: number;
@@ -15,17 +14,26 @@ interface TerminalPriceChartProps {
   currentProbability: number;
 }
 
+const TIME_PRESETS = [
+  { label: "15m", minutes: 15 },
+  { label: "30m", minutes: 30 },
+  { label: "1h", minutes: 60 },
+  { label: "2h", minutes: 120 },
+  { label: "4h", minutes: 240 },
+  { label: "All", minutes: 0 }, // 0 = all time
+];
+
 export default function TerminalPriceChart({ marketId, currentProbability }: TerminalPriceChartProps) {
   const [chartData, setChartData] = useState<{ time: string; prob: number }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1); // 1 = 1 hour, 0.5 = 30min, 2 = 2 hours
+  const [selectedMinutes, setSelectedMinutes] = useState(30); // Default to 30 minutes
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (marketId) {
       fetchBetHistory();
     }
-  }, [marketId]);
+  }, [marketId, selectedMinutes]);
 
   const fetchBetHistory = async () => {
     setLoading(true);
@@ -42,14 +50,17 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
         }
 
         // Convert bets to time-series data
-        const oneHourAgo = Date.now() - (60 * 60 * 1000 * zoomLevel);
+        const cutoffTime = selectedMinutes > 0 
+          ? Date.now() - (selectedMinutes * 60 * 1000)
+          : 0; // 0 = show all time
+          
         const points: { time: string; prob: number; timestamp: number }[] = [];
         
-        // Process bets in reverse chronological order
+        // Process bets in chronological order
         const sortedBets = [...bets].sort((a, b) => a.createdTime - b.createdTime);
         
         for (const bet of sortedBets) {
-          if (bet.createdTime >= oneHourAgo) {
+          if (bet.createdTime >= cutoffTime) {
             points.push({
               time: new Date(bet.createdTime).toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
@@ -89,58 +100,31 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
     }
   };
 
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.max(0.25, prev / 2));
+  const getTimeLabel = () => {
+    const preset = TIME_PRESETS.find(p => p.minutes === selectedMinutes);
+    return preset?.label || `${selectedMinutes}m`;
   };
-
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.min(4, prev * 2));
-  };
-
-  const handleReset = () => {
-    setZoomLevel(1);
-    fetchBetHistory();
-  };
-
-  useEffect(() => {
-    if (marketId) {
-      fetchBetHistory();
-    }
-  }, [zoomLevel]);
-
-  const zoomLabel = zoomLevel < 1 
-    ? `${Math.round(60 * zoomLevel)}min` 
-    : `${zoomLevel}hr`;
 
   return (
     <Card className="bg-gray-900/50 border-gray-800 p-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-gray-500">Price Chart ({zoomLabel})</span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleZoomIn}
-            className="h-6 w-6 p-0 text-gray-500 hover:text-white"
-          >
-            <ZoomIn className="w-3 h-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleZoomOut}
-            className="h-6 w-6 p-0 text-gray-500 hover:text-white"
-          >
-            <ZoomOut className="w-3 h-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            className="h-6 w-6 p-0 text-gray-500 hover:text-white"
-          >
-            <RotateCcw className="w-3 h-3" />
-          </Button>
+        <span className="text-xs text-gray-500">Price Chart ({getTimeLabel()})</span>
+        <div className="flex items-center gap-0.5">
+          {TIME_PRESETS.map((preset) => (
+            <Button
+              key={preset.label}
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedMinutes(preset.minutes)}
+              className={`h-5 px-1.5 text-[10px] ${
+                selectedMinutes === preset.minutes 
+                  ? 'bg-emerald-600/30 text-emerald-400' 
+                  : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              {preset.label}
+            </Button>
+          ))}
         </div>
       </div>
 
