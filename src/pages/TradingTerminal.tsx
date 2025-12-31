@@ -125,7 +125,11 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                   </div>
                 </div>
                 <h3 className="font-semibold text-white mb-2">Advanced Orders</h3>
-                <p className="text-xs text-gray-500 mb-2">All advanced orders use <code className="text-yellow-400">/</code> syntax. Add a number before the first <code className="text-yellow-400">/</code> for expiry in minutes. Without it, orders are <strong className="text-white">indefinite</strong>.</p>
+                <p className="text-xs text-gray-500 mb-2">
+                  All advanced orders use <code className="text-yellow-400">/</code> syntax. Add a number before the
+                  first <code className="text-yellow-400">/</code> for expiry in minutes. Without it, orders are{" "}
+                  <strong className="text-white">indefinite</strong>.
+                </p>
                 <div className="space-y-2 text-sm font-mono">
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">/100B@45/</code>
@@ -181,6 +185,8 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                   <div className="flex gap-4">
                     <code className="text-gray-300 w-28">Cmd/Ctrl+X</code>
                     <span className="text-gray-400">Sell all positions in active market</span>
+                    <code className="text-gray-300 w-28">Cmd/Ctrl+L</code>
+                    <span className="text-gray-400">Cancel all limit orders in active market</span>
                   </div>
                 </div>
               </div>
@@ -224,18 +230,9 @@ function MarketDescriptionDropdown({ marketId, marketUrl }: { marketId: string; 
   return (
     <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
       <div className="text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
-        {loading ? (
-          <span className="text-gray-500">Loading description...</span>
-        ) : (
-          description
-        )}
+        {loading ? <span className="text-gray-500">Loading description...</span> : description}
         <p className="text-gray-500 mt-2">
-          <a
-            href={marketUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-emerald-400 hover:underline"
-          >
+          <a href={marketUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
             View on Manifold →
           </a>
         </p>
@@ -259,8 +256,8 @@ function MediaPanel({
   embedUrl: string | null;
 }) {
   const [showPanel, setShowPanel] = useState(true);
-  const [mediaType, setMediaType] = useState<'youtube' | 'rss'>('youtube');
-  const [rssUrl, setRssUrl] = useState('');
+  const [mediaType, setMediaType] = useState<"youtube" | "rss">("youtube");
+  const [rssUrl, setRssUrl] = useState("");
 
   if (!showPanel) {
     return (
@@ -281,19 +278,19 @@ function MediaPanel({
     <Card className="bg-gray-900/50 border-gray-800 p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={mediaType === 'youtube' ? "text-red-500" : "text-orange-500"} >
-            {mediaType === 'youtube' ? '▶' : '📡'}
+          <span className={mediaType === "youtube" ? "text-red-500" : "text-orange-500"}>
+            {mediaType === "youtube" ? "▶" : "📡"}
           </span>
-          <span className="text-sm text-gray-400">{mediaType === 'youtube' ? 'Video' : 'RSS Feed'}</span>
+          <span className="text-sm text-gray-400">{mediaType === "youtube" ? "Video" : "RSS Feed"}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setMediaType(mediaType === 'youtube' ? 'rss' : 'youtube')}
+            onClick={() => setMediaType(mediaType === "youtube" ? "rss" : "youtube")}
             className="text-[10px] h-6 px-2 text-gray-500 hover:text-white"
           >
-            {mediaType === 'youtube' ? 'Use RSS' : 'Use YouTube'}
+            {mediaType === "youtube" ? "Use RSS" : "Use YouTube"}
           </Button>
           <Button
             variant="ghost"
@@ -305,8 +302,8 @@ function MediaPanel({
           </Button>
         </div>
       </div>
-      
-      {mediaType === 'youtube' ? (
+
+      {mediaType === "youtube" ? (
         <>
           <div className="flex gap-2 mb-3">
             <Input
@@ -927,7 +924,7 @@ function TerminalMain() {
     const noPos = positions.find(
       (p) => p.outcome === "NO" && p.shares > 0 && (answerId ? p.answerId === answerId : true),
     );
-    
+
     const posToSell = yesPos || noPos;
     if (!posToSell || posToSell.shares <= 0) {
       addLog("Take Profit", false, "No position to sell");
@@ -937,21 +934,19 @@ function TerminalMain() {
 
     const isYesPosition = posToSell.outcome === "YES";
     const sharesHeld = posToSell.shares;
-    
+
     // Use specified amount or all shares
     const sharesToSell = amount ? Math.min(amount, sharesHeld) : sharesHeld;
-    
+
     // Calculate entry price estimate (current prob as fallback)
     const currentProb = activeMarket.probability;
     const targetProbDecimal = targetPrice / 100;
-    
+
     // Calculate cash required for the hedge using same formula as AdvancedOrders
     // For YES position: place NO limit at (1 - targetPrice), cash = shares * (1 - targetPrice)
     // For NO position: place YES limit at targetPrice, cash = shares * targetPrice
-    const cashRequired = isYesPosition 
-      ? sharesToSell * (1 - targetProbDecimal)
-      : sharesToSell * targetProbDecimal;
-    
+    const cashRequired = isYesPosition ? sharesToSell * (1 - targetProbDecimal) : sharesToSell * targetProbDecimal;
+
     try {
       const { data, error } = await supabase.functions.invoke("limit-sell-order", {
         body: {
@@ -970,8 +965,12 @@ function TerminalMain() {
       if (error) throw error;
       if (data.success) {
         const hedgeSide = isYesPosition ? "NO" : "YES";
-        const hedgePrice = isYesPosition ? (100 - targetPrice) : targetPrice;
-        addLog("Take Profit", true, `${hedgeSide} limit @${hedgePrice}% for ${sharesToSell.toFixed(0)} shares (M$${cashRequired.toFixed(0)} required)`);
+        const hedgePrice = isYesPosition ? 100 - targetPrice : targetPrice;
+        addLog(
+          "Take Profit",
+          true,
+          `${hedgeSide} limit @${hedgePrice}% for ${sharesToSell.toFixed(0)} shares (M$${cashRequired.toFixed(0)} required)`,
+        );
         toast.success(`Take profit set - ${hedgeSide} limit @${hedgePrice}% will lock in gains at ${targetPrice}%`);
       } else {
         addLog("Take Profit", false, data.error || "Failed");
@@ -1389,10 +1388,7 @@ function TerminalMain() {
         <div className="flex gap-4">
           {/* Left Sidebar - Trending, Hotkeys + Watchlist */}
           <div className="w-56 flex-shrink-0 space-y-4">
-            <TerminalTrending
-              onSelectMarket={selectMarket}
-              activeMarketId={activeMarket?.id}
-            />
+            <TerminalTrending onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} />
             <HotkeyDisplayPanel hotkeys={hotkeys} onUpdateHotkey={updateHotkey} />
             <TerminalWatchlist
               onSelectMarket={selectMarket}
@@ -1643,7 +1639,10 @@ function TerminalMain() {
                             <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
                             <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
                           </div>
-                          <div className="text-gray-400 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: comment.content || comment.text || '' }} />
+                          <div
+                            className="text-gray-400 whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={{ __html: comment.content || comment.text || "" }}
+                          />
                         </div>
                       ))}
                     </div>
