@@ -159,6 +159,14 @@ export default function TerminalLiveTrades({
                   <span className="text-gray-600">{formatTime(trade.createdTime)}</span>
                 </div>
                 <div className="flex items-center justify-between text-gray-500">
+                  <a 
+                    href={`https://manifold.markets/${trade.userName}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-cyan-500 hover:text-cyan-400 hover:underline truncate max-w-[100px]"
+                  >
+                    @{trade.userName}
+                  </a>
                   <span
                     className={`font-mono ${trade.probAfter > trade.probBefore ? "text-emerald-500" : "text-red-500"}`}
                   >
