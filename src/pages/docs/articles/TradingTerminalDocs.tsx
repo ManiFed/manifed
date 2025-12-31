@@ -83,31 +83,42 @@ export default function TradingTerminalDocs() {
           Advanced Orders
         </h2>
         <p className={`mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-          All advanced orders use the <code className="text-yellow-400">/</code> syntax. Any number before the first <code>/</code> is treated as an expiry time in minutes.
+          All advanced orders use the <code className="text-yellow-400">/</code> syntax. You can add an optional number before the first <code>/</code> for expiry in minutes. <strong className={isDark ? "text-white" : "text-gray-900"}>Without a number, orders are indefinite.</strong>
         </p>
         
         <h3 className={`text-lg font-medium mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>Limit Orders</h3>
         <div className={`font-mono text-sm space-y-3 mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
           <div className="flex gap-4">
             <code className="text-yellow-400 w-36">/100B@45/</code>
-            <span>Never-expiring limit for 100 YES at 45%</span>
+            <span>Indefinite limit for 100 YES at 45%</span>
           </div>
           <div className="flex gap-4">
             <code className="text-yellow-400 w-36">30/100B@45/</code>
-            <span>30-minute expiration limit for 100 YES at 45%</span>
+            <span>30-minute expiry limit for 100 YES at 45%</span>
+          </div>
+          <div className="flex gap-4">
+            <code className="text-yellow-400 w-36">/100S@60/</code>
+            <span>Indefinite limit for 100 NO at 60%</span>
           </div>
         </div>
 
-        <h3 className={`text-lg font-medium mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>Limit Sell Orders</h3>
-        <div className={`font-mono text-sm space-y-3 mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+        <h3 className={`text-lg font-medium mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>Take Profit (Limit Sell)</h3>
+        <p className={`mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          Lock in gains by setting a target exit price. Uses your entire position automatically.
+        </p>
+        <div className={`font-mono text-sm space-y-3 mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
           <div className="flex gap-4">
             <code className="text-orange-400 w-36">/LS@55/</code>
-            <span>Limit sell at 55% (relative to your position)</span>
+            <span>Take profit when market reaches 55% (indefinite)</span>
+          </div>
+          <div className="flex gap-4">
+            <code className="text-orange-400 w-36">10/LS@55/</code>
+            <span>Take profit at 55% with 10-minute expiry</span>
           </div>
         </div>
         <div className={`p-3 rounded-lg border ${isDark ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
           <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-            <strong>How Limit Sell works:</strong> This order is relative to the market price and position you hold. If you hold YES shares and the market is below 55%, this creates a sell order that executes when the market reaches 55%.
+            <strong>How Take Profit works:</strong> The system looks at your full position and calculates how many opposite shares you need to buy at your target price to fully hedge. For example, if you hold 100 YES shares and set a take profit at 70%, it places a NO limit order at 30% for 100 shares. When filled, you hold equal YES and NO (guaranteed M$100 payout), locking in your profit.
           </p>
         </div>
 
@@ -117,10 +128,14 @@ export default function TradingTerminalDocs() {
             <code className="text-purple-400 w-36">ST2.5/200/</code>
             <span>Straddle with M$200 split across limits at ±2.5% from current price</span>
           </div>
+          <div className="flex gap-4">
+            <code className="text-purple-400 w-36">5/ST3/100/</code>
+            <span>5-minute expiry straddle with M$100 at ±3%</span>
+          </div>
         </div>
         <div className={`mt-3 p-3 rounded-lg border ${isDark ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
           <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-            <strong>How Straddle works:</strong> Places YES and NO limit orders on either side of the current probability. The amount is split between both orders (M$100 each in the example above).
+            <strong>How Straddle works:</strong> Places YES and NO limit orders on either side of the current probability. The amount is split between both orders (M$100 each in the first example above).
           </p>
         </div>
       </section>

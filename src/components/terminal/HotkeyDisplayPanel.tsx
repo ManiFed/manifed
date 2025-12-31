@@ -46,9 +46,9 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
 
   const getOrderTypeLabel = (hotkey: Hotkey) => {
     if (hotkey.orderType === 'market') return 'MKT';
-    if (hotkey.orderType === 'limit-fixed') return `@${hotkey.limitPrice}%`;
-    if (hotkey.orderType === 'limit-relative') return `±${hotkey.relativeOffset}%`;
-    if (hotkey.orderType === 'straddle') return `ST±${hotkey.straddleDelta}%`;
+    if (hotkey.orderType === 'limit-fixed') return `LMT @${hotkey.limitPrice}%`;
+    if (hotkey.orderType === 'limit-relative') return `LMT ±${hotkey.relativeOffset}%`;
+    if (hotkey.orderType === 'straddle') return `STR ±${hotkey.straddleDelta}%`;
     return '';
   };
 
@@ -158,9 +158,12 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
           ))}
         </div>
       </ScrollArea>
-      <div className="mt-2 pt-2 border-t border-gray-800">
+      <div className="mt-2 pt-2 border-t border-gray-800 space-y-1">
         <p className="text-[10px] text-gray-600">
           Press key when not in input field to execute
+        </p>
+        <p className="text-[10px] text-gray-700">
+          Tip: Use <code className="text-yellow-500">/LS@55/</code> for Take Profit orders
         </p>
       </div>
     </Card>
