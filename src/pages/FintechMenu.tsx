@@ -24,7 +24,8 @@ const fintechProducts = [{
   path: '/terminal',
   icon: Terminal,
   color: 'text-emerald-500',
-  bgColor: 'bg-emerald-500/10'
+  bgColor: 'bg-emerald-500/10',
+  enabled: true
 }, {
   id: 'index-funds',
   title: 'Index Funds',
@@ -32,7 +33,8 @@ const fintechProducts = [{
   path: '/fintech/index-funds',
   icon: BarChart3,
   color: 'text-blue-500',
-  bgColor: 'bg-blue-500/10'
+  bgColor: 'bg-blue-500/10',
+  enabled: true
 }, {
   id: 'advanced-orders',
   title: 'Advanced Orders',
@@ -40,7 +42,8 @@ const fintechProducts = [{
   path: '/fintech/advanced-orders',
   icon: Sliders,
   color: 'text-purple-500',
-  bgColor: 'bg-purple-500/10'
+  bgColor: 'bg-purple-500/10',
+  enabled: true
 }, {
   id: 'calibration',
   title: 'Calibration Analysis',
@@ -48,7 +51,8 @@ const fintechProducts = [{
   path: '/fintech/calibration',
   icon: Activity,
   color: 'text-orange-500',
-  bgColor: 'bg-orange-500/10'
+  bgColor: 'bg-orange-500/10',
+  enabled: false // In progress
 }, {
   id: 'bot-builder',
   title: 'Bot Builder',
@@ -56,7 +60,8 @@ const fintechProducts = [{
   path: '/fintech/bot-builder',
   icon: Bot,
   color: 'text-cyan-500',
-  bgColor: 'bg-cyan-500/10'
+  bgColor: 'bg-cyan-500/10',
+  enabled: false // In progress
 }, {
   id: 'arbitrage',
   title: 'Arbitrage Opportunities',
@@ -64,7 +69,8 @@ const fintechProducts = [{
   path: '/fintech/arbitrage',
   icon: Target,
   color: 'text-pink-500',
-  bgColor: 'bg-pink-500/10'
+  bgColor: 'bg-pink-500/10',
+  enabled: true
 }];
 export default function FintechMenu() {
   const navigate = useNavigate();
@@ -304,27 +310,55 @@ export default function FintechMenu() {
             Tools
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {fintechProducts.map((product, index) => <Link key={product.id} to={product.path} className="group" style={{
-            animationDelay: `${index * 50}ms`
-          }}>
-                <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between mb-4">
-                      
-                    </div>
-                    <CardTitle className="text-2xl font-bold">{product.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-6">
-                      {product.description}
-                    </p>
-                    <div className={`flex items-center gap-2 ${product.color} font-medium`}>
-                      Open Tool
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>)}
+            {fintechProducts.map((product, index) => {
+              if (!product.enabled) {
+                // In-progress card - not clickable
+                return (
+                  <div key={product.id} style={{ animationDelay: `${index * 50}ms` }}>
+                    <Card className="h-full border-border/30 bg-muted/20 opacity-60 cursor-not-allowed">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between mb-4">
+                          <Badge variant="outline" className="text-muted-foreground">In Progress</Badge>
+                        </div>
+                        <CardTitle className="text-2xl font-bold text-muted-foreground">{product.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground/60 mb-6">
+                          {product.description}
+                        </p>
+                        <div className="flex items-center gap-2 text-muted-foreground font-medium">
+                          Coming Soon
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              }
+              
+              return (
+                <Link key={product.id} to={product.path} className="group" style={{
+                  animationDelay: `${index * 50}ms`
+                }}>
+                  <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between mb-4">
+                        
+                      </div>
+                      <CardTitle className="text-2xl font-bold">{product.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground mb-6">
+                        {product.description}
+                      </p>
+                      <div className={`flex items-center gap-2 ${product.color} font-medium`}>
+                        Open Tool
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </section>
       </main>
