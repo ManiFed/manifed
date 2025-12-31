@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
 
 interface OrderLevel {
   price: number;
@@ -70,10 +69,10 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         
         const currentProbPercent = Math.round(currentProbability * 100);
         
-        // Bids: YES limit orders BELOW current probability (people wanting to buy YES cheaper)
-        // Asks: NO limit orders BELOW current probability (people wanting to buy NO, which means selling YES)
-        const bidLevels: { [key: number]: { amount: number; count: number } } = {};
-        const askLevels: { [key: number]: { amount: number; count: number } } = {};
+        // YES limit orders = bids to buy YES at that price
+        // NO limit orders = asks (selling YES at 100 - NO price)
+        const yesOrdersByPrice: { [key: number]: { amount: number; count: number } } = {};
+        const noOrdersByPrice: { [key: number]: { amount: number; count: number } } = {};
         
         for (const order of limitOrders) {
           const limitProb = order.limitProb;
@@ -85,45 +84,41 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           if (remainingAmount <= 0) continue;
           
           if (order.outcome === 'YES') {
-            // YES limit order at price X means buyer wants YES at X% or lower
-            // These are bids (buy orders) - should be BELOW current price
-            if (price < currentProbPercent) {
-              if (!bidLevels[price]) bidLevels[price] = { amount: 0, count: 0 };
-              bidLevels[price].amount += remainingAmount;
-              bidLevels[price].count += 1;
-            }
+            // YES limit orders at their limit price
+            if (!yesOrdersByPrice[price]) yesOrdersByPrice[price] = { amount: 0, count: 0 };
+            yesOrdersByPrice[price].amount += remainingAmount;
+            yesOrdersByPrice[price].count += 1;
           } else {
-            // NO limit order at price X means buyer wants NO at X% or lower
-            // From YES perspective, this is equivalent to selling YES at (100-X)%
-            // So NO order at 40% = selling YES at 60%
-            // These become asks when they're ABOVE current price
-            const effectiveYesPrice = 100 - price;
-            if (effectiveYesPrice > currentProbPercent) {
-              if (!askLevels[effectiveYesPrice]) askLevels[effectiveYesPrice] = { amount: 0, count: 0 };
-              askLevels[effectiveYesPrice].amount += remainingAmount;
-              askLevels[effectiveYesPrice].count += 1;
-            }
+            // NO limit orders - show at 100 - limit price (the YES equivalent price)
+            const effectivePrice = 100 - price;
+            if (!noOrdersByPrice[effectivePrice]) noOrdersByPrice[effectivePrice] = { amount: 0, count: 0 };
+            noOrdersByPrice[effectivePrice].amount += remainingAmount;
+            noOrdersByPrice[effectivePrice].count += 1;
           }
         }
         
-        // Convert to arrays - bids sorted high to low (best bid first), asks sorted low to high (best ask first)
-        const bids = Object.entries(bidLevels)
+        // Bids: YES orders below current price (wanting to buy YES cheaper)
+        const bids = Object.entries(yesOrdersByPrice)
+          .filter(([price]) => parseInt(price) < currentProbPercent)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
             amount: Math.round(data.amount), 
             side: 'YES' as const,
             orderCount: data.count 
           }))
-          .sort((a, b) => b.price - a.price);
+          .sort((a, b) => b.price - a.price); // Best bid (highest) first
           
-        const asks = Object.entries(askLevels)
+        // Asks: NO orders above current price (equivalent to selling YES at higher price)
+        // Plus YES orders above current (people wanting to buy YES at higher price - rare but possible)
+        const asks = Object.entries(noOrdersByPrice)
+          .filter(([price]) => parseInt(price) > currentProbPercent)
           .map(([price, data]) => ({ 
             price: parseInt(price), 
             amount: Math.round(data.amount), 
             side: 'NO' as const,
             orderCount: data.count 
           }))
-          .sort((a, b) => a.price - b.price);
+          .sort((a, b) => a.price - b.price); // Best ask (lowest) first
         
         // Calculate spread from best bid and best ask
         if (bids.length > 0 && asks.length > 0) {
@@ -174,7 +169,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
       ) : (
         <ScrollArea className="h-[200px]">
           <div className="space-y-1 pr-2">
-            {/* Asks (selling YES / NO orders above current) - show in reverse order so lowest ask is closest to spread */}
+            {/* Asks (NO orders / selling YES above current) - show in reverse so lowest ask is closest to spread */}
             {orderLevels.asks.slice().reverse().map((level, i) => (
               <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
                 <div
@@ -191,8 +186,8 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
               </div>
             ))}
             
-            {/* Current price line with spread */}
-            <div className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 sticky top-0 bg-gray-900/90 z-10">
+            {/* Current price line with spread - SOLID BACKGROUND */}
+            <div className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 sticky top-0 bg-gray-900 z-10">
               <span className="text-sm font-bold text-emerald-400 font-mono">
                 {(currentProbability * 100).toFixed(1)}%
               </span>
@@ -203,7 +198,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
               )}
             </div>
             
-            {/* Bids (buying YES below current) */}
+            {/* Bids (YES orders below current) */}
             {orderLevels.bids.map((level, i) => (
               <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
                 <div
