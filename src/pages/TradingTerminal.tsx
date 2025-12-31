@@ -975,6 +975,19 @@ function TerminalMain() {
     }
   };
   
+  // Liquidity state for price impact calculation - must be declared before getPriceImpactPreview
+  const [liquidity, setLiquidity] = useState(1000);
+  
+  // Fetch liquidity for price impact calculation
+  useEffect(() => {
+    if (activeMarket) {
+      fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`)
+        .then(res => res.json())
+        .then(data => setLiquidity(data.totalLiquidity || 1000))
+        .catch(() => {});
+    }
+  }, [activeMarket?.id]);
+  
   // Calculate price impact preview
   const getPriceImpactPreview = useCallback(() => {
     if (!activeMarket || autoExecute) return null;
@@ -1044,20 +1057,9 @@ function TerminalMain() {
     }
     
     return null;
-  }, [commandInput, activeMarket, autoExecute, mcOptions, selectedMcIndex]);
+  }, [commandInput, activeMarket, autoExecute, mcOptions, selectedMcIndex, liquidity]);
   
   const priceImpact = getPriceImpactPreview();
-  const [liquidity, setLiquidity] = useState(1000);
-  
-  // Fetch liquidity for price impact calculation
-  useEffect(() => {
-    if (activeMarket) {
-      fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`)
-        .then(res => res.json())
-        .then(data => setLiquidity(data.totalLiquidity || 1000))
-        .catch(() => {});
-    }
-  }, [activeMarket?.id]);
   
   return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 pb-16 font-mono overflow-y-auto">
       <div className="max-w-[1800px] mx-auto space-y-4">
