@@ -124,19 +124,23 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                   </div>
                 </div>
                 <h3 className="font-semibold text-white mb-2">Advanced Orders</h3>
-                <p className="text-xs text-gray-500 mb-2">All advanced orders use / syntax. Number before first / = expiry in minutes.</p>
+                <p className="text-xs text-gray-500 mb-2">All advanced orders use <code className="text-yellow-400">/</code> syntax. Add a number before the first <code className="text-yellow-400">/</code> for expiry in minutes. Without it, orders are <strong className="text-white">indefinite</strong>.</p>
                 <div className="space-y-2 text-sm font-mono">
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">/100B@45/</code>
-                    <span className="text-gray-400">Never-expiring limit for 100 YES @45%</span>
+                    <span className="text-gray-400">Indefinite limit for 100 YES @45%</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">30/100B@45/</code>
-                    <span className="text-gray-400">30-min expiration limit for 100 YES @45%</span>
+                    <span className="text-gray-400">30-min expiry limit for 100 YES @45%</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-orange-400 w-28">/LS@55/</code>
-                    <span className="text-gray-400">Limit sell at 55% (relative to your position)</span>
+                    <span className="text-gray-400">Take Profit at 55% (uses full position)</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <code className="text-orange-400 w-28">10/LS@55/</code>
+                    <span className="text-gray-400">Take Profit at 55% with 10-min expiry</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-purple-400 w-28">ST2.5/200/</code>
@@ -745,7 +749,27 @@ function TerminalMain() {
       return true;
     }
 
-    // Limit Sell syntax: LS{amount}@{price} or {exp}/LS{amount}@{price}
+    // Limit Sell (Take Profit) syntax: /LS@{price}/ or {exp}/LS@{price}/ - uses full position
+    // Also support legacy with amount: LS{amount}@{price} or {exp}/LS{amount}@{price}
+    const limitSellNewWithExpiry = /^(\d+)\/LS@(\d+)\/$/;
+    match = trimmed.match(limitSellNewWithExpiry);
+    if (match && (autoExecute || forceExecute)) {
+      const [, expiry, price] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      createLimitSellOrder(parseInt(price), undefined, parseInt(expiry), answerId);
+      setCommandInput("");
+      return true;
+    }
+    const limitSellNew = /^\/LS@(\d+)\/$/;
+    match = trimmed.match(limitSellNew);
+    if (match && (autoExecute || forceExecute)) {
+      const [, price] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      createLimitSellOrder(parseInt(price), undefined, undefined, answerId);
+      setCommandInput("");
+      return true;
+    }
+    // Legacy limit sell with explicit amount
     const limitSellWithExpiry = /^(\d+)\/LS(\d+)@(\d+)$/;
     match = trimmed.match(limitSellWithExpiry);
     if (match && (autoExecute || forceExecute)) {
@@ -882,6 +906,8 @@ function TerminalMain() {
   };
 
   // Create limit sell order using edge function
+  // Uses same calculation as AdvancedOrders: places opposite limit order to hedge position
+  // cashRequired = sharesHeld * (1 - targetPrice) for YES positions
   const createLimitSellOrder = async (
     targetPrice: number,
     amount?: number,
@@ -889,22 +915,42 @@ function TerminalMain() {
     answerId?: string,
   ) => {
     if (!activeMarket || !apiKey) {
-      addLog("Limit Sell", false, "No market or API key");
+      addLog("Take Profit", false, "No market or API key");
       return;
     }
 
-    // Find positions to sell
-    const posToSell = positions.find(
+    // Find position to sell - support both YES and NO
+    const yesPos = positions.find(
       (p) => p.outcome === "YES" && p.shares > 0 && (answerId ? p.answerId === answerId : true),
     );
+    const noPos = positions.find(
+      (p) => p.outcome === "NO" && p.shares > 0 && (answerId ? p.answerId === answerId : true),
+    );
+    
+    const posToSell = yesPos || noPos;
     if (!posToSell || posToSell.shares <= 0) {
-      addLog("Limit Sell", false, "No YES position to sell");
-      toast.error("No YES position to sell");
+      addLog("Take Profit", false, "No position to sell");
+      toast.error("No position to sell in this market");
       return;
     }
 
+    const isYesPosition = posToSell.outcome === "YES";
+    const sharesHeld = posToSell.shares;
+    
     // Use specified amount or all shares
-    const sharesToSell = amount ? Math.min(amount, posToSell.shares) : posToSell.shares;
+    const sharesToSell = amount ? Math.min(amount, sharesHeld) : sharesHeld;
+    
+    // Calculate entry price estimate (current prob as fallback)
+    const currentProb = activeMarket.probability;
+    const targetProbDecimal = targetPrice / 100;
+    
+    // Calculate cash required for the hedge using same formula as AdvancedOrders
+    // For YES position: place NO limit at (1 - targetPrice), cash = shares * (1 - targetPrice)
+    // For NO position: place YES limit at targetPrice, cash = shares * targetPrice
+    const cashRequired = isYesPosition 
+      ? sharesToSell * (1 - targetProbDecimal)
+      : sharesToSell * targetProbDecimal;
+    
     try {
       const { data, error } = await supabase.functions.invoke("limit-sell-order", {
         body: {
@@ -914,23 +960,26 @@ function TerminalMain() {
           marketQuestion: activeMarket.question,
           targetExitPrice: targetPrice,
           sharesHeld: sharesToSell,
-          entryPrice: Math.round(activeMarket.probability * 100),
+          entryPrice: Math.round(currentProb * 100),
+          positionType: isYesPosition ? "YES" : "NO",
           answerId,
           expirationMinutes,
         },
       });
       if (error) throw error;
       if (data.success) {
-        addLog("Limit Sell", true, `Exit @${targetPrice}% for ${sharesToSell.toFixed(0)} shares`);
-        toast.success(`Limit sell order created - will sell when price reaches ${targetPrice}%`);
+        const hedgeSide = isYesPosition ? "NO" : "YES";
+        const hedgePrice = isYesPosition ? (100 - targetPrice) : targetPrice;
+        addLog("Take Profit", true, `${hedgeSide} limit @${hedgePrice}% for ${sharesToSell.toFixed(0)} shares (M$${cashRequired.toFixed(0)} required)`);
+        toast.success(`Take profit set - ${hedgeSide} limit @${hedgePrice}% will lock in gains at ${targetPrice}%`);
       } else {
-        addLog("Limit Sell", false, data.error || "Failed");
-        toast.error(data.error || "Failed to create limit sell");
+        addLog("Take Profit", false, data.error || "Failed");
+        toast.error(data.error || "Failed to create take profit order");
       }
     } catch (err) {
-      console.error("Limit sell error:", err);
-      addLog("Limit Sell", false, "Failed to create order");
-      toast.error("Failed to create limit sell order");
+      console.error("Take profit error:", err);
+      addLog("Take Profit", false, "Failed to create order");
+      toast.error("Failed to create take profit order");
     }
   };
 
