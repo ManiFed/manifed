@@ -583,15 +583,23 @@ function TerminalMain() {
       return true;
     }
 
-    // Limit Sell syntax: LS@{price} - creates a limit sell order
-    const limitSell = /^LS@(\d+)$/;
+    // Limit Sell syntax: LS{amount}@{price} or {exp}/LS{amount}@{price}
+    const limitSellWithExpiry = /^(\d+)\/LS(\d+)@(\d+)$/;
+    match = trimmed.match(limitSellWithExpiry);
+    if (match && (autoExecute || forceExecute)) {
+      const [, expiry, amount, price] = match;
+      const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+      createLimitSellOrder(parseInt(price), parseInt(amount), parseInt(expiry), answerId);
+      setCommandInput("");
+      return true;
+    }
+
+    const limitSell = /^LS(\d+)@(\d+)$/;
     match = trimmed.match(limitSell);
     if (match && (autoExecute || forceExecute)) {
-      const [, price] = match;
+      const [, amount, price] = match;
       const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
-      // Limit sell = place a NO limit order at (100 - price)
-      // This will sell YES shares when price rises to target
-      createLimitSellOrder(parseInt(price), answerId);
+      createLimitSellOrder(parseInt(price), parseInt(amount), undefined, answerId);
       setCommandInput("");
       return true;
     }
@@ -713,7 +721,7 @@ function TerminalMain() {
   };
 
   // Create limit sell order using edge function
-  const createLimitSellOrder = async (targetPrice: number, answerId?: string) => {
+  const createLimitSellOrder = async (targetPrice: number, amount?: number, expirationMinutes?: number, answerId?: string) => {
     if (!activeMarket || !apiKey) {
       addLog("Limit Sell", false, "No market or API key");
       return;
@@ -730,6 +738,9 @@ function TerminalMain() {
       return;
     }
 
+    // Use specified amount or all shares
+    const sharesToSell = amount ? Math.min(amount, posToSell.shares) : posToSell.shares;
+
     try {
       const { data, error } = await supabase.functions.invoke("limit-sell-order", {
         body: {
@@ -738,15 +749,16 @@ function TerminalMain() {
           marketUrl: activeMarket.url,
           marketQuestion: activeMarket.question,
           targetExitPrice: targetPrice,
-          sharesHeld: posToSell.shares,
+          sharesHeld: sharesToSell,
           entryPrice: Math.round(activeMarket.probability * 100),
           answerId,
+          expirationMinutes,
         },
       });
 
       if (error) throw error;
       if (data.success) {
-        addLog("Limit Sell", true, `Exit @${targetPrice}% for ${posToSell.shares.toFixed(0)} shares`);
+        addLog("Limit Sell", true, `Exit @${targetPrice}% for ${sharesToSell.toFixed(0)} shares`);
         toast.success(`Limit sell order created - will sell when price reaches ${targetPrice}%`);
       } else {
         addLog("Limit Sell", false, data.error || "Failed");
@@ -760,7 +772,8 @@ function TerminalMain() {
   };
 
   // Execute straddle order - places YES limit below current price and NO limit above current price
-  const executeStraddle = async (delta: number, amount: number, expirationMinutes?: number, answerId?: string) => {
+  // Amount is SPLIT across both orders, not duplicated
+  const executeStraddle = async (delta: number, totalAmount: number, expirationMinutes?: number, answerId?: string) => {
     if (!activeMarket || !apiKey) {
       addLog("Straddle", false, "No market or API key");
       return;
@@ -773,16 +786,19 @@ function TerminalMain() {
 
     const yesLimitPrice = Math.max(1, currentProb - delta);
     const noLimitPrice = Math.min(99, currentProb + delta);
+    
+    // Split the amount across both orders
+    const amountPerSide = Math.floor(totalAmount / 2);
 
-    addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (delta: ${delta})`);
+    addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (M$${amountPerSide} each, delta: ${delta})`);
 
     // Place YES limit order below current price
-    await executeTrade("YES", amount, yesLimitPrice, expirationMinutes, answerId);
+    await executeTrade("YES", amountPerSide, yesLimitPrice, expirationMinutes, answerId);
 
     // Place NO limit order above current price
-    await executeTrade("NO", amount, noLimitPrice, expirationMinutes, answerId);
+    await executeTrade("NO", amountPerSide, noLimitPrice, expirationMinutes, answerId);
 
-    toast.success(`Straddle placed: YES @${yesLimitPrice}% / NO @${noLimitPrice}%`);
+    toast.success(`Straddle placed: YES @${yesLimitPrice}% / NO @${noLimitPrice}% (M$${amountPerSide} each)`);
   };
 
   const handleCommandChange = (value: string) => {
@@ -796,13 +812,84 @@ function TerminalMain() {
     }
   };
 
+  // Cancel all limit orders function
+  const cancelAllLimitOrders = useCallback(async () => {
+    if (!activeMarket || !apiKey) {
+      addLog("Cancel All", false, "No market or API key");
+      toast.error("No active market or API key");
+      return;
+    }
+
+    try {
+      // Fetch user's bets to find limit orders
+      const meResponse = await fetch("https://api.manifold.markets/v0/me", {
+        headers: { Authorization: `Key ${apiKey}` },
+      });
+      if (!meResponse.ok) return;
+      const meData = await meResponse.json();
+      const userId = meData.id;
+
+      // Fetch bets for this market
+      const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${activeMarket.id}&userId=${userId}&limit=100`);
+      if (!betsResponse.ok) return;
+      const bets = await betsResponse.json();
+
+      // Find active limit orders
+      const activeLimitOrders = bets.filter((bet: any) => {
+        if (!bet.limitProb) return false;
+        if (bet.isCancelled || bet.isFilled) return false;
+        const orderAmount = bet.orderAmount || bet.amount || 0;
+        const filledAmount = bet.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
+        return orderAmount - filledAmount > 0;
+      });
+
+      if (activeLimitOrders.length === 0) {
+        addLog("Cancel All", false, "No active limit orders to cancel");
+        toast.info("No active limit orders to cancel");
+        return;
+      }
+
+      // Cancel each order
+      let cancelledCount = 0;
+      for (const order of activeLimitOrders) {
+        try {
+          const response = await fetch(`https://api.manifold.markets/v0/bet/cancel/${order.id}`, {
+            method: "POST",
+            headers: { Authorization: `Key ${apiKey}` },
+          });
+          if (response.ok) {
+            cancelledCount++;
+          }
+        } catch (err) {
+          console.error("Failed to cancel order:", order.id);
+        }
+      }
+
+      addLog("Cancel All", true, `Cancelled ${cancelledCount} limit orders`);
+      toast.success(`Cancelled ${cancelledCount} limit orders`);
+    } catch (err) {
+      console.error("Cancel all error:", err);
+      addLog("Cancel All", false, "Failed to cancel orders");
+      toast.error("Failed to cancel limit orders");
+    }
+  }, [activeMarket, apiKey, addLog]);
+
   // Global hotkey handler (including MC navigation)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Cmd+X or Ctrl+X to sell all
+      // Check for Cmd+L or Ctrl+L to cancel all limit orders
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelAllLimitOrders();
+        return;
+      }
+
+      // Check for Cmd+X or Ctrl+X to sell all AND cancel all limit orders
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "x") {
         e.preventDefault();
         e.stopPropagation();
+        cancelAllLimitOrders();
         sellAllPositions();
         return;
       }
@@ -985,37 +1072,51 @@ function TerminalMain() {
           </div>
 
           {/* Main Trading Area */}
-          <div className="flex-1 space-y-4 min-w-0">
-            {/* Market Search */}
-            <div className="relative">
-              <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
-                <span className="text-gray-500 font-mono">🔍</span>
-                <Input
-                  ref={searchInputRef}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    searchMarkets(e.target.value);
-                  }}
-                  placeholder="Search markets..."
-                  className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
+          <div className="flex-1 space-y-4 min-w-0 pb-8">
+            {/* Market Search - Minimizes when market selected */}
+            {activeMarket ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveMarket(null)}
+                  className="border-gray-700 text-gray-400 hover:text-white gap-2"
+                >
+                  🔍 Change Market
+                </Button>
+                <span className="text-xs text-gray-500 truncate flex-1">{activeMarket.question.slice(0, 60)}...</span>
               </div>
-              {searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden z-50">
-                  {searchResults.map((market) => (
-                    <button
-                      key={market.id}
-                      onClick={() => selectMarket(market)}
-                      className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0"
-                    >
-                      <div className="text-sm text-white line-clamp-2">{market.question}</div>
-                      <div className="text-xs text-emerald-400 mt-1">{(market.probability * 100).toFixed(1)}%</div>
-                    </button>
-                  ))}
+            ) : (
+              <div className="relative">
+                <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
+                  <span className="text-gray-500 font-mono">🔍</span>
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      searchMarkets(e.target.value);
+                    }}
+                    placeholder="Search markets..."
+                    className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
                 </div>
-              )}
-            </div>
+                {searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden z-50">
+                    {searchResults.map((market) => (
+                      <button
+                        key={market.id}
+                        onClick={() => selectMarket(market)}
+                        className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0"
+                      >
+                        <div className="text-sm text-white line-clamp-2">{market.question}</div>
+                        <div className="text-xs text-emerald-400 mt-1">{(market.probability * 100).toFixed(1)}%</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Active Market */}
             {activeMarket ? (
@@ -1113,25 +1214,27 @@ function TerminalMain() {
               </div>
             </div>
 
-            {/* Command Reference */}
-            <div className="text-xs text-gray-500 space-y-1">
-              <div>
-                <span className="text-gray-400">100B</span> Buy 100M YES • <span className="text-gray-400">100S</span>{" "}
-                Buy 100M NO
+            {/* Syntax Guide - Collapsible */}
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer hover:text-gray-300 mb-2">Syntax Guide ▾</summary>
+              <div className="space-y-1 pl-2 border-l border-gray-700">
+                <div>
+                  <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span> Buy NO
+                </div>
+                <div>
+                  <span className="text-gray-400">/100B@45/</span> Limit YES @45% • <span className="text-gray-400">30/100B@45/</span> With 30min cancel
+                </div>
+                <div>
+                  <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% • <span className="text-yellow-400">30/LS100@55</span> With expiry
+                </div>
+                <div>
+                  <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split • <span className="text-purple-400">30/ST5/100/</span> With expiry
+                </div>
+                <div>
+                  <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits • <span className="text-gray-400">Cmd+L</span> Cancel all limits
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
-                <span className="text-gray-400">30/100B@45/</span> Limit with 30min cancel
-              </div>
-              <div>
-                <span className="text-gray-400">LS@55</span> Limit sell @55% •{" "}
-                <span className="text-gray-400">Cmd+X</span> Sell all positions
-              </div>
-              <div>
-                <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 •{" "}
-                <span className="text-purple-400">30/ST5/100/</span> Straddle with 30min expiry
-              </div>
-            </div>
+            </details>
 
             {/* Logs & Config Tabs */}
             <Tabs defaultValue="logs" className="w-full">

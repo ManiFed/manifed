@@ -219,19 +219,32 @@ export default function Hub() {
       <main className="container mx-auto px-4 py-12 max-w-6xl relative z-10">
         {/* Welcome - Bold Anthropic style */}
         <div className="mb-16 animate-slide-up">
-          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
-            Welcome back
-            {username ? (
-              <Link to={`/profile`} className="hover:text-primary transition-colors">
-                , @{username}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
+                Welcome back
+                {username ? (
+                  <Link to={`/profile`} className="hover:text-primary transition-colors">
+                    , @{username}
+                  </Link>
+                ) : (
+                  ""
+                )}
+              </h1>
+              <p className="text-xl text-muted-foreground max-w-xl">
+                Your ManiFed dashboard for prediction market finance.
+              </p>
+            </div>
+            {/* Profile quick access */}
+            {username && (
+              <Link to="/profile">
+                <Button variant="outline" size="lg" className="gap-2">
+                  <span className="text-lg">👤</span>
+                  View Profile
+                </Button>
               </Link>
-            ) : (
-              ""
             )}
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-xl">
-            Your ManiFed dashboard for prediction market finance.
-          </p>
+          </div>
         </div>
 
         {/* Portfolio Overview - Clean cards like Kalshi */}

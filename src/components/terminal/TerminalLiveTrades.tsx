@@ -8,6 +8,7 @@ interface Trade {
   id: string;
   createdTime: number;
   userName: string;
+  userId: string;
   amount: number;
   outcome: string;
   probBefore: number;
@@ -16,6 +17,10 @@ interface Trade {
   isApi?: boolean;
   answerId?: string;
   answerText?: string;
+  isLimitOrder: boolean;
+  limitProb?: number;
+  orderAmount?: number;
+  isFilled?: boolean;
 }
 
 interface TerminalLiveTradesProps {
@@ -71,9 +76,14 @@ export default function TerminalLiveTrades({ marketId, answers, selectedAnswerId
               answerText = answer?.text || "";
             }
 
+            // Determine if this is a limit order
+            const isLimitOrder = bet.limitProb !== undefined && bet.limitProb !== null;
+
             return {
               id: bet.id,
               createdTime: bet.createdTime,
+              userName: bet.userName || bet.userUsername || "Unknown",
+              userId: bet.userId,
               amount: Math.abs(bet.amount),
               outcome: bet.outcome,
               probBefore: bet.probBefore,
@@ -82,6 +92,10 @@ export default function TerminalLiveTrades({ marketId, answers, selectedAnswerId
               isApi: bet.isApi,
               answerId: bet.answerId,
               answerText,
+              isLimitOrder,
+              limitProb: bet.limitProb,
+              orderAmount: bet.orderAmount,
+              isFilled: bet.isFilled,
             };
           });
 
@@ -144,6 +158,11 @@ export default function TerminalLiveTrades({ marketId, answers, selectedAnswerId
                       {trade.outcome}
                     </span>
                     <span className="text-gray-400">M${Math.round(trade.amount)}</span>
+                    {trade.isLimitOrder ? (
+                      <span className="text-yellow-400 text-[10px]">[LMT]</span>
+                    ) : (
+                      <span className="text-blue-400 text-[10px]">[MKT]</span>
+                    )}
                     {trade.isApi && <span className="text-purple-400 text-[10px]">[API]</span>}
                   </div>
                   <span className="text-gray-600">{formatTime(trade.createdTime)}</span>
@@ -156,6 +175,16 @@ export default function TerminalLiveTrades({ marketId, answers, selectedAnswerId
                     {(trade.probBefore * 100).toFixed(0)}→{(trade.probAfter * 100).toFixed(0)}%
                   </span>
                 </div>
+                {/* Limit order details */}
+                {trade.isLimitOrder && trade.limitProb !== undefined && (
+                  <div className="text-[10px] text-yellow-500/80 mt-1">
+                    Limit @{(trade.limitProb * 100).toFixed(0)}%
+                    {trade.orderAmount && ` • Order: M$${Math.round(trade.orderAmount)}`}
+                    {trade.isFilled !== undefined && (
+                      <span className={trade.isFilled ? " • Filled" : " • Partial"}></span>
+                    )}
+                  </div>
+                )}
                 {trade.answerText && <div className="text-gray-500 truncate mt-1 text-[10px]">{trade.answerText}</div>}
               </div>
             ))}
