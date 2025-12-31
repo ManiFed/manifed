@@ -17,6 +17,7 @@ import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
 import TerminalPositions from "@/components/terminal/TerminalPositions";
 import TerminalLiveTrades from "@/components/terminal/TerminalLiveTrades";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
+import { TerminalTrending } from "@/components/terminal/TerminalTrending";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
@@ -1386,8 +1387,12 @@ function TerminalMain() {
         )}
 
         <div className="flex gap-4">
-          {/* Left Sidebar - Hotkeys + Watchlist */}
+          {/* Left Sidebar - Trending, Hotkeys + Watchlist */}
           <div className="w-56 flex-shrink-0 space-y-4">
+            <TerminalTrending
+              onSelectMarket={selectMarket}
+              activeMarketId={activeMarket?.id}
+            />
             <HotkeyDisplayPanel hotkeys={hotkeys} onUpdateHotkey={updateHotkey} />
             <TerminalWatchlist
               onSelectMarket={selectMarket}
