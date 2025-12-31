@@ -197,6 +197,163 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
   );
 }
 
+// Market description dropdown component
+function MarketDescriptionDropdown({ marketId, marketUrl }: { marketId: string; marketUrl: string }) {
+  const [description, setDescription] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDescription = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setDescription(data.textDescription || data.description || "No description available.");
+        }
+      } catch {
+        setDescription("Failed to load description.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDescription();
+  }, [marketId]);
+
+  return (
+    <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
+      <div className="text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+        {loading ? (
+          <span className="text-gray-500">Loading description...</span>
+        ) : (
+          description
+        )}
+        <p className="text-gray-500 mt-2">
+          <a
+            href={marketUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-400 hover:underline"
+          >
+            View on Manifold →
+          </a>
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+// Media panel component for YouTube/RSS
+function MediaPanel({
+  youtubeUrl,
+  youtubeInput,
+  setYoutubeInput,
+  saveYoutube,
+  embedUrl,
+}: {
+  youtubeUrl: string;
+  youtubeInput: string;
+  setYoutubeInput: (v: string) => void;
+  saveYoutube: () => void;
+  embedUrl: string | null;
+}) {
+  const [showPanel, setShowPanel] = useState(true);
+  const [mediaType, setMediaType] = useState<'youtube' | 'rss'>('youtube');
+  const [rssUrl, setRssUrl] = useState('');
+
+  if (!showPanel) {
+    return (
+      <Card className="bg-gray-900/50 border-gray-800 p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowPanel(true)}
+          className="w-full text-gray-500 hover:text-white text-xs"
+        >
+          Show Media Panel
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-gray-900/50 border-gray-800 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className={mediaType === 'youtube' ? "text-red-500" : "text-orange-500"} >
+            {mediaType === 'youtube' ? '▶' : '📡'}
+          </span>
+          <span className="text-sm text-gray-400">{mediaType === 'youtube' ? 'Video' : 'RSS Feed'}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMediaType(mediaType === 'youtube' ? 'rss' : 'youtube')}
+            className="text-[10px] h-6 px-2 text-gray-500 hover:text-white"
+          >
+            {mediaType === 'youtube' ? 'Use RSS' : 'Use YouTube'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowPanel(false)}
+            className="text-[10px] h-6 px-2 text-gray-500 hover:text-white"
+          >
+            Hide
+          </Button>
+        </div>
+      </div>
+      
+      {mediaType === 'youtube' ? (
+        <>
+          <div className="flex gap-2 mb-3">
+            <Input
+              value={youtubeInput}
+              onChange={(e) => setYoutubeInput(e.target.value)}
+              placeholder="YouTube URL..."
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <Button onClick={saveYoutube} size="sm" className="bg-red-600 hover:bg-red-700">
+              Embed
+            </Button>
+          </div>
+          {embedUrl ? (
+            <div className="aspect-video rounded-lg overflow-hidden">
+              <iframe
+                src={embedUrl}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
+              Paste a YouTube URL above
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex gap-2 mb-3">
+            <Input
+              value={rssUrl}
+              onChange={(e) => setRssUrl(e.target.value)}
+              placeholder="RSS Feed URL..."
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm text-center p-4">
+            RSS feeds can be added here for market news updates. Coming soon.
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// Main terminal component
+
 // Main terminal component
 function TerminalMain() {
   const [apiKey, setApiKey] = useState("");
@@ -706,7 +863,8 @@ function TerminalMain() {
     match = trimmed.match(marketOrder);
     if (match) {
       const [, amount, side] = match;
-      if (autoExecute || forceExecute) {
+      // Only execute if autoExecute is on, OR forceExecute (enter pressed)
+      if (forceExecute) {
         const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
         executeTrade(side === "B" ? "YES" : "NO", parseInt(amount), undefined, undefined, answerId);
         setCommandInput("");
@@ -1417,21 +1575,7 @@ function TerminalMain() {
             )}
 
             {activeDropdown === "description" && activeMarket && (
-              <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
-                <div className="text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
-                  {activeMarket.question}
-                  <p className="text-gray-500 mt-2">
-                    <a
-                      href={activeMarket.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-400 hover:underline"
-                    >
-                      View on Manifold →
-                    </a>
-                  </p>
-                </div>
-              </Card>
+              <MarketDescriptionDropdown marketId={activeMarket.id} marketUrl={activeMarket.url} />
             )}
 
             {activeDropdown === "comments" && activeMarket && (
@@ -1449,7 +1593,7 @@ function TerminalMain() {
                             <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
                             <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
                           </div>
-                          <p className="text-gray-400 line-clamp-3">{comment.text}</p>
+                          <div className="text-gray-400 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: comment.content || comment.text || '' }} />
                         </div>
                       ))}
                     </div>
@@ -1686,6 +1830,15 @@ function TerminalMain() {
 
           {/* Right Side Panel - Charts & Video */}
           <div className="w-80 flex-shrink-0 space-y-4">
+            {/* YouTube/RSS Panel - AT TOP */}
+            <MediaPanel
+              youtubeUrl={youtubeUrl}
+              youtubeInput={youtubeInput}
+              setYoutubeInput={setYoutubeInput}
+              saveYoutube={saveYoutube}
+              embedUrl={embedUrl}
+            />
+
             {/* Price Chart */}
             {activeMarket && (
               <TerminalPriceChart
@@ -1735,38 +1888,7 @@ function TerminalMain() {
               />
             )}
 
-            {/* YouTube Panel */}
-            <Card className="bg-gray-900/50 border-gray-800 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-red-500 font-mono">▶</span>
-                <span className="text-sm text-gray-400">Video Panel</span>
-              </div>
-              <div className="flex gap-2 mb-3">
-                <Input
-                  value={youtubeInput}
-                  onChange={(e) => setYoutubeInput(e.target.value)}
-                  placeholder="YouTube URL..."
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
-                <Button onClick={saveYoutube} size="sm" className="bg-red-600 hover:bg-red-700">
-                  Embed
-                </Button>
-              </div>
-              {embedUrl ? (
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <iframe
-                    src={embedUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
-                  Paste a YouTube URL above
-                </div>
-              )}
-            </Card>
+            {/* YouTube/RSS Panel - MOVED TO TOP */}
           </div>
         </div>
       </div>

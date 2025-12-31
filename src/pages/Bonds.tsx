@@ -106,6 +106,30 @@ export default function Bonds() {
       return;
     }
 
+    // Check weekly limit (100,000 per week)
+    if (purchaseAmount > 100000) {
+      toast({
+        title: 'Weekly Limit Exceeded',
+        description: 'Maximum purchase is M$100,000 per week. Contact us for higher limits.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Check total holdings limit (250,000 cap)
+    const currentHoldings = userBonds
+      .filter(b => b.status === 'active')
+      .reduce((sum, b) => sum + b.amount, 0);
+    
+    if (currentHoldings + purchaseAmount > 250000) {
+      toast({
+        title: 'Holdings Cap Exceeded',
+        description: `You can hold max M$250,000 in bonds. Current: M$${currentHoldings.toLocaleString()}. Contact us for higher limits.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsPurchasing(true);
     try {
       // Create pending transaction for bond purchase

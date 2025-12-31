@@ -164,6 +164,29 @@ export default function PublicArbitrage() {
 
     setExecutingId(selectedOpportunity.id);
     try {
+      // First check if opportunity still exists
+      const { data: existingOpp, error: checkError } = await supabase
+        .from('public_arbitrage_opportunities')
+        .select('id, status')
+        .eq('id', selectedOpportunity.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      
+      if (!existingOpp) {
+        toast({
+          title: 'Opportunity No Longer Exists',
+          description: 'This arbitrage opportunity is no longer available.',
+          variant: 'destructive',
+        });
+        // Remove from local list
+        setOpportunities(prev => prev.filter(o => o.id !== selectedOpportunity.id));
+        setShowExecuteModal(false);
+        setSelectedOpportunity(null);
+        return;
+      }
+
       // Call edge function to execute the trade with the one-time API key
       const { data, error } = await supabase.functions.invoke('arbitrage-scan', {
         body: {
