@@ -112,8 +112,8 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
             <div className="flex items-start gap-3">
               <span className="text-blue-500 font-mono mt-1">[⌨]</span>
               <div>
-                <h3 className="font-semibold text-white mb-2">Command Syntax Examples</h3>
-                <div className="space-y-2 text-sm font-mono">
+                <h3 className="font-semibold text-white mb-2">Basic Orders</h3>
+                <div className="space-y-2 text-sm font-mono mb-4">
                   <div className="flex gap-4">
                     <code className="text-emerald-400 w-28">100B</code>
                     <span className="text-gray-400">Buy 100 mana of YES at market price</span>
@@ -122,29 +122,25 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
                     <code className="text-red-400 w-28">100S</code>
                     <span className="text-gray-400">Buy 100 mana of NO at market price</span>
                   </div>
+                </div>
+                <h3 className="font-semibold text-white mb-2">Advanced Orders</h3>
+                <p className="text-xs text-gray-500 mb-2">All advanced orders use / syntax. Number before first / = expiry in minutes.</p>
+                <div className="space-y-2 text-sm font-mono">
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">/100B@45/</code>
-                    <span className="text-gray-400">Buy 100 YES @45%</span>
+                    <span className="text-gray-400">Never-expiring limit for 100 YES @45%</span>
                   </div>
                   <div className="flex gap-4">
                     <code className="text-yellow-400 w-28">30/100B@45/</code>
-                    <span className="text-gray-400">Limit YES @45%, cancel in 30 min</span>
+                    <span className="text-gray-400">30-min expiration limit for 100 YES @45%</span>
                   </div>
                   <div className="flex gap-4">
-                    <code className="text-orange-400 w-28">LS100@45</code>
-                    <span className="text-gray-400">Sell M$100 worth of my position @45</span>
+                    <code className="text-orange-400 w-28">/LS@55/</code>
+                    <span className="text-gray-400">Limit sell at 55% (relative to your position)</span>
                   </div>
                   <div className="flex gap-4">
-                    <code className="text-orange-400 w-28">30/LS100@45</code>
-                    <span className="text-gray-400">Limit sell @45, cancel in 30 min</span>
-                  </div>
-                  <div className="flex gap-4">
-                    <code className="text-purple-400 w-28">ST5/100/</code>
-                    <span className="text-gray-400">File M$100 worth of limit orders at ±5% the current price</span>
-                  </div>
-                  <div className="flex gap-4">
-                    <code className="text-purple-400 w-28">30/ST5/100/</code>
-                    <span className="text-gray-400">Straddle order at ±5%, cancel in 30 min</span>
+                    <code className="text-purple-400 w-28">ST2.5/200/</code>
+                    <span className="text-gray-400">Straddle with M$200 at ±2.5% from current</span>
                   </div>
                 </div>
               </div>
