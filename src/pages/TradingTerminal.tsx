@@ -18,7 +18,6 @@ import TerminalPositions from "@/components/terminal/TerminalPositions";
 import TerminalLiveTrades from "@/components/terminal/TerminalLiveTrades";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
-
 interface Market {
   id: string;
   question: string;
@@ -26,9 +25,12 @@ interface Market {
   url: string;
   outcomeType?: string;
   isResolved?: boolean;
-  answers?: { id: string; text: string; probability: number }[];
+  answers?: {
+    id: string;
+    text: string;
+    probability: number;
+  }[];
 }
-
 interface ExecutionLog {
   id: string;
   timestamp: Date;
@@ -36,7 +38,6 @@ interface ExecutionLog {
   success: boolean;
   details: string;
 }
-
 interface Hotkey {
   id: string;
   key: string;
@@ -49,30 +50,30 @@ interface Hotkey {
   expirationMinutes?: number;
   mcOptionIndex?: number; // For MC markets: specific option index (1-based), 0 or undefined = use selected
 }
-
 interface Position {
   outcome: string;
   shares: number;
   answerId?: string;
 }
-
 interface MultipleChoiceOption {
   index: number;
   id: string;
   text: string;
   probability: number;
 }
-
 const STORAGE_KEYS = {
   API_KEY: "manifold_terminal_api_key",
   HOTKEYS: "manifold_terminal_hotkeys",
-  YOUTUBE_URL: "manifold_terminal_youtube",
+  YOUTUBE_URL: "manifold_terminal_youtube"
 };
 
 // Landing page component
-function TerminalLanding({ onEnter }: { onEnter: () => void }) {
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
+function TerminalLanding({
+  onEnter
+}: {
+  onEnter: () => void;
+}) {
+  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -178,8 +179,7 @@ function TerminalLanding({ onEnter }: { onEnter: () => void }) {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 }
 
 // Main terminal component
@@ -202,9 +202,11 @@ function TerminalMain() {
   const [selectedMcIndex, setSelectedMcIndex] = useState<number>(0);
   const [showEditMode, setShowEditMode] = useState(false);
   const [conditionalOrders, setConditionalOrders] = useState<any[]>([]);
-
-  const { panels, saveLayout, isPanelVisible } = useTerminalLayout();
-
+  const {
+    panels,
+    saveLayout,
+    isPanelVisible
+  } = useTerminalLayout();
   const commandInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -214,7 +216,6 @@ function TerminalMain() {
     const savedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
     const savedHotkeys = localStorage.getItem(STORAGE_KEYS.HOTKEYS);
     const savedYoutube = localStorage.getItem(STORAGE_KEYS.YOUTUBE_URL);
-
     if (savedApiKey) {
       setApiKey(savedApiKey);
       setApiKeyInput(savedApiKey);
@@ -241,9 +242,11 @@ function TerminalMain() {
           const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}`);
           if (response.ok) {
             const data = await response.json();
-            setActiveMarket((prev) =>
-              prev ? { ...prev, probability: data.probability, answers: data.answers } : null,
-            );
+            setActiveMarket(prev => prev ? {
+              ...prev,
+              probability: data.probability,
+              answers: data.answers
+            } : null);
 
             // Update MC options with live probabilities
             if (data.outcomeType === "MULTIPLE_CHOICE" && data.answers && data.answers.length > 0) {
@@ -251,11 +254,10 @@ function TerminalMain() {
                 index: i + 1,
                 id: a.id,
                 text: a.text,
-                probability: a.probability ?? a.prob ?? 0,
+                probability: a.probability ?? a.prob ?? 0
               }));
               setMcOptions(updatedOptions);
             }
-
             setIsConnected(true);
           } else {
             setIsConnected(false);
@@ -264,11 +266,9 @@ function TerminalMain() {
           setIsConnected(false);
         }
       };
-
       pollMarket();
       // Poll every 1 second for real-time feel
       pollingRef.current = setInterval(pollMarket, 1000);
-
       return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
@@ -281,25 +281,25 @@ function TerminalMain() {
       fetchPositions();
     }
   }, [activeMarket?.id, apiKey]);
-
   const fetchPositions = async () => {
     if (!activeMarket || !apiKey) return;
     try {
       // Fetch user info first to get user id
       const meResponse = await fetch("https://api.manifold.markets/v0/me", {
-        headers: { Authorization: `Key ${apiKey}` },
+        headers: {
+          Authorization: `Key ${apiKey}`
+        }
       });
       if (!meResponse.ok) return;
       const meData = await meResponse.json();
       const userId = meData.id;
 
       // Fetch positions for this market
-      const response = await fetch(
-        `https://api.manifold.markets/v0/market/${activeMarket.id}/positions?userId=${userId}`,
-        {
-          headers: { Authorization: `Key ${apiKey}` },
-        },
-      );
+      const response = await fetch(`https://api.manifold.markets/v0/market/${activeMarket.id}/positions?userId=${userId}`, {
+        headers: {
+          Authorization: `Key ${apiKey}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         console.log("[TT] Positions fetched:", data);
@@ -309,10 +309,18 @@ function TerminalMain() {
           const pos: Position[] = [];
           for (const p of data) {
             if (p.hasYesShares && p.totalShares?.YES > 0) {
-              pos.push({ outcome: "YES", shares: p.totalShares.YES, answerId: p.answerId });
+              pos.push({
+                outcome: "YES",
+                shares: p.totalShares.YES,
+                answerId: p.answerId
+              });
             }
             if (p.hasNoShares && p.totalShares?.NO > 0) {
-              pos.push({ outcome: "NO", shares: p.totalShares.NO, answerId: p.answerId });
+              pos.push({
+                outcome: "NO",
+                shares: p.totalShares.NO,
+                answerId: p.answerId
+              });
             }
           }
           setPositions(pos);
@@ -324,25 +332,22 @@ function TerminalMain() {
       console.error("[TT] Position fetch error:", err);
     }
   };
-
   const addLog = useCallback((action: string, success: boolean, details: string) => {
     const log: ExecutionLog = {
       id: crypto.randomUUID(),
       timestamp: new Date(),
       action,
       success,
-      details,
+      details
     };
-    setExecutionLogs((prev) => [log, ...prev].slice(0, 100));
+    setExecutionLogs(prev => [log, ...prev].slice(0, 100));
   }, []);
-
   const saveApiKey = () => {
     localStorage.setItem(STORAGE_KEYS.API_KEY, apiKeyInput);
     setApiKey(apiKeyInput);
     toast.success("API key saved");
     addLog("API Key", true, "API key saved to localStorage");
   };
-
   const searchMarkets = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -350,9 +355,7 @@ function TerminalMain() {
     }
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=30`,
-      );
+      const response = await fetch(`https://api.manifold.markets/v0/search-markets?term=${encodeURIComponent(query)}&limit=30`);
       if (response.ok) {
         const data = await response.json();
         // Filter out resolved markets, date markets (STONK), numeric markets, and polls
@@ -364,17 +367,15 @@ function TerminalMain() {
           if (excludedTypes.includes(m.outcomeType)) return false;
           return true;
         });
-        setSearchResults(
-          filtered.slice(0, 10).map((m: any) => ({
-            id: m.id,
-            question: m.question,
-            probability: m.probability,
-            url: m.url,
-            outcomeType: m.outcomeType,
-            isResolved: m.isResolved,
-            answers: m.answers,
-          })),
-        );
+        setSearchResults(filtered.slice(0, 10).map((m: any) => ({
+          id: m.id,
+          question: m.question,
+          probability: m.probability,
+          url: m.url,
+          outcomeType: m.outcomeType,
+          isResolved: m.isResolved,
+          answers: m.answers
+        })));
       }
     } catch (err) {
       addLog("Search", false, "Failed to search markets");
@@ -382,7 +383,6 @@ function TerminalMain() {
       setIsSearching(false);
     }
   };
-
   const selectMarket = (market: Market) => {
     setActiveMarket(market);
     setSearchResults([]);
@@ -394,7 +394,7 @@ function TerminalMain() {
         index: i + 1,
         id: a.id,
         text: a.text,
-        probability: a.probability ?? 0,
+        probability: a.probability ?? 0
       }));
       setMcOptions(options);
       setSelectedMcIndex(1);
@@ -402,18 +402,10 @@ function TerminalMain() {
       setMcOptions([]);
       setSelectedMcIndex(0);
     }
-
     addLog("Market Selected", true, `${market.question.slice(0, 50)}...`);
     commandInputRef.current?.focus();
   };
-
-  const executeTrade = async (
-    side: "YES" | "NO",
-    amount: number,
-    limitPrice?: number,
-    expirationMinutes?: number,
-    answerId?: string,
-  ) => {
+  const executeTrade = async (side: "YES" | "NO", amount: number, limitPrice?: number, expirationMinutes?: number, answerId?: string) => {
     if (!activeMarket || !apiKey) {
       addLog("Trade", false, "No market or API key");
       return;
@@ -430,17 +422,19 @@ function TerminalMain() {
       if (isYesAboveCurrent || isNoBelowCurrent) {
         // Create conditional order
         try {
-          const { data, error } = await supabase.functions.invoke("conditional-limit-order", {
+          const {
+            data,
+            error
+          } = await supabase.functions.invoke("conditional-limit-order", {
             body: {
               action: "create-order",
               marketId: activeMarket.id,
               marketUrl: activeMarket.url,
               side,
               amount,
-              targetProbability: limitPrice,
-            },
+              targetProbability: limitPrice
+            }
           });
-
           if (error) throw error;
           if (data.executeNow) {
             // Normal limit order, continue with regular flow
@@ -462,37 +456,32 @@ function TerminalMain() {
         }
       }
     }
-
     const body: any = {
       contractId: activeMarket.id,
       outcome: side,
-      amount,
+      amount
     };
 
     // For multiple choice markets, include answerId
     if (answerId) {
       body.answerId = answerId;
     }
-
     if (limitPrice !== undefined) {
       body.limitProb = limitPrice / 100;
       if (expirationMinutes) {
         body.expiresAt = Date.now() + expirationMinutes * 60 * 1000;
       }
     }
-
     try {
       const response = await fetch("https://api.manifold.markets/v0/bet", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Key ${apiKey}`,
+          Authorization: `Key ${apiKey}`
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
-
       const data = await response.json();
-
       if (response.ok) {
         const orderType = limitPrice ? `Limit @${limitPrice}%` : "Market";
         const expiry = expirationMinutes ? ` (${expirationMinutes}m)` : "";
@@ -508,20 +497,17 @@ function TerminalMain() {
       toast.error("Network error");
     }
   };
-
   const sellAllPositions = useCallback(async () => {
     if (!activeMarket || !apiKey) {
       addLog("Sell All", false, "No market or API key");
       toast.error("No active market or API key");
       return;
     }
-
     if (positions.length === 0) {
       addLog("Sell All", false, "No positions to sell");
       toast.error("No positions to sell");
       return;
     }
-
     for (const pos of positions) {
       if (pos.shares > 0) {
         try {
@@ -529,14 +515,13 @@ function TerminalMain() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Key ${apiKey}`,
+              Authorization: `Key ${apiKey}`
             },
             body: JSON.stringify({
               outcome: pos.outcome,
-              shares: pos.shares,
-            }),
+              shares: pos.shares
+            })
           });
-
           const data = await response.json();
           if (response.ok) {
             addLog(`Sell ${pos.outcome}`, true, `Sold ${pos.shares.toFixed(2)} shares`);
@@ -562,7 +547,6 @@ function TerminalMain() {
     }
     commandInputRef.current?.focus();
   };
-
   const parseAndExecuteCommand = (input: string, forceExecute = false) => {
     const trimmed = input.trim().toUpperCase();
 
@@ -573,11 +557,7 @@ function TerminalMain() {
       const optionIndex = parseInt(match[1]);
       if (optionIndex > 0 && optionIndex <= mcOptions.length) {
         setSelectedMcIndex(optionIndex);
-        addLog(
-          "MC Switch",
-          true,
-          `Switched to option #${optionIndex}: ${mcOptions[optionIndex - 1]?.text?.slice(0, 30)}...`,
-        );
+        addLog("MC Switch", true, `Switched to option #${optionIndex}: ${mcOptions[optionIndex - 1]?.text?.slice(0, 30)}...`);
       }
       setCommandInput("");
       return true;
@@ -593,7 +573,6 @@ function TerminalMain() {
       setCommandInput("");
       return true;
     }
-
     const limitSell = /^LS(\d+)@(\d+)$/;
     match = trimmed.match(limitSell);
     if (match && (autoExecute || forceExecute)) {
@@ -716,27 +695,18 @@ function TerminalMain() {
       setCommandInput("");
       return true;
     }
-
     return false;
   };
 
   // Create limit sell order using edge function
-  const createLimitSellOrder = async (
-    targetPrice: number,
-    amount?: number,
-    expirationMinutes?: number,
-    answerId?: string,
-  ) => {
+  const createLimitSellOrder = async (targetPrice: number, amount?: number, expirationMinutes?: number, answerId?: string) => {
     if (!activeMarket || !apiKey) {
       addLog("Limit Sell", false, "No market or API key");
       return;
     }
 
     // Find positions to sell
-    const posToSell = positions.find(
-      (p) => p.outcome === "YES" && p.shares > 0 && (answerId ? p.answerId === answerId : true),
-    );
-
+    const posToSell = positions.find(p => p.outcome === "YES" && p.shares > 0 && (answerId ? p.answerId === answerId : true));
     if (!posToSell || posToSell.shares <= 0) {
       addLog("Limit Sell", false, "No YES position to sell");
       toast.error("No YES position to sell");
@@ -745,9 +715,11 @@ function TerminalMain() {
 
     // Use specified amount or all shares
     const sharesToSell = amount ? Math.min(amount, posToSell.shares) : posToSell.shares;
-
     try {
-      const { data, error } = await supabase.functions.invoke("limit-sell-order", {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("limit-sell-order", {
         body: {
           action: "create-order",
           marketId: activeMarket.id,
@@ -757,10 +729,9 @@ function TerminalMain() {
           sharesHeld: sharesToSell,
           entryPrice: Math.round(activeMarket.probability * 100),
           answerId,
-          expirationMinutes,
-        },
+          expirationMinutes
+        }
       });
-
       if (error) throw error;
       if (data.success) {
         addLog("Limit Sell", true, `Exit @${targetPrice}% for ${sharesToSell.toFixed(0)} shares`);
@@ -783,38 +754,25 @@ function TerminalMain() {
       addLog("Straddle", false, "No market or API key");
       return;
     }
-
-    const currentProb =
-      mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
-        ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100)
-        : Math.round(activeMarket.probability * 100);
-
+    const currentProb = mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100) : Math.round(activeMarket.probability * 100);
     const yesLimitPrice = Math.max(1, currentProb - delta);
     const noLimitPrice = Math.min(99, currentProb + delta);
 
     // Split the amount across both orders
     const amountPerSide = Math.floor(totalAmount / 2);
-
-    addLog(
-      "Straddle",
-      true,
-      `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (M$${amountPerSide} each, delta: ${delta})`,
-    );
+    addLog("Straddle", true, `Placing YES @${yesLimitPrice}% & NO @${noLimitPrice}% (M$${amountPerSide} each, delta: ${delta})`);
 
     // Place YES limit order below current price
     await executeTrade("YES", amountPerSide, yesLimitPrice, expirationMinutes, answerId);
 
     // Place NO limit order above current price
     await executeTrade("NO", amountPerSide, noLimitPrice, expirationMinutes, answerId);
-
     toast.success(`Straddle placed: YES @${yesLimitPrice}% / NO @${noLimitPrice}% (M$${amountPerSide} each)`);
   };
-
   const handleCommandChange = (value: string) => {
     setCommandInput(value);
     parseAndExecuteCommand(value);
   };
-
   const handleCommandKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       parseAndExecuteCommand(commandInput, true);
@@ -828,20 +786,19 @@ function TerminalMain() {
       toast.error("No active market or API key");
       return;
     }
-
     try {
       // Fetch user's bets to find limit orders
       const meResponse = await fetch("https://api.manifold.markets/v0/me", {
-        headers: { Authorization: `Key ${apiKey}` },
+        headers: {
+          Authorization: `Key ${apiKey}`
+        }
       });
       if (!meResponse.ok) return;
       const meData = await meResponse.json();
       const userId = meData.id;
 
       // Fetch bets for this market
-      const betsResponse = await fetch(
-        `https://api.manifold.markets/v0/bets?contractId=${activeMarket.id}&userId=${userId}&limit=100`,
-      );
+      const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${activeMarket.id}&userId=${userId}&limit=100`);
       if (!betsResponse.ok) return;
       const bets = await betsResponse.json();
 
@@ -853,7 +810,6 @@ function TerminalMain() {
         const filledAmount = bet.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
         return orderAmount - filledAmount > 0;
       });
-
       if (activeLimitOrders.length === 0) {
         addLog("Cancel All", false, "No active limit orders to cancel");
         toast.info("No active limit orders to cancel");
@@ -866,7 +822,9 @@ function TerminalMain() {
         try {
           const response = await fetch(`https://api.manifold.markets/v0/bet/cancel/${order.id}`, {
             method: "POST",
-            headers: { Authorization: `Key ${apiKey}` },
+            headers: {
+              Authorization: `Key ${apiKey}`
+            }
           });
           if (response.ok) {
             cancelledCount++;
@@ -875,7 +833,6 @@ function TerminalMain() {
           console.error("Failed to cancel order:", order.id);
         }
       }
-
       addLog("Cancel All", true, `Cancelled ${cancelledCount} limit orders`);
       toast.success(`Cancelled ${cancelledCount} limit orders`);
     } catch (err) {
@@ -911,14 +868,13 @@ function TerminalMain() {
 
       // MC option navigation with arrow keys or w/s (works even in command input if empty)
       if (mcOptions.length > 0 && activeMarket) {
-        const isNavKey =
-          e.key === "ArrowUp" || e.key === "ArrowDown" || e.key.toLowerCase() === "w" || e.key.toLowerCase() === "s";
+        const isNavKey = e.key === "ArrowUp" || e.key === "ArrowDown" || e.key.toLowerCase() === "w" || e.key.toLowerCase() === "s";
 
         // Only handle nav in input if command is empty
         if (isNavKey && (!isCommandInput || commandInput.trim() === "")) {
           e.preventDefault();
           const goUp = e.key === "ArrowUp" || e.key.toLowerCase() === "w";
-          setSelectedMcIndex((prev) => {
+          setSelectedMcIndex(prev => {
             if (goUp) {
               return prev > 1 ? prev - 1 : mcOptions.length;
             } else {
@@ -928,15 +884,12 @@ function TerminalMain() {
           return;
         }
       }
-
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (!activeMarket || !apiKey) return;
-
-      const hotkey = hotkeys.find((h) => h.key.toUpperCase() === e.key.toUpperCase());
+      const hotkey = hotkeys.find(h => h.key.toUpperCase() === e.key.toUpperCase());
       if (hotkey) {
         e.preventDefault();
         let limitPrice: number | undefined;
-
         if (hotkey.orderType === "limit-fixed") {
           limitPrice = hotkey.limitPrice;
         } else if (hotkey.orderType === "limit-relative") {
@@ -948,10 +901,7 @@ function TerminalMain() {
         // Determine answerId for MC markets
         let answerId: string | undefined;
         if (mcOptions.length > 0) {
-          const optionIdx =
-            hotkey.mcOptionIndex && hotkey.mcOptionIndex > 0 && hotkey.mcOptionIndex <= mcOptions.length
-              ? hotkey.mcOptionIndex
-              : selectedMcIndex;
+          const optionIdx = hotkey.mcOptionIndex && hotkey.mcOptionIndex > 0 && hotkey.mcOptionIndex <= mcOptions.length ? hotkey.mcOptionIndex : selectedMcIndex;
           answerId = mcOptions[optionIdx - 1]?.id;
         }
 
@@ -963,45 +913,39 @@ function TerminalMain() {
         }
       }
     };
-
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [hotkeys, activeMarket, apiKey, sellAllPositions, mcOptions, selectedMcIndex, commandInput]);
-
   const addHotkey = () => {
     const newHotkey: Hotkey = {
       id: crypto.randomUUID(),
       key: "",
       side: "YES",
       amount: 10,
-      orderType: "market",
+      orderType: "market"
     };
     setHotkeys([...hotkeys, newHotkey]);
   };
-
   const updateHotkey = (id: string, updates: Partial<Hotkey>) => {
-    setHotkeys(hotkeys.map((h) => (h.id === id ? { ...h, ...updates } : h)));
+    setHotkeys(hotkeys.map(h => h.id === id ? {
+      ...h,
+      ...updates
+    } : h));
   };
-
   const deleteHotkey = (id: string) => {
-    setHotkeys(hotkeys.filter((h) => h.id !== id));
+    setHotkeys(hotkeys.filter(h => h.id !== id));
   };
-
   const saveYoutube = () => {
     localStorage.setItem(STORAGE_KEYS.YOUTUBE_URL, youtubeInput);
     setYoutubeUrl(youtubeInput);
     toast.success("Video saved");
   };
-
   const getYoutubeEmbedUrl = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
     return match ? `https://www.youtube.com/embed/${match[1]}` : null;
   };
-
   const embedUrl = getYoutubeEmbedUrl(youtubeUrl);
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 font-mono">
+  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 font-mono">
       <div className="max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
@@ -1011,11 +955,7 @@ function TerminalMain() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Switch
-                checked={autoExecute}
-                onCheckedChange={setAutoExecute}
-                className="data-[state=checked]:bg-emerald-600"
-              />
+              <Switch checked={autoExecute} onCheckedChange={setAutoExecute} className="data-[state=checked]:bg-emerald-600" />
               <Label className="text-sm text-gray-400">{autoExecute ? "⚡ Auto" : "Auto"}</Label>
             </div>
             <Link to="/fintech/menu">
@@ -1027,21 +967,14 @@ function TerminalMain() {
         </div>
 
         {/* Edit Mode Modal */}
-        {showEditMode && (
-          <TerminalEditMode
-            panels={panels}
-            onSave={(newPanels) => {
-              saveLayout(newPanels);
-              setShowEditMode(false);
-              toast.success("Layout saved");
-            }}
-            onCancel={() => setShowEditMode(false)}
-          />
-        )}
+        {showEditMode && <TerminalEditMode panels={panels} onSave={newPanels => {
+        saveLayout(newPanels);
+        setShowEditMode(false);
+        toast.success("Layout saved");
+      }} onCancel={() => setShowEditMode(false)} />}
 
         {/* API Key Warning */}
-        {!apiKey && (
-          <Card className="bg-yellow-900/20 border-yellow-800/50 p-4">
+        {!apiKey && <Card className="bg-yellow-900/20 border-yellow-800/50 p-4">
             <div className="flex items-start gap-3">
               <span className="text-yellow-500 font-mono">⚠</span>
               <div className="flex-1">
@@ -1055,83 +988,48 @@ function TerminalMain() {
                   servers.
                 </p>
                 <div className="flex gap-2">
-                  <Input
-                    type="password"
-                    value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
-                    placeholder="Enter API key..."
-                    className="bg-gray-800 border-gray-700 text-white font-mono max-w-md"
-                  />
+                  <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Enter API key..." className="bg-gray-800 border-gray-700 text-white font-mono max-w-md" />
                   <Button onClick={saveApiKey} className="bg-emerald-600 hover:bg-emerald-700">
                     Save
                   </Button>
                 </div>
               </div>
             </div>
-          </Card>
-        )}
+          </Card>}
 
         <div className="flex gap-4">
           {/* Left Sidebar - Hotkeys + Watchlist */}
           <div className="w-56 flex-shrink-0 space-y-4">
             <HotkeyDisplayPanel hotkeys={hotkeys} onUpdateHotkey={updateHotkey} />
-            <TerminalWatchlist
-              onSelectMarket={selectMarket}
-              activeMarketId={activeMarket?.id}
-              currentMarket={activeMarket}
-            />
+            <TerminalWatchlist onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} currentMarket={activeMarket} />
           </div>
 
           {/* Main Trading Area */}
           <div className="flex-1 space-y-4 min-w-0 pb-8">
             {/* Market Search - Minimizes when market selected */}
-            {activeMarket ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveMarket(null)}
-                  className="border-gray-700 text-gray-400 hover:text-white gap-2"
-                >
+            {activeMarket ? <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setActiveMarket(null)} className="border-gray-700 text-gray-400 hover:text-white gap-2">
                   🔍 Change Market
                 </Button>
-                <span className="text-xs text-gray-500 truncate flex-1">{activeMarket.question.slice(0, 60)}...</span>
-              </div>
-            ) : (
-              <div className="relative">
+                
+              </div> : <div className="relative">
                 <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
                   <span className="text-gray-500 font-mono">🔍</span>
-                  <Input
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      searchMarkets(e.target.value);
-                    }}
-                    placeholder="Search markets..."
-                    className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
+                  <Input ref={searchInputRef} value={searchQuery} onChange={e => {
+                setSearchQuery(e.target.value);
+                searchMarkets(e.target.value);
+              }} placeholder="Search markets..." className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0" />
                 </div>
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden z-50">
-                    {searchResults.map((market) => (
-                      <button
-                        key={market.id}
-                        onClick={() => selectMarket(market)}
-                        className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0"
-                      >
+                {searchResults.length > 0 && <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden z-50">
+                    {searchResults.map(market => <button key={market.id} onClick={() => selectMarket(market)} className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0">
                         <div className="text-sm text-white line-clamp-2">{market.question}</div>
                         <div className="text-xs text-emerald-400 mt-1">{(market.probability * 100).toFixed(1)}%</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      </button>)}
+                  </div>}
+              </div>}
 
             {/* Active Market */}
-            {activeMarket ? (
-              <Card className="bg-gray-900/50 border-gray-800 p-4">
+            {activeMarket ? <Card className="bg-gray-900/50 border-gray-800 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -1141,40 +1039,26 @@ function TerminalMain() {
                       <Badge variant="outline" className="text-xs border-gray-700">
                         {isConnected ? "LIVE" : "DISCONNECTED"}
                       </Badge>
-                      {mcOptions.length > 0 && (
-                        <Badge variant="outline" className="text-xs border-purple-700 text-purple-400">
+                      {mcOptions.length > 0 && <Badge variant="outline" className="text-xs border-purple-700 text-purple-400">
                           MC ({mcOptions.length} options)
-                        </Badge>
-                      )}
+                        </Badge>}
                     </div>
 
                     {/* Show selected MC option name at top if applicable */}
-                    {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && (
-                      <div className="text-sm text-purple-400 mb-1 font-mono">
+                    {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && <div className="text-sm text-purple-400 mb-1 font-mono">
                         Trading: #{selectedMcIndex} {mcOptions[selectedMcIndex - 1].text.slice(0, 50)}
                         {mcOptions[selectedMcIndex - 1].text.length > 50 ? "..." : ""}
-                      </div>
-                    )}
+                      </div>}
 
                     <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
 
                     {/* Multiple Choice Options - Clickable to add to command */}
-                    {mcOptions.length > 0 ? (
-                      <div className="space-y-1 mb-3">
+                    {mcOptions.length > 0 ? <div className="space-y-1 mb-3">
                         <div className="text-xs text-gray-500 mb-2">
                           Click option to add to command • ↑↓ or W/S to navigate
                         </div>
                         <ScrollArea className="h-[120px]">
-                          {mcOptions.map((opt) => (
-                            <div
-                              key={opt.id}
-                              className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${
-                                opt.index === selectedMcIndex
-                                  ? "bg-emerald-900/40 border border-emerald-700"
-                                  : "hover:bg-gray-800"
-                              }`}
-                              onClick={() => appendMcOptionToCommand(opt)}
-                            >
+                          {mcOptions.map(opt => <div key={opt.id} className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${opt.index === selectedMcIndex ? "bg-emerald-900/40 border border-emerald-700" : "hover:bg-gray-800"}`} onClick={() => appendMcOptionToCommand(opt)}>
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-500 w-5 text-right">#{opt.index}</span>
                                 <span className={opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-300"}>
@@ -1182,44 +1066,23 @@ function TerminalMain() {
                                   {opt.text.length > 40 ? "..." : ""}
                                 </span>
                               </div>
-                              <span
-                                className={`font-mono font-bold ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}
-                              >
-                                {typeof opt.probability === "number" && !isNaN(opt.probability)
-                                  ? `${(opt.probability * 100).toFixed(1)}%`
-                                  : "—"}
+                              <span className={`font-mono font-bold ${opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-400"}`}>
+                                {typeof opt.probability === "number" && !isNaN(opt.probability) ? `${(opt.probability * 100).toFixed(1)}%` : "—"}
                               </span>
-                            </div>
-                          ))}
+                            </div>)}
                         </ScrollArea>
-                      </div>
-                    ) : (
-                      <div className="text-4xl font-bold text-emerald-400">
-                        {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability)
-                          ? `${(activeMarket.probability * 100).toFixed(1)}%`
-                          : "—"}
-                      </div>
-                    )}
+                      </div> : <div className="text-4xl font-bold text-emerald-400">
+                        {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability) ? `${(activeMarket.probability * 100).toFixed(1)}%` : "—"}
+                      </div>}
                   </div>
                 </div>
-              </Card>
-            ) : (
-              <Card className="bg-gray-900/50 border-gray-800 p-8 text-center">
+              </Card> : <Card className="bg-gray-900/50 border-gray-800 p-8 text-center">
                 <div className="text-gray-500">Search and select a market to start trading</div>
-              </Card>
-            )}
+              </Card>}
 
             {/* Command Bar */}
             <div className="relative">
-              <Input
-                ref={commandInputRef}
-                value={commandInput}
-                onChange={(e) => handleCommandChange(e.target.value)}
-                onKeyDown={handleCommandKeyDown}
-                placeholder={activeMarket && apiKey ? "Enter command here" : "Select a market first..."}
-                disabled={!activeMarket || !apiKey}
-                className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4"
-              />
+              <Input ref={commandInputRef} value={commandInput} onChange={e => handleCommandChange(e.target.value)} onKeyDown={handleCommandKeyDown} placeholder={activeMarket && apiKey ? "Enter command here" : "Select a market first..."} disabled={!activeMarket || !apiKey} className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4" />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                 {autoExecute ? "⚡ AUTO" : "↵ ENTER"}
               </div>
@@ -1269,28 +1132,15 @@ function TerminalMain() {
               <TabsContent value="logs" className="mt-2">
                 <Card className="bg-gray-900/50 border-gray-800">
                   <ScrollArea className="h-[300px] p-3">
-                    {executionLogs.length === 0 ? (
-                      <div className="text-gray-500 text-sm text-center py-8">No executions yet</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {executionLogs.map((log) => (
-                          <div
-                            key={log.id}
-                            className={`text-xs p-2 rounded border ${
-                              log.success
-                                ? "border-emerald-900/50 bg-emerald-950/20"
-                                : "border-red-900/50 bg-red-950/20"
-                            }`}
-                          >
+                    {executionLogs.length === 0 ? <div className="text-gray-500 text-sm text-center py-8">No executions yet</div> : <div className="space-y-2">
+                        {executionLogs.map(log => <div key={log.id} className={`text-xs p-2 rounded border ${log.success ? "border-emerald-900/50 bg-emerald-950/20" : "border-red-900/50 bg-red-950/20"}`}>
                             <div className="flex items-center justify-between mb-1">
                               <span className={log.success ? "text-emerald-400" : "text-red-400"}>{log.action}</span>
                               <span className="text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
                             </div>
                             <div className="text-gray-400">{log.details}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          </div>)}
+                      </div>}
                   </ScrollArea>
                 </Card>
               </TabsContent>
@@ -1299,32 +1149,20 @@ function TerminalMain() {
                 <Card className="bg-gray-900/50 border-gray-800 p-3">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-3">
-                      {hotkeys.map((hotkey) => (
-                        <div key={hotkey.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2">
+                      {hotkeys.map(hotkey => <div key={hotkey.id} className="p-3 bg-gray-800/50 rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
-                            <Input
-                              value={hotkey.key}
-                              onChange={(e) => updateHotkey(hotkey.id, { key: e.target.value.slice(0, 1) })}
-                              placeholder="Key"
-                              className="w-12 bg-gray-700 border-gray-600 text-center uppercase"
-                              maxLength={1}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteHotkey(hotkey.id)}
-                              className="text-red-400 hover:text-red-300"
-                            >
+                            <Input value={hotkey.key} onChange={e => updateHotkey(hotkey.id, {
+                          key: e.target.value.slice(0, 1)
+                        })} placeholder="Key" className="w-12 bg-gray-700 border-gray-600 text-center uppercase" maxLength={1} />
+                            <Button variant="ghost" size="sm" onClick={() => deleteHotkey(hotkey.id)} className="text-red-400 hover:text-red-300">
                               ✕
                             </Button>
                           </div>
 
-                          {hotkey.orderType !== "straddle" && (
-                            <div className="grid grid-cols-2 gap-2">
-                              <Select
-                                value={hotkey.side}
-                                onValueChange={(v) => updateHotkey(hotkey.id, { side: v as "YES" | "NO" | "STRADDLE" })}
-                              >
+                          {hotkey.orderType !== "straddle" && <div className="grid grid-cols-2 gap-2">
+                              <Select value={hotkey.side} onValueChange={v => updateHotkey(hotkey.id, {
+                          side: v as "YES" | "NO" | "STRADDLE"
+                        })}>
                                 <SelectTrigger className="bg-gray-700 border-gray-600">
                                   <SelectValue />
                                 </SelectTrigger>
@@ -1334,36 +1172,24 @@ function TerminalMain() {
                                 </SelectContent>
                               </Select>
 
-                              <Input
-                                type="number"
-                                value={hotkey.amount}
-                                onChange={(e) => updateHotkey(hotkey.id, { amount: parseInt(e.target.value) || 0 })}
-                                placeholder="Amount"
-                                className="bg-gray-700 border-gray-600"
-                              />
-                            </div>
-                          )}
+                              <Input type="number" value={hotkey.amount} onChange={e => updateHotkey(hotkey.id, {
+                          amount: parseInt(e.target.value) || 0
+                        })} placeholder="Amount" className="bg-gray-700 border-gray-600" />
+                            </div>}
 
-                          {hotkey.orderType === "straddle" && (
-                            <Input
-                              type="number"
-                              value={hotkey.amount}
-                              onChange={(e) => updateHotkey(hotkey.id, { amount: parseInt(e.target.value) || 0 })}
-                              placeholder="Amount per side"
-                              className="bg-gray-700 border-gray-600"
-                            />
-                          )}
+                          {hotkey.orderType === "straddle" && <Input type="number" value={hotkey.amount} onChange={e => updateHotkey(hotkey.id, {
+                        amount: parseInt(e.target.value) || 0
+                      })} placeholder="Amount per side" className="bg-gray-700 border-gray-600" />}
 
-                          <Select
-                            value={hotkey.orderType}
-                            onValueChange={(v) => {
-                              const updates: Partial<Hotkey> = { orderType: v as Hotkey["orderType"] };
-                              if (v === "straddle") {
-                                updates.side = "STRADDLE";
-                              }
-                              updateHotkey(hotkey.id, updates);
-                            }}
-                          >
+                          <Select value={hotkey.orderType} onValueChange={v => {
+                        const updates: Partial<Hotkey> = {
+                          orderType: v as Hotkey["orderType"]
+                        };
+                        if (v === "straddle") {
+                          updates.side = "STRADDLE";
+                        }
+                        updateHotkey(hotkey.id, updates);
+                      }}>
                             <SelectTrigger className="bg-gray-700 border-gray-600">
                               <SelectValue />
                             </SelectTrigger>
@@ -1375,73 +1201,29 @@ function TerminalMain() {
                             </SelectContent>
                           </Select>
 
-                          {hotkey.orderType === "limit-fixed" && (
-                            <Input
-                              type="number"
-                              value={hotkey.limitPrice || ""}
-                              onChange={(e) =>
-                                updateHotkey(hotkey.id, { limitPrice: parseInt(e.target.value) || undefined })
-                              }
-                              placeholder="Limit price %"
-                              className="bg-gray-700 border-gray-600"
-                            />
-                          )}
+                          {hotkey.orderType === "limit-fixed" && <Input type="number" value={hotkey.limitPrice || ""} onChange={e => updateHotkey(hotkey.id, {
+                        limitPrice: parseInt(e.target.value) || undefined
+                      })} placeholder="Limit price %" className="bg-gray-700 border-gray-600" />}
 
-                          {hotkey.orderType === "limit-relative" && (
-                            <Input
-                              type="number"
-                              value={hotkey.relativeOffset || ""}
-                              onChange={(e) =>
-                                updateHotkey(hotkey.id, { relativeOffset: parseInt(e.target.value) || undefined })
-                              }
-                              placeholder="Offset (+/- %)"
-                              className="bg-gray-700 border-gray-600"
-                            />
-                          )}
+                          {hotkey.orderType === "limit-relative" && <Input type="number" value={hotkey.relativeOffset || ""} onChange={e => updateHotkey(hotkey.id, {
+                        relativeOffset: parseInt(e.target.value) || undefined
+                      })} placeholder="Offset (+/- %)" className="bg-gray-700 border-gray-600" />}
 
-                          {hotkey.orderType !== "market" && (
-                            <Input
-                              type="number"
-                              value={hotkey.expirationMinutes || ""}
-                              onChange={(e) =>
-                                updateHotkey(hotkey.id, { expirationMinutes: parseInt(e.target.value) || undefined })
-                              }
-                              placeholder="Expiration (minutes)"
-                              className="bg-gray-700 border-gray-600"
-                            />
-                          )}
+                          {hotkey.orderType !== "market" && <Input type="number" value={hotkey.expirationMinutes || ""} onChange={e => updateHotkey(hotkey.id, {
+                        expirationMinutes: parseInt(e.target.value) || undefined
+                      })} placeholder="Expiration (minutes)" className="bg-gray-700 border-gray-600" />}
 
-                          {hotkey.orderType === "straddle" && (
-                            <Input
-                              type="number"
-                              value={hotkey.straddleDelta || ""}
-                              onChange={(e) =>
-                                updateHotkey(hotkey.id, { straddleDelta: parseInt(e.target.value) || undefined })
-                              }
-                              placeholder="Delta % (distance from current)"
-                              className="bg-gray-700 border-gray-600"
-                            />
-                          )}
+                          {hotkey.orderType === "straddle" && <Input type="number" value={hotkey.straddleDelta || ""} onChange={e => updateHotkey(hotkey.id, {
+                        straddleDelta: parseInt(e.target.value) || undefined
+                      })} placeholder="Delta % (distance from current)" className="bg-gray-700 border-gray-600" />}
 
                           {/* MC Option Index for hotkey */}
-                          <Input
-                            type="number"
-                            value={hotkey.mcOptionIndex || ""}
-                            onChange={(e) =>
-                              updateHotkey(hotkey.id, { mcOptionIndex: parseInt(e.target.value) || undefined })
-                            }
-                            placeholder="MC Option # (leave empty for selected)"
-                            className="bg-gray-700 border-gray-600"
-                            min={0}
-                          />
-                        </div>
-                      ))}
+                          <Input type="number" value={hotkey.mcOptionIndex || ""} onChange={e => updateHotkey(hotkey.id, {
+                        mcOptionIndex: parseInt(e.target.value) || undefined
+                      })} placeholder="MC Option # (leave empty for selected)" className="bg-gray-700 border-gray-600" min={0} />
+                        </div>)}
 
-                      <Button
-                        onClick={addHotkey}
-                        variant="outline"
-                        className="w-full border-dashed border-gray-700 text-gray-400"
-                      >
+                      <Button onClick={addHotkey} variant="outline" className="w-full border-dashed border-gray-700 text-gray-400">
                         + Add Hotkey
                       </Button>
                     </div>
@@ -1454,32 +1236,21 @@ function TerminalMain() {
                   <div>
                     <Label className="text-sm text-gray-400 mb-2 block">API Key</Label>
                     <div className="flex gap-2">
-                      <Input
-                        type="password"
-                        value={apiKeyInput}
-                        onChange={(e) => setApiKeyInput(e.target.value)}
-                        className="bg-gray-800 border-gray-700"
-                      />
+                      <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} className="bg-gray-800 border-gray-700" />
                       <Button onClick={saveApiKey} size="sm" className="bg-emerald-600">
                         Save
                       </Button>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">Stored locally in your browser only.</p>
                   </div>
-                  {apiKey && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        localStorage.removeItem(STORAGE_KEYS.API_KEY);
-                        setApiKey("");
-                        setApiKeyInput("");
-                        toast.success("API key removed");
-                      }}
-                    >
+                  {apiKey && <Button variant="destructive" size="sm" onClick={() => {
+                  localStorage.removeItem(STORAGE_KEYS.API_KEY);
+                  setApiKey("");
+                  setApiKeyInput("");
+                  toast.success("API key removed");
+                }}>
                       Clear API Key
-                    </Button>
-                  )}
+                    </Button>}
                 </Card>
               </TabsContent>
             </Tabs>
@@ -1488,50 +1259,19 @@ function TerminalMain() {
           {/* Right Side Panel - Charts & Video */}
           <div className="w-80 flex-shrink-0 space-y-4">
             {/* Price Chart */}
-            {activeMarket && (
-              <TerminalPriceChart
-                marketId={activeMarket.id}
-                currentProbability={
-                  mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
-                    ? mcOptions[selectedMcIndex - 1].probability
-                    : activeMarket.probability
-                }
-              />
-            )}
+            {activeMarket && <TerminalPriceChart marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} />}
 
             {/* Order Book */}
-            {activeMarket && (
-              <TerminalOrderBook
-                marketId={activeMarket.id}
-                currentProbability={
-                  mcOptions.length > 0 && mcOptions[selectedMcIndex - 1]
-                    ? mcOptions[selectedMcIndex - 1].probability
-                    : activeMarket.probability
-                }
-                answerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined}
-              />
-            )}
+            {activeMarket && <TerminalOrderBook marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} answerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} />}
 
             {/* Live Trades Log */}
-            {activeMarket && (
-              <TerminalLiveTrades
-                marketId={activeMarket.id}
-                answers={activeMarket.answers?.map((a) => ({ id: a.id, text: a.text }))}
-                selectedAnswerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined}
-                soundEnabled={true}
-              />
-            )}
+            {activeMarket && <TerminalLiveTrades marketId={activeMarket.id} answers={activeMarket.answers?.map(a => ({
+            id: a.id,
+            text: a.text
+          }))} selectedAnswerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} soundEnabled={true} />}
 
             {/* Positions & P&L */}
-            {activeMarket && apiKey && (
-              <TerminalPositions
-                positions={positions}
-                marketId={activeMarket.id}
-                currentProbability={activeMarket.probability}
-                apiKey={apiKey}
-                onRefresh={fetchPositions}
-              />
-            )}
+            {activeMarket && apiKey && <TerminalPositions positions={positions} marketId={activeMarket.id} currentProbability={activeMarket.probability} apiKey={apiKey} onRefresh={fetchPositions} />}
 
             {/* YouTube Panel */}
             <Card className="bg-gray-900/50 border-gray-800 p-4">
@@ -1540,45 +1280,28 @@ function TerminalMain() {
                 <span className="text-sm text-gray-400">Video Panel</span>
               </div>
               <div className="flex gap-2 mb-3">
-                <Input
-                  value={youtubeInput}
-                  onChange={(e) => setYoutubeInput(e.target.value)}
-                  placeholder="YouTube URL..."
-                  className="bg-gray-800 border-gray-700 text-white"
-                />
+                <Input value={youtubeInput} onChange={e => setYoutubeInput(e.target.value)} placeholder="YouTube URL..." className="bg-gray-800 border-gray-700 text-white" />
                 <Button onClick={saveYoutube} size="sm" className="bg-red-600 hover:bg-red-700">
                   Embed
                 </Button>
               </div>
-              {embedUrl ? (
-                <div className="aspect-video rounded-lg overflow-hidden">
-                  <iframe
-                    src={embedUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
+              {embedUrl ? <div className="aspect-video rounded-lg overflow-hidden">
+                  <iframe src={embedUrl} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                </div> : <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
                   Paste a YouTube URL above
-                </div>
-              )}
+                </div>}
             </Card>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
 
 // Main export with landing page
 export default function TradingTerminal() {
   const [showTerminal, setShowTerminal] = useState(false);
-
   if (!showTerminal) {
     return <TerminalLanding onEnter={() => setShowTerminal(true)} />;
   }
-
   return <TerminalMain />;
 }
