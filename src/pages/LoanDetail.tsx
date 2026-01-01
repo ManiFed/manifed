@@ -287,10 +287,7 @@ export default function LoanDetail() {
                       <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
                     </div>
                   </div>
-                  <div className={cn("px-3 py-2 rounded-lg border flex items-center gap-2", risk.className)}>
-                    <AlertTriangle className="w-4 h-4" />
-                    {risk.label}
-                  </div>
+                  
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
