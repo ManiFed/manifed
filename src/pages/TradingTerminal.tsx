@@ -1639,10 +1639,11 @@ function TerminalMain() {
                             <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
                             <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
                           </div>
-                          <div
-                            className="text-gray-400 whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{ __html: comment.content || comment.text || "" }}
-                          />
+                          <div className="text-gray-400 whitespace-pre-wrap">
+                            {typeof comment.content === 'object' 
+                              ? (comment.text || JSON.stringify(comment.content))
+                              : (comment.content || comment.text || "")}
+                          </div>
                         </div>
                       ))}
                     </div>
