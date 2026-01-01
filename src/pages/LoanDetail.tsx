@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { TransactionModal } from "@/components/TransactionModal";
-import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp } from "lucide-react";
+import { useUserBalance } from "@/hooks/useUserBalance";
+import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 const statusConfig = {
   seeking_funding: {
     label: "Seeking Funding",
@@ -34,6 +36,7 @@ const statusConfig = {
     icon: XCircle
   }
 };
+
 const riskConfig = {
   low: {
     label: "Low Risk",
@@ -48,6 +51,7 @@ const riskConfig = {
     className: "text-destructive bg-destructive/10 border-destructive/20"
   }
 };
+
 interface Loan {
   id: string;
   borrower_user_id: string;
@@ -59,6 +63,7 @@ interface Loan {
   funded_amount: number;
   interest_rate: number;
   term_days: number;
+  funding_period_days: number;
   status: string;
   funding_deadline: string | null;
   maturity_date: string | null;
@@ -66,19 +71,19 @@ interface Loan {
   collateral_description: string | null;
   manifold_market_id: string | null;
   created_at: string;
+  loan_type: string;
+  is_verified: boolean;
 }
+
 interface Investment {
   id: string;
   investor_username: string;
   amount: number;
   created_at: string;
 }
+
 export default function LoanDetail() {
-  const {
-    id
-  } = useParams<{
-    id: string;
-  }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [investAmount, setInvestAmount] = useState("");
   const [investMessage, setInvestMessage] = useState("");
@@ -88,31 +93,30 @@ export default function LoanDetail() {
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { balance, fetchBalance } = useUserBalance();
 
-  // Transaction modal state
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [transactionCode, setTransactionCode] = useState("");
-  const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
-  const [transactionAmount, setTransactionAmount] = useState(0);
   useEffect(() => {
     fetchLoanData();
     fetchUserSettings();
   }, [id]);
+
   const fetchLoanData = async () => {
     if (!id) return;
     try {
-      const {
-        data: loanData,
-        error: loanError
-      } = await supabase.from("loans").select("*").eq("id", id).single();
+      const { data: loanData, error: loanError } = await supabase
+        .from("loans")
+        .select("*")
+        .eq("id", id)
+        .single();
       if (loanError) throw loanError;
       setLoan(loanData);
-      const {
-        data: investmentData,
-        error: investmentError
-      } = await supabase.from("investments").select("*").eq("loan_id", id).order("created_at", {
-        ascending: false
-      });
+
+      const { data: investmentData, error: investmentError } = await supabase
+        .from("investments")
+        .select("*")
+        .eq("loan_id", id)
+        .order("created_at", { ascending: false });
       if (investmentError) throw investmentError;
       setInvestments(investmentData || []);
     } catch (error) {
@@ -121,32 +125,27 @@ export default function LoanDetail() {
       setIsLoading(false);
     }
   };
+
   const fetchUserSettings = async () => {
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setCurrentUserId(user.id);
     } catch (error) {
       console.error("Error fetching settings:", error);
     }
   };
+
   const handleCancelLoan = async () => {
     if (!loan) return;
-    const confirmed = window.confirm(`Are you sure you want to cancel this loan? All investors will be refunded M$${loan.funded_amount.toLocaleString()} immediately.`);
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel this loan? All investors will be refunded M$${loan.funded_amount.toLocaleString()} immediately.`
+    );
     if (!confirmed) return;
     setIsCancelling(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("cancel-loan", {
-        body: {
-          loanId: loan.id
-        }
+      const { data, error } = await supabase.functions.invoke("cancel-loan", {
+        body: { loanId: loan.id }
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -166,16 +165,21 @@ export default function LoanDetail() {
       setIsCancelling(false);
     }
   };
+
   if (isLoading) {
-    return <div className="min-h-screen">
+    return (
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 py-8 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </main>
-      </div>;
+      </div>
+    );
   }
+
   if (!loan) {
-    return <div className="min-h-screen">
+    return (
+      <div className="min-h-screen">
         <Header />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-16">
@@ -188,13 +192,20 @@ export default function LoanDetail() {
             </Link>
           </div>
         </main>
-      </div>;
+      </div>
+    );
   }
-  const fundingProgress = loan.funded_amount / loan.amount * 100;
+
+  const fundingProgress = (loan.funded_amount / loan.amount) * 100;
   const status = statusConfig[loan.status as keyof typeof statusConfig] || statusConfig.seeking_funding;
   const risk = riskConfig[loan.risk_score as keyof typeof riskConfig] || riskConfig.medium;
   const StatusIcon = status.icon;
   const remainingAmount = loan.amount - loan.funded_amount;
+
+  // Calculate maturity date based on funding deadline + term days
+  const fundingDeadline = loan.funding_deadline ? new Date(loan.funding_deadline) : new Date(new Date(loan.created_at).getTime() + (loan.funding_period_days || 7) * 24 * 60 * 60 * 1000);
+  const calculatedMaturityDate = new Date(fundingDeadline.getTime() + loan.term_days * 24 * 60 * 60 * 1000);
+
   const handleInvest = async () => {
     const amount = parseFloat(investAmount);
     if (isNaN(amount) || amount < 10) {
@@ -213,47 +224,84 @@ export default function LoanDetail() {
       });
       return;
     }
+    if (amount > balance) {
+      toast({
+        title: "Insufficient balance",
+        description: `You only have M$${balance.toLocaleString()} in your ManiFed account. Please deposit more funds first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsInvesting(true);
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create pending transaction
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("create-pending-transaction", {
-        body: {
-          amount: amount,
-          transactionType: "loan_funding",
-          relatedId: loan.id,
-          metadata: {
-            loanTitle: loan.title,
-            borrowerUsername: loan.borrower_username,
-            message: investMessage
-          }
-        }
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      // Get user's Manifold username for the investment record
+      const { data: settings } = await supabase
+        .from("user_manifold_settings")
+        .select("manifold_username, withdrawal_username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      const username = settings?.withdrawal_username || settings?.manifold_username || user.email?.split("@")[0] || "Anonymous";
 
-      // Show transaction modal with the amount from the API response
-      setTransactionCode(data.transactionCode);
-      setTransactionExpiresAt(data.expiresAt);
-      setTransactionAmount(data.amount);
-      setShowTransactionModal(true);
-      toast({
-        title: "Transaction Created",
-        description: "Follow the instructions to complete your investment."
+      // Deduct from user balance using RPC function
+      const { error: balanceError } = await supabase.rpc("modify_user_balance", {
+        p_user_id: user.id,
+        p_amount: amount,
+        p_operation: "subtract"
       });
+      
+      if (balanceError) {
+        if (balanceError.message.includes("Insufficient balance")) {
+          throw new Error("Insufficient balance in your ManiFed account");
+        }
+        throw balanceError;
+      }
+
+      // Record the investment
+      const { error: investError } = await supabase.from("investments").insert({
+        loan_id: loan.id,
+        investor_user_id: user.id,
+        investor_username: username,
+        amount: amount,
+        message: investMessage || null
+      });
+
+      if (investError) {
+        // Refund on failure
+        await supabase.rpc("modify_user_balance", {
+          p_user_id: user.id,
+          p_amount: amount,
+          p_operation: "add"
+        });
+        throw investError;
+      }
+
+      // Record transaction
+      await supabase.from("transactions").insert({
+        user_id: user.id,
+        type: "invest",
+        amount: -amount,
+        description: `Investment in loan: ${loan.title}`,
+        loan_id: loan.id
+      });
+
+      toast({
+        title: "Investment Successful!",
+        description: `You invested M$${amount.toLocaleString()} in this loan.`
+      });
+      
+      setInvestAmount("");
+      setInvestMessage("");
+      fetchLoanData();
+      fetchBalance();
     } catch (error) {
       console.error("Investment error:", error);
       toast({
-        title: "Failed to create transaction",
+        title: "Investment Failed",
         description: error instanceof Error ? error.message : "Failed to process investment",
         variant: "destructive"
       });
@@ -261,120 +309,152 @@ export default function LoanDetail() {
       setIsInvesting(false);
     }
   };
-  return <div className="min-h-screen">
-      <Header />
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        <Link to="/marketplace" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Marketplace
-        </Link>
+  return (
+    <TooltipProvider>
+      <div className="min-h-screen">
+        <Header />
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="glass animate-slide-up">
-              <CardHeader className="pb-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <Badge variant={status.variant} className="mb-2">
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {status.label}
-                    </Badge>
-                    <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">{loan.title}</CardTitle>
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <span>by @{loan.borrower_username}</span>
-                      <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          <Link to="/marketplace" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Marketplace
+          </Link>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="glass animate-slide-up">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant={status.variant}>
+                          <StatusIcon className="w-3 h-3 mr-1" />
+                          {status.label}
+                        </Badge>
+                        {loan.loan_type === 'offer' && (
+                          <Badge variant="secondary">Loan Offer</Badge>
+                        )}
+                        {loan.is_verified && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="outline" className="border-success text-success">
+                                <BadgeCheck className="w-3 h-3 mr-1" />
+                                Verified
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Trustworthy-ish: low-risk, no guarantees</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                      <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">{loan.title}</CardTitle>
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <span>by @{loan.borrower_username}</span>
+                        <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
+                      </div>
                     </div>
                   </div>
-                  
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-muted-foreground leading-relaxed">{loan.description}</p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <p className="text-muted-foreground leading-relaxed">{loan.description}</p>
 
-                {loan.collateral_description && <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
-                    <div className="flex items-center gap-2 text-foreground font-medium mb-2">
-                      <Shield className="w-4 h-4 text-primary" />
-                      Collateral
+                  {loan.collateral_description && (
+                    <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
+                      <div className="flex items-center gap-2 text-foreground font-medium mb-2">
+                        <Shield className="w-4 h-4 text-primary" />
+                        Collateral
+                      </div>
+                      <p className="text-sm text-muted-foreground">{loan.collateral_description}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{loan.collateral_description}</p>
-                  </div>}
+                  )}
 
-                {/* Loan Terms Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-secondary/30 text-center">
-                    
-                    <p className="text-sm text-muted-foreground">Loan Amount</p>
-                    <p className="text-xl font-bold text-foreground">M${loan.amount.toLocaleString()}</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary/30 text-center">
-                    
-                    <p className="text-sm text-muted-foreground">Interest Rate</p>
-                    <p className="text-xl font-bold text-success">{loan.interest_rate}%</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary/30 text-center">
-                    
-                    <p className="text-sm text-muted-foreground">Term Length</p>
-                    <p className="text-xl font-bold text-foreground">{loan.term_days} days</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary/30 text-center">
-                    
-                    <p className="text-sm text-muted-foreground">Investors</p>
-                    <p className="text-xl font-bold text-foreground">{investments.length}</p>
-                  </div>
-                </div>
-
-                {/* Funding Progress */}
-                {loan.status === "seeking_funding" && <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Funding Progress</span>
-                      <span className="font-semibold text-primary">{fundingProgress.toFixed(1)}%</span>
+                  {/* Loan Terms Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-lg bg-secondary/30 text-center">
+                      <p className="text-sm text-muted-foreground">Loan Amount</p>
+                      <p className="text-xl font-bold text-foreground">M${loan.amount.toLocaleString()}</p>
                     </div>
-                    <Progress value={fundingProgress} className="h-3" />
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">M${loan.funded_amount.toLocaleString()} funded</span>
-                      <span className="text-muted-foreground">M${remainingAmount.toLocaleString()} remaining</span>
+                    <div className="p-4 rounded-lg bg-secondary/30 text-center">
+                      <p className="text-sm text-muted-foreground">Interest Rate</p>
+                      <p className="text-xl font-bold text-success">{loan.interest_rate}%</p>
                     </div>
-                  </div>}
-              </CardContent>
-            </Card>
+                    <div className="p-4 rounded-lg bg-secondary/30 text-center">
+                      <p className="text-sm text-muted-foreground">Term Length</p>
+                      <p className="text-xl font-bold text-foreground">{loan.term_days} days</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-secondary/30 text-center">
+                      <p className="text-sm text-muted-foreground">Investors</p>
+                      <p className="text-xl font-bold text-foreground">{investments.length}</p>
+                    </div>
+                  </div>
 
-            {/* Investors List */}
-            <Card className="glass animate-slide-up" style={{
-            animationDelay: "100ms"
-          }}>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Investors ({investments.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {investments.length > 0 ? <div className="space-y-3">
-                    {investments.map(investor => <div key={investor.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                        <div>
-                          <p className="font-medium text-foreground">@{investor.investor_username}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(investor.created_at).toLocaleDateString()}
-                          </p>
+                  {/* Maturity Date Info */}
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                    <p className="text-muted-foreground">
+                      <strong>Maturity Date:</strong> {calculatedMaturityDate.toLocaleDateString()} (after funding period ends)
+                    </p>
+                  </div>
+
+                  {/* Funding Progress */}
+                  {loan.status === "seeking_funding" && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Funding Progress</span>
+                        <span className="font-semibold text-primary">{fundingProgress.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={fundingProgress} className="h-3" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">M${loan.funded_amount.toLocaleString()} funded</span>
+                        <span className="text-muted-foreground">M${remainingAmount.toLocaleString()} remaining</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Investors List */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: "100ms" }}>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Investors ({investments.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {investments.length > 0 ? (
+                    <div className="space-y-3">
+                      {investments.map((investor) => (
+                        <div key={investor.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                          <div>
+                            <p className="font-medium text-foreground">@{investor.investor_username}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(investor.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <p className="font-semibold text-foreground">M${Number(investor.amount).toLocaleString()}</p>
                         </div>
-                        <p className="font-semibold text-foreground">M${Number(investor.amount).toLocaleString()}</p>
-                      </div>)}
-                  </div> : <p className="text-muted-foreground text-center py-8">No investors yet. Be the first!</p>}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">No investors yet. Be the first!</p>
+                  )}
+                </CardContent>
+              </Card>
 
-            {/* Cancel Loan Button - Only show to loan owner */}
-            {currentUserId === loan.borrower_user_id && (loan.status === "seeking_funding" || loan.status === "active") && <Card className="glass border-destructive/30 animate-slide-up" style={{
-            animationDelay: "150ms"
-          }}>
+              {/* Cancel Loan Button - Only show to loan owner */}
+              {currentUserId === loan.borrower_user_id && (loan.status === "seeking_funding" || loan.status === "active") && (
+                <Card className="glass border-destructive/30 animate-slide-up" style={{ animationDelay: "150ms" }}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="font-medium text-foreground">Cancel This Loan</p>
                         <p className="text-sm text-muted-foreground">
-                          {loan.status === "active" ? "Cancelling after funding requires repaying principal + interest to all investors." : "All investors will be refunded their principal immediately."}
+                          {loan.status === "active"
+                            ? "Cancelling after funding requires repaying principal + interest to all investors."
+                            : "All investors will be refunded their principal immediately."}
                         </p>
                       </div>
                       <Button variant="destructive" onClick={handleCancelLoan} disabled={isCancelling}>
@@ -383,84 +463,114 @@ export default function LoanDetail() {
                       </Button>
                     </div>
                   </CardContent>
-                </Card>}
-          </div>
+                </Card>
+              )}
+            </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {loan.status === "seeking_funding" && currentUserId !== loan.borrower_user_id && <Card className="glass animate-slide-up sticky top-24" style={{
-            animationDelay: "150ms"
-          }}>
-                <CardHeader>
-                  <CardTitle className="text-lg">Invest in this Loan</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                    <p className="text-muted-foreground">How it works</p>
-                    <p className="text-foreground text-xs mt-1">
-                      Enter your investment amount and click "Fund This Loan". You'll receive a transaction code to send
-                      mana to @ManiFed on Manifold.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
-                    <Input type="number" placeholder="Enter amount..." value={investAmount} onChange={e => setInvestAmount(e.target.value)} className="bg-secondary/50" />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Min: M$10 | Max: M${remainingAmount.toLocaleString()}
-                    </p>
-                  </div>
-
-                  {investAmount && parseFloat(investAmount) > 0 && <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                      <p className="text-sm text-muted-foreground">Expected Return</p>
-                      <p className="text-lg font-bold text-success">
-                        M$
-                        {(parseFloat(investAmount) * (1 + loan.interest_rate / 100)).toLocaleString(undefined, {
-                    maximumFractionDigits: 0
-                  })}
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {loan.status === "seeking_funding" && currentUserId !== loan.borrower_user_id && (
+                <Card className="glass animate-slide-up sticky top-24" style={{ animationDelay: "150ms" }}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      {loan.loan_type === 'offer' ? 'Accept This Loan Offer' : 'Invest in this Loan'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                      <p className="text-foreground font-medium">Your Balance: M${balance.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Funds are deducted directly from your ManiFed account.
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        +{loan.interest_rate}% in {loan.term_days} days
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
+                      <Input
+                        type="number"
+                        placeholder="Enter amount..."
+                        value={investAmount}
+                        onChange={(e) => setInvestAmount(e.target.value)}
+                        className="bg-secondary/50"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Min: M$10 | Max: M${remainingAmount.toLocaleString()}
                       </p>
-                    </div>}
+                    </div>
 
-                  <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
-                    {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Fund This Loan
-                  </Button>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Message (optional)</p>
+                      <Textarea
+                        placeholder="Leave a note for the borrower..."
+                        value={investMessage}
+                        onChange={(e) => setInvestMessage(e.target.value)}
+                        className="bg-secondary/50"
+                        rows={2}
+                      />
+                    </div>
 
-                  <p className="text-xs text-muted-foreground text-center">
-                    By investing, you agree to the loan terms and understand the associated risks.
-                  </p>
-                </CardContent>
-              </Card>}
+                    {investAmount && parseFloat(investAmount) > 0 && (
+                      <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                        <p className="text-sm text-muted-foreground">Expected Return</p>
+                        <p className="text-lg font-bold text-success">
+                          M$
+                          {(parseFloat(investAmount) * (1 + loan.interest_rate / 100)).toLocaleString(undefined, {
+                            maximumFractionDigits: 0
+                          })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          +{loan.interest_rate}% in {loan.term_days} days (after funding period)
+                        </p>
+                      </div>
+                    )}
 
-            {loan.manifold_market_id && <Card className="glass animate-slide-up" style={{
-            animationDelay: "200ms"
-          }}>
-                <CardContent className="p-4">
-                  <Button variant="outline" className="w-full" asChild>
-                    <a href={`https://manifold.markets/${loan.manifold_market_id}`} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4 mr-2" />
+                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
+                      {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      {loan.loan_type === 'offer' ? 'Accept Offer' : 'Fund This Loan'}
+                    </Button>
+
+                    <p className="text-xs text-muted-foreground text-center">
+                      By investing, you agree to the loan terms and understand the associated risks.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {loan.manifold_market_id && (
+                <Card className="glass animate-slide-up" style={{ animationDelay: "200ms" }}>
+                  <CardContent className="p-4">
+                    <a
+                      href={`https://manifold.markets/market/${loan.manifold_market_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary hover:underline"
+                    >
+                      <ExternalLink className="w-4 h-4" />
                       View on Manifold
                     </a>
-                  </Button>
-                </CardContent>
-              </Card>}
-          </div>
-        </div>
-      </main>
+                  </CardContent>
+                </Card>
+              )}
 
-      {/* Transaction Modal */}
-      <TransactionModal isOpen={showTransactionModal} onClose={() => {
-      setShowTransactionModal(false);
-      setInvestAmount("");
-      setInvestMessage("");
-    }} transactionCode={transactionCode} amount={transactionAmount} expiresAt={transactionExpiresAt} transactionType="loan_funding" onSuccess={() => {
-      setShowTransactionModal(false);
-      setInvestAmount("");
-      setInvestMessage("");
-      fetchLoanData();
-    }} />
-    </div>;
+              {/* Risk Assessment */}
+              <Card className="glass animate-slide-up" style={{ animationDelay: "250ms" }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Risk Assessment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge className={cn("text-sm", risk.className)}>{risk.label}</Badge>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Based on borrower reputation and loan terms.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </main>
+      </div>
+    </TooltipProvider>
+  );
 }

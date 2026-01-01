@@ -717,6 +717,56 @@ export type Database = {
         }
         Relationships: []
       }
+      loan_negotiations: {
+        Row: {
+          created_at: string
+          id: string
+          loan_id: string
+          message: string | null
+          negotiator_user_id: string
+          negotiator_username: string
+          proposed_amount: number
+          proposed_interest_rate: number
+          proposed_term_days: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          loan_id: string
+          message?: string | null
+          negotiator_user_id: string
+          negotiator_username: string
+          proposed_amount: number
+          proposed_interest_rate: number
+          proposed_term_days: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          loan_id?: string
+          message?: string | null
+          negotiator_user_id?: string
+          negotiator_username?: string
+          proposed_amount?: number
+          proposed_interest_rate?: number
+          proposed_term_days?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_negotiations_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loans: {
         Row: {
           amount: number
@@ -731,8 +781,12 @@ export type Database = {
           funding_period_days: number
           id: string
           interest_rate: number
+          is_verified: boolean
+          loan_type: string
           manifold_market_id: string | null
           maturity_date: string | null
+          research_fee_amount: number | null
+          research_fee_paid: boolean
           risk_score: string
           status: string
           term_days: number
@@ -752,8 +806,12 @@ export type Database = {
           funding_period_days?: number
           id?: string
           interest_rate: number
+          is_verified?: boolean
+          loan_type?: string
           manifold_market_id?: string | null
           maturity_date?: string | null
+          research_fee_amount?: number | null
+          research_fee_paid?: boolean
           risk_score?: string
           status?: string
           term_days: number
@@ -773,8 +831,12 @@ export type Database = {
           funding_period_days?: number
           id?: string
           interest_rate?: number
+          is_verified?: boolean
+          loan_type?: string
           manifold_market_id?: string | null
           maturity_date?: string | null
+          research_fee_amount?: number | null
+          research_fee_paid?: boolean
           risk_score?: string
           status?: string
           term_days?: number
