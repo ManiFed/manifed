@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { TransactionModal } from "@/components/TransactionModal";
-import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 const statusConfig = {
   seeking_funding: {
