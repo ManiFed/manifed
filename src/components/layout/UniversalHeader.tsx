@@ -90,7 +90,7 @@ export function UniversalHeader({
   const defaultNavItems: NavItem[] = [
     { path: '/bonds', label: 'Treasury' },
     { path: '/marketplace', label: 'P2P Loans' },
-    { path: '/fintech/menu', label: 'Fintech' },
+    { path: '/fintech/menu', label: 'Private Client' },
   ];
 
   const items = navItems || defaultNavItems;

@@ -125,7 +125,7 @@ export default function Fintech() {
 
       toast({
         title: 'Trial Started!',
-        description: 'Your 7-day free trial is now active. Enjoy ManiFed Fintech!',
+        description: 'Your 7-day free trial is now active. Enjoy Private Client!',
       });
 
       navigate('/fintech/menu');
@@ -244,7 +244,7 @@ export default function Fintech() {
             <div className="text-center mb-12">
               <Sparkles className="w-16 h-16 mx-auto text-accent mb-4" />
               <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
-                ManiFed Fintech
+                Private Client
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Premium AI-powered tools for prediction market traders. Arbitrage scanner, 
@@ -349,7 +349,7 @@ export default function Fintech() {
           // Full access view
           <>
             <div className="mb-8 text-center">
-              <h1 className="font-display text-3xl font-bold text-foreground mb-2">Fintech Tools</h1>
+              <h1 className="font-display text-3xl font-bold text-foreground mb-2">Private Client</h1>
               <p className="font-serif text-muted-foreground">Advanced prediction market analysis and trading tools</p>
               {subscription?.expires_at && (
                 <Badge variant="outline" className="mt-2 font-serif">

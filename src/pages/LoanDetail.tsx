@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { TransactionModal } from "@/components/TransactionModal";
-import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp } from "lucide-react";
+import { useUserBalance } from "@/hooks/useUserBalance";
+import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp, BadgeCheck } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 const statusConfig = {
   seeking_funding: {
@@ -66,6 +67,9 @@ interface Loan {
   collateral_description: string | null;
   manifold_market_id: string | null;
   created_at: string;
+  is_verified?: boolean;
+  loan_type?: string;
+  research_fee_paid?: boolean;
 }
 interface Investment {
   id: string;
@@ -80,20 +84,16 @@ export default function LoanDetail() {
     id: string;
   }>();
   const navigate = useNavigate();
+  const { balance, fetchBalance } = useUserBalance();
   const [investAmount, setInvestAmount] = useState("");
   const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [manifoldUsername, setManifoldUsername] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Transaction modal state
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [transactionCode, setTransactionCode] = useState("");
-  const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
-  const [transactionAmount, setTransactionAmount] = useState(0);
   useEffect(() => {
     fetchLoanData();
     fetchUserSettings();
@@ -123,13 +123,20 @@ export default function LoanDetail() {
   };
   const fetchUserSettings = async () => {
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setCurrentUserId(user.id);
+      
+      // Get Manifold username
+      const { data: settings } = await supabase
+        .from('user_manifold_settings')
+        .select('manifold_username, withdrawal_username')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (settings) {
+        setManifoldUsername(settings.withdrawal_username || settings.manifold_username || null);
+      }
     } catch (error) {
       console.error("Error fetching settings:", error);
     }
@@ -213,47 +220,75 @@ export default function LoanDetail() {
       });
       return;
     }
+    if (balance < amount) {
+      toast({
+        title: "Insufficient balance",
+        description: `You only have M$${balance.toLocaleString()} in your ManiFed account. Deposit more funds first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!manifoldUsername) {
+      toast({
+        title: "Username required",
+        description: "Please set your Manifold username in Settings first.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsInvesting(true);
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create pending transaction
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("create-pending-transaction", {
-        body: {
-          amount: amount,
-          transactionType: "loan_funding",
-          relatedId: loan.id,
-          metadata: {
-            loanTitle: loan.title,
-            borrowerUsername: loan.borrower_username,
-            message: investMessage
-          }
-        }
+      // Deduct from ManiFed balance
+      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: user.id,
+        p_amount: amount,
+        p_operation: 'subtract'
       });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (balanceError) throw balanceError;
 
-      // Show transaction modal with the amount from the API response
-      setTransactionCode(data.transactionCode);
-      setTransactionExpiresAt(data.expiresAt);
-      setTransactionAmount(data.amount);
-      setShowTransactionModal(true);
-      toast({
-        title: "Transaction Created",
-        description: "Follow the instructions to complete your investment."
+      // Create investment record
+      const { error: investError } = await supabase.from('investments').insert({
+        loan_id: loan.id,
+        investor_user_id: user.id,
+        investor_username: manifoldUsername,
+        amount: amount,
+        message: investMessage || null
       });
+      if (investError) {
+        // Refund if investment failed
+        await supabase.rpc('modify_user_balance', {
+          p_user_id: user.id,
+          p_amount: amount,
+          p_operation: 'add'
+        });
+        throw investError;
+      }
+
+      // Record transaction
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'invest',
+        amount: -amount,
+        loan_id: loan.id,
+        description: `Investment in: ${loan.title}`
+      });
+
+      toast({
+        title: "Investment successful!",
+        description: `You've invested M$${amount.toLocaleString()} in this loan.`
+      });
+
+      setInvestAmount("");
+      setInvestMessage("");
+      fetchLoanData();
+      fetchBalance();
     } catch (error) {
       console.error("Investment error:", error);
       toast({
-        title: "Failed to create transaction",
+        title: "Investment failed",
         description: error instanceof Error ? error.message : "Failed to process investment",
         variant: "destructive"
       });
@@ -277,10 +312,30 @@ export default function LoanDetail() {
               <CardHeader className="pb-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-2">
-                    <Badge variant={status.variant} className="mb-2">
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {status.label}
-                    </Badge>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant={status.variant}>
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {status.label}
+                      </Badge>
+                      {loan.loan_type === 'offer' && (
+                        <Badge variant="outline" className="border-accent text-accent">Loan Offer</Badge>
+                      )}
+                      {loan.is_verified && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1">
+                                <BadgeCheck className="w-3 h-3" />
+                                Verified
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Trustworthy-ish: low-risk, no guarantees</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">{loan.title}</CardTitle>
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <span>by @{loan.borrower_username}</span>
@@ -396,11 +451,8 @@ export default function LoanDetail() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                    <p className="text-muted-foreground">How it works</p>
-                    <p className="text-foreground text-xs mt-1">
-                      Enter your investment amount and click "Fund This Loan". You'll receive a transaction code to send
-                      mana to @ManiFed on Manifold.
-                    </p>
+                    <p className="text-muted-foreground">Your ManiFed Balance</p>
+                    <p className="text-lg font-bold text-foreground">M${balance.toLocaleString()}</p>
                   </div>
 
                   <div>
@@ -451,16 +503,5 @@ export default function LoanDetail() {
         </div>
       </main>
 
-      {/* Transaction Modal */}
-      <TransactionModal isOpen={showTransactionModal} onClose={() => {
-      setShowTransactionModal(false);
-      setInvestAmount("");
-      setInvestMessage("");
-    }} transactionCode={transactionCode} amount={transactionAmount} expiresAt={transactionExpiresAt} transactionType="loan_funding" onSuccess={() => {
-      setShowTransactionModal(false);
-      setInvestAmount("");
-      setInvestMessage("");
-      fetchLoanData();
-    }} />
     </div>;
 }

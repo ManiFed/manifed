@@ -37,6 +37,10 @@ interface Loan {
   created_at: string;
   risk_score: string;
   funded_amount: number;
+  is_verified: boolean;
+  research_fee_paid: boolean;
+  research_fee_amount: number | null;
+  loan_type: string;
 }
 
 interface TradingBot {
@@ -561,6 +565,28 @@ export default function TreasuryAdmin() {
       await checkAdminAndFetchData();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to flag loan', variant: 'destructive' });
+    } finally {
+      setProcessingLoan(null);
+    }
+  };
+
+  const handleVerifyLoan = async (loanId: string, verify: boolean) => {
+    setProcessingLoan(loanId);
+    try {
+      const { error } = await supabase
+        .from('loans')
+        .update({ is_verified: verify })
+        .eq('id', loanId);
+
+      if (error) throw error;
+
+      toast({ 
+        title: verify ? 'Loan Verified' : 'Verification Removed', 
+        description: verify ? 'Trustworthy-ish badge added.' : 'Badge removed from loan.'
+      });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update verification', variant: 'destructive' });
     } finally {
       setProcessingLoan(null);
     }
@@ -1353,7 +1379,7 @@ export default function TreasuryAdmin() {
                       <div key={loan.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="font-medium text-foreground truncate">{loan.title}</h3>
                               <Badge variant={loan.status === 'active' ? 'active' : loan.status === 'seeking_funding' ? 'pending' : loan.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                 {loan.status.replace('_', ' ')}
@@ -1361,12 +1387,44 @@ export default function TreasuryAdmin() {
                               <Badge variant={loan.risk_score === 'low' ? 'success' : loan.risk_score === 'high' ? 'destructive' : 'secondary'}>
                                 {loan.risk_score} risk
                               </Badge>
+                              {loan.loan_type === 'offer' && (
+                                <Badge variant="outline">Offer</Badge>
+                              )}
+                              {loan.is_verified && (
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Verified</Badge>
+                              )}
+                              {loan.research_fee_paid && (
+                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                  Fee Paid: M${loan.research_fee_amount || 0}
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">
                               By @{loan.borrower_username} • M${loan.amount.toLocaleString()} • Funded: M${loan.funded_amount.toLocaleString()}
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
+                            {loan.research_fee_paid && !loan.is_verified && (
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => handleVerifyLoan(loan.id, true)} 
+                                disabled={processingLoan === loan.id}
+                              >
+                                {processingLoan === loan.id ? '...' : 'Grant Badge'}
+                              </Button>
+                            )}
+                            {loan.is_verified && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleVerifyLoan(loan.id, false)} 
+                                disabled={processingLoan === loan.id}
+                              >
+                                {processingLoan === loan.id ? '...' : 'Remove Badge'}
+                              </Button>
+                            )}
                             <Button variant="outline" size="sm" onClick={() => handleApproveLoan(loan.id)} disabled={processingLoan === loan.id || loan.risk_score === 'low'}>
                               {processingLoan === loan.id ? '...' : 'Approve'}
                             </Button>
