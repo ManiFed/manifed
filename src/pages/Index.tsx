@@ -19,6 +19,8 @@ interface Loan {
   risk_score: string;
   collateral_description: string | null;
   created_at: string;
+  is_verified?: boolean;
+  loan_type?: string;
 }
 const Index = () => {
   const [activeStatus, setActiveStatus] = useState('all');
@@ -45,10 +47,16 @@ const Index = () => {
     }
   };
   const filteredLoans = useMemo(() => {
-    return loans.filter(loan => {
+    const filtered = loans.filter(loan => {
       const matchesStatus = activeStatus === 'all' || loan.status === activeStatus;
       const matchesSearch = searchQuery === '' || loan.title.toLowerCase().includes(searchQuery.toLowerCase()) || loan.description.toLowerCase().includes(searchQuery.toLowerCase()) || loan.borrower_username.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesStatus && matchesSearch;
+    });
+    // Sort verified loans first
+    return filtered.sort((a, b) => {
+      if (a.is_verified && !b.is_verified) return -1;
+      if (!a.is_verified && b.is_verified) return 1;
+      return 0;
     });
   }, [loans, activeStatus, searchQuery]);
 
