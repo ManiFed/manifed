@@ -250,7 +250,12 @@ export default function LoanDetail() {
         p_amount: amount,
         p_operation: 'subtract'
       });
-      if (balanceError) throw balanceError;
+      if (balanceError) {
+        if (balanceError.message.includes('Insufficient')) {
+          throw new Error("Insufficient balance in your ManiFed account");
+        }
+        throw balanceError;
+      }
 
       // Create investment record
       const { error: investError } = await supabase.from('investments').insert({
@@ -286,6 +291,21 @@ export default function LoanDetail() {
 
       setInvestAmount("");
       setInvestMessage("");
+      
+      // Check if loan is now fully funded
+      const newFundedAmount = loan.funded_amount + amount;
+      if (newFundedAmount >= loan.amount) {
+        toast({
+          title: "Loan Fully Funded!",
+          description: "Processing disbursement to borrower..."
+        });
+        
+        // Trigger auto-funding
+        await supabase.functions.invoke('process-loan-funding', {
+          body: { loanId: loan.id }
+        });
+      }
+      
       fetchLoanData();
       fetchBalance();
     } catch (error) {

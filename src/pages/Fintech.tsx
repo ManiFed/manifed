@@ -220,7 +220,7 @@ export default function Fintech() {
             <Lock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <CardTitle className="font-display">Sign In Required</CardTitle>
             <CardDescription className="font-serif">
-              Please sign in to access ManiFed Fintech tools.
+              Please sign in to access ManiFed Private Client tools.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -404,7 +404,7 @@ export default function Fintech() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="font-display">
-              {subscription?.expires_at ? 'Renew Your Subscription' : 'Subscribe to ManiFed Fintech'}
+              {subscription?.expires_at ? 'Renew Your Subscription' : 'Subscribe to ManiFed Private Client'}
             </DialogTitle>
             <DialogDescription className="font-serif">
               {selectedPlan && (

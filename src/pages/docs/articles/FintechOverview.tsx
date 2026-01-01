@@ -2,7 +2,7 @@ import DocsPage from "../DocsPage";
 import { useOutletContext, Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 
-export default function FintechOverview() {
+export default function PrivateClientOverview() {
   const { isDark } = useOutletContext<{ isDark: boolean }>();
 
   const products = [
@@ -40,7 +40,7 @@ export default function FintechOverview() {
 
   return (
     <DocsPage
-      title="ManiFed Fintech"
+      title="ManiFed Private Client"
       description="Advanced prediction market analysis and trading tools."
       tableOfContents={[
         { id: "overview", label: "Overview" },
@@ -53,8 +53,8 @@ export default function FintechOverview() {
           Overview
         </h2>
         <p className={`mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-          ManiFed Fintech is a suite of professional trading and analysis tools designed for serious 
-          prediction market participants. Access requires a Fintech subscription, which can be 
+          ManiFed Private Client is a suite of professional trading and analysis tools designed for serious 
+          prediction market participants. Access requires a Private Client subscription, which can be 
           purchased with mana.
         </p>
       </section>
@@ -96,15 +96,15 @@ export default function FintechOverview() {
           Subscription
         </h2>
         <p className={`mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-          ManiFed Fintech requires a subscription to access. Subscriptions can be purchased with mana 
-          and provide access to all Fintech tools.
+          ManiFed Private Client requires a subscription to access. Subscriptions can be purchased with mana 
+          and provide access to all Private Client tools.
         </p>
         <Link 
           to="/fintech"
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
             isDark 
-              ? "bg-blue-600 hover:bg-blue-700 text-white" 
-              : "bg-blue-500 hover:bg-blue-600 text-white"
+              ? "bg-amber-600 hover:bg-amber-700 text-white" 
+              : "bg-amber-500 hover:bg-amber-600 text-white"
           }`}
         >
           Subscribe Now

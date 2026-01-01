@@ -20,7 +20,7 @@ interface FintechSubscription {
 const fintechProducts = [{
   id: 'trading-terminal',
   title: 'Trading Terminal',
-  description: "Trade with exceptional speed on real-time markets. ManiFed Fintech's flagship product.",
+  description: "Trade with exceptional speed on real-time markets. ManiFed Private Client's flagship product.",
   path: '/terminal',
   icon: Terminal,
   color: 'text-emerald-500',
@@ -210,7 +210,7 @@ export default function FintechMenu() {
                   </div>
                   <CardTitle className="text-2xl">7-Day Free Trial</CardTitle>
                   <CardDescription>
-                    Get full access to all Fintech tools. No payment required.
+                    Get full access to all Private Client tools. No payment required.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

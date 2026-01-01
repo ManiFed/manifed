@@ -8,7 +8,7 @@ export default function TradingTerminalDocs() {
     <DocsPage
       title="Trading Terminal"
       description="Fast keyboard-driven trading on Manifold Markets."
-      breadcrumb="ManiFed Fintech"
+      breadcrumb="ManiFed Private Client"
       tableOfContents={[
         { id: "overview", label: "Overview" },
         { id: "setup", label: "Setup" },
@@ -24,7 +24,7 @@ export default function TradingTerminalDocs() {
           Overview
         </h2>
         <p className={`mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-          The terminal is one of the best features of ManiFed Fintech! It is very powerful, and knowing how to use it is essential for fast-moving markets.
+          The terminal is one of the best features of ManiFed Private Client! It is very powerful, and knowing how to use it is essential for fast-moving markets.
         </p>
         <p className={`mb-4 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
           This is mainly intended for fast-moving markets that exist within a set timeframe. We would not recommend trading long-term markets in the terminal, but if you want to, suit yourself.

@@ -67,7 +67,7 @@ serve(async (req) => {
       body: JSON.stringify({
         toIds: [manifedUser.id],
         amount: amount,
-        message: `ManiFed Fintech ${planType} subscription`,
+        message: `ManiFed Private Client ${planType} subscription`,
       }),
     });
 

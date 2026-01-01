@@ -397,7 +397,7 @@ export default function TreasuryAdmin() {
 
       if (error) throw error;
 
-      toast({ title: 'Published!', description: 'Opportunity visible to fintech subscribers' });
+      toast({ title: 'Published!', description: 'Opportunity visible to Private Client subscribers' });
       
       // Remove from scanned list
       setScannedOpportunities(prev => prev.filter(o => o.id !== opp.id));
@@ -1016,7 +1016,7 @@ export default function TreasuryAdmin() {
                 <CardHeader>
                   <CardTitle>AI Arbitrage Scanner</CardTitle>
                   <CardDescription>
-                    Scan markets for arbitrage opportunities using AI analysis. Found opportunities can be published for fintech subscribers.
+                    Scan markets for arbitrage opportunities using AI analysis. Found opportunities can be published for Private Client subscribers.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1128,7 +1128,7 @@ export default function TreasuryAdmin() {
                 <CardHeader>
                   <CardTitle>Published Opportunities</CardTitle>
                   <CardDescription>
-                    Manage opportunities visible to fintech subscribers.
+                    Manage opportunities visible to Private Client subscribers.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1684,7 +1684,7 @@ export default function TreasuryAdmin() {
             <Card className="glass">
               <CardHeader>
                 <CardTitle>Subscription Management</CardTitle>
-                <CardDescription>Manage fintech subscriptions and gift codes.</CardDescription>
+                <CardDescription>Manage Private Client subscriptions and gift codes.</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-center py-8">Coming soon...</p>
