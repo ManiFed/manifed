@@ -9,7 +9,7 @@ import { DonationButton } from "@/components/DonationButton";
 import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import manifedLogo from "@/assets/manifed-logo.png";
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, Bell, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from "lucide-react";
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from "lucide-react";
 interface Transaction {
   id: string;
   type: string;
@@ -151,18 +151,13 @@ export default function Hub() {
               </Link>
               <Link to="/fintech/menu">
                 <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  Private Client
+                  Fintech
                 </Button>
               </Link>
             </nav>
 
             <div className="flex items-center gap-3">
-              {notifications.length > 0 && <div className="relative">
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                    {notifications.length}
-                  </span>
-                </div>}
+              {notifications.length > 0}
               <HeaderWallet balance={balance} hasApiKey={hasApiKey} hasWithdrawalUsername={hasWithdrawalUsername} onBalanceChange={fetchBalance} />
               <Link to="/settings">
                 <Button variant="ghost" size="icon">
@@ -276,16 +271,16 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Private Client */}
+            {/* Fintech Tools */}
             <Link to="/fintech/menu" className="group">
-              <Card className="h-full border-border/50 hover:border-amber-500/50 transition-all duration-300 group-hover:shadow-lg">
+              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
                   
-                  <CardTitle className="text-2xl font-bold">Private Client</CardTitle>
+                  <CardTitle className="text-2xl font-bold">ManiFed Fintech</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-6">AI-powered arbitrage, index funds, and advanced orders.</p>
-                  <div className="flex items-center gap-2 text-amber-500 font-medium">
+                  <div className="flex items-center gap-2 text-violet-500 font-medium">
                     Access Tools
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
