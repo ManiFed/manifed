@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.conditional-limit-order]
 verify_jwt = true
+
+[functions.process-loan-funding]
+verify_jwt = false
