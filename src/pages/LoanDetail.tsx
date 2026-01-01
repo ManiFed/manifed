@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserBalance } from "@/hooks/useUserBalance";
-import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Clock, Users, AlertTriangle, CheckCircle, XCircle, Shield, ExternalLink, Loader2, TrendingUp, BadgeCheck, HandshakeIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { NegotiationDialog } from "@/components/loans/NegotiationDialog";
+import { NegotiationsList } from "@/components/loans/NegotiationsList";
 const statusConfig = {
   seeking_funding: {
     label: "Seeking Funding",
@@ -89,11 +90,13 @@ export default function LoanDetail() {
   const [investMessage, setInvestMessage] = useState("");
   const [isInvesting, setIsInvesting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [manifoldUsername, setManifoldUsername] = useState<string | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
   useEffect(() => {
     fetchLoanData();
     fetchUserSettings();
@@ -420,6 +423,19 @@ export default function LoanDetail() {
               </CardContent>
             </Card>
 
+            {/* Negotiations List */}
+            <NegotiationsList 
+              loanId={loan.id} 
+              isOwner={currentUserId === loan.borrower_user_id}
+              onAccept={(negotiation) => {
+                // Could auto-update loan terms here if desired
+                toast({
+                  title: "Proposal Accepted",
+                  description: `You accepted @${negotiation.negotiator_username}'s proposal.`,
+                });
+              }}
+            />
+
             {/* Cancel Loan Button - Only show to loan owner */}
             {currentUserId === loan.borrower_user_id && (loan.status === "seeking_funding" || loan.status === "active") && <Card className="glass border-destructive/30 animate-slide-up" style={{
             animationDelay: "150ms"
@@ -476,9 +492,25 @@ export default function LoanDetail() {
                       </p>
                     </div>}
 
-                  <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
-                    {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Fund This Loan
+                  {loan.loan_type === 'offer' ? (
+                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
+                      {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Accept This Offer
+                    </Button>
+                  ) : (
+                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
+                      {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Fund This Loan
+                    </Button>
+                  )}
+
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2" 
+                    onClick={() => setShowNegotiateDialog(true)}
+                  >
+                    <HandshakeIcon className="w-4 h-4" />
+                    Negotiate Terms
                   </Button>
 
                   <p className="text-xs text-muted-foreground text-center">
@@ -503,5 +535,20 @@ export default function LoanDetail() {
         </div>
       </main>
 
+      {/* Negotiation Dialog */}
+      {loan && (
+        <NegotiationDialog
+          open={showNegotiateDialog}
+          onOpenChange={setShowNegotiateDialog}
+          loan={{
+            id: loan.id,
+            amount: loan.amount,
+            interest_rate: loan.interest_rate,
+            term_days: loan.term_days,
+            title: loan.title,
+          }}
+          onSuccess={fetchLoanData}
+        />
+      )}
     </div>;
 }

@@ -234,7 +234,7 @@ export default function Fintech() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       <UniversalHeader />
 
       <main className="flex-1 container mx-auto px-4 py-8 mt-4">
@@ -242,11 +242,13 @@ export default function Fintech() {
           // Subscription required view
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
-              <Sparkles className="w-16 h-16 mx-auto text-accent mb-4" />
-              <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-4 tracking-tight">
+              <div className="w-20 h-20 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
+                <Sparkles className="w-10 h-10 text-amber-400" />
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight">
                 Private Client
               </h1>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              <p className="text-xl text-neutral-400 max-w-2xl mx-auto leading-relaxed">
                 Premium AI-powered tools for prediction market traders. Arbitrage scanner, 
                 market agent, index funds, and more.
               </p>
@@ -254,24 +256,24 @@ export default function Fintech() {
 
             {/* Free Trial Card */}
             {!hasUsedTrial && (
-              <Card className="glass border-2 border-primary/50 mb-8 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5" />
+              <Card className="border-2 border-amber-500/50 bg-amber-500/5 mb-8 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-amber-600/5" />
                 <CardContent className="p-8 relative">
                   <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
-                      <div className="p-4 rounded-2xl bg-primary/10">
-                        <Gift className="w-10 h-10 text-primary" />
+                      <div className="p-4 rounded-2xl bg-amber-500/20">
+                        <Gift className="w-10 h-10 text-amber-400" />
                       </div>
                       <div>
-                        <h3 className="text-2xl font-bold text-foreground">7-Day Free Trial</h3>
-                        <p className="text-muted-foreground">
+                        <h3 className="text-2xl font-bold text-white">7-Day Free Trial</h3>
+                        <p className="text-neutral-400">
                           Try all premium features free. No payment required.
                         </p>
                       </div>
                     </div>
                     <Button 
                       size="lg" 
-                      className="px-8 gap-2 text-lg"
+                      className="px-8 gap-2 text-lg bg-amber-500 hover:bg-amber-600 text-black"
                       onClick={startFreeTrial}
                       disabled={isStartingTrial}
                     >
@@ -290,36 +292,35 @@ export default function Fintech() {
               {rates.map((rate) => (
                 <Card 
                   key={rate.plan_type} 
-                  className={`glass border-2 transition-all ${
-                    rate.plan_type === 'quarterly' ? 'border-accent' : 'border-transparent'
+                  className={`border-2 transition-all bg-neutral-900/50 ${
+                    rate.plan_type === 'quarterly' ? 'border-amber-500' : 'border-neutral-800'
                   }`}
                 >
                   <CardHeader className="text-center">
-                    <CardTitle className="font-display">{getPlanLabel(rate.plan_type)}</CardTitle>
+                    <CardTitle className="font-display text-white">{getPlanLabel(rate.plan_type)}</CardTitle>
                     <div className="mt-4">
                       {rate.is_on_sale && rate.sale_price ? (
                         <>
-                          <span className="text-muted-foreground line-through text-lg">
+                          <span className="text-neutral-500 line-through text-lg">
                             M${rate.mana_price}
                           </span>
-                          <span className="font-display text-4xl font-bold text-accent ml-2">
+                          <span className="font-display text-4xl font-bold text-amber-400 ml-2">
                             M${rate.sale_price}
                           </span>
                         </>
                       ) : (
-                        <span className="font-display text-4xl font-bold text-foreground">
+                        <span className="font-display text-4xl font-bold text-white">
                           M${rate.mana_price}
                         </span>
                       )}
                     </div>
                     {rate.plan_type === 'quarterly' && (
-                      <Badge className="mt-2 bg-accent text-accent-foreground">Best Value</Badge>
+                      <Badge className="mt-2 bg-amber-500 text-black">Best Value</Badge>
                     )}
                   </CardHeader>
                   <CardContent>
                     <Button 
-                      className="w-full font-serif" 
-                      variant={rate.plan_type === 'quarterly' ? 'default' : 'outline'}
+                      className={`w-full font-serif ${rate.plan_type === 'quarterly' ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700'}`}
                       onClick={() => handleSubscribe(rate.plan_type)}
                     >
                       Subscribe
@@ -329,18 +330,18 @@ export default function Fintech() {
               ))}
             </div>
 
-            <Card className="glass">
+            <Card className="border-neutral-800 bg-neutral-900/50">
               <CardHeader>
-                <CardTitle className="font-display">What's Included</CardTitle>
+                <CardTitle className="font-display text-white">What's Included</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="font-serif space-y-2 text-muted-foreground">
-                  <li>✓ AI Arbitrage Scanner - Find mispriced markets</li>
-                  <li>✓ Market Agent - Ask AI about any market</li>
-                  <li>✓ Index Funds - Batch trades on curated markets</li>
-                  <li>✓ Calibration Tools - Analyze your predictions</li>
-                  <li>✓ Bot Builder - Create custom trading bots</li>
-                  <li>✓ Mispriced Market Scanner</li>
+                <ul className="font-serif space-y-2 text-neutral-400">
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> AI Arbitrage Scanner - Find mispriced markets</li>
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Market Agent - Ask AI about any market</li>
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Index Funds - Batch trades on curated markets</li>
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Calibration Tools - Analyze your predictions</li>
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Bot Builder - Create custom trading bots</li>
+                  <li className="flex items-center gap-2"><span className="text-amber-400">✓</span> Mispriced Market Scanner</li>
                 </ul>
               </CardContent>
             </Card>
