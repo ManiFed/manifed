@@ -113,7 +113,7 @@ export function TransactionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isExpired ? (
@@ -131,7 +131,7 @@ export function TransactionModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 py-2">
           {!isExpired && (
             <>
               {/* Timer */}
@@ -152,42 +152,41 @@ export function TransactionModal({
               </div>
 
               {/* Amount */}
-              <div className="p-4 rounded-lg bg-secondary/50 border border-border/50 space-y-3">
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border/50 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Amount to Send</span>
-                  <Button variant="ghost" size="sm" onClick={handleCopyAmount} className="h-8 gap-1">
+                  <Button variant="ghost" size="sm" onClick={handleCopyAmount} className="h-7 gap-1 text-xs">
                     <Copy className="w-3 h-3" />
                     Copy
                   </Button>
                 </div>
-                <p className="text-3xl font-bold text-primary">M${amount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-primary">M${amount.toLocaleString()}</p>
               </div>
 
               {/* Transaction Code */}
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 space-y-3">
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">Your Transaction Code</span>
+                  <span className="text-sm font-medium text-foreground">Transaction Code</span>
                   <Button 
                     variant={hasCopied ? "default" : "outline"} 
                     size="sm" 
                     onClick={handleCopyCode}
-                    className="h-8 gap-1"
+                    className="h-7 gap-1 text-xs"
                   >
                     {hasCopied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     {hasCopied ? 'Copied!' : 'Copy'}
                   </Button>
                 </div>
-                <p className="text-2xl font-mono font-bold text-primary tracking-wider">{transactionCode}</p>
+                <p className="text-xl font-mono font-bold text-primary tracking-wider">{transactionCode}</p>
               </div>
 
               {/* Instructions */}
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">Instructions:</p>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Go to Manifold Markets</li>
-                  <li>Send M${amount.toLocaleString()} to <span className="font-bold text-primary">@ManiFed</span></li>
-                  <li>Include the code <span className="font-mono font-bold text-primary">{transactionCode}</span> in the message</li>
-                  <li>Click "Verify Payment" below after sending</li>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground text-sm">Instructions:</p>
+                <ol className="list-decimal list-inside space-y-0.5">
+                  <li>Send M${amount.toLocaleString()} to <span className="font-bold text-primary">@ManiFed</span> on Manifold</li>
+                  <li>Include code <span className="font-mono font-bold text-primary">{transactionCode}</span> in message</li>
+                  <li>Click "Verify Payment" below</li>
                 </ol>
               </div>
 
