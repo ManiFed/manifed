@@ -161,7 +161,7 @@ export default function FintechMenu() {
       if (data?.error) throw new Error(data.error);
       toast({
         title: 'Trial Started!',
-        description: 'Enjoy 7 days of free access to ManiFed Fintech.'
+        description: 'Enjoy 7 days of free access to Private Client.'
       });
       setHasAccess(true);
       setHasUsedTrial(true);
@@ -183,16 +183,16 @@ export default function FintechMenu() {
       </div>;
   }
   if (!hasAccess) {
-    return <div className="min-h-screen bg-background flex flex-col">
+    return <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
         <UniversalHeader />
         
         <main className="flex-1 container mx-auto px-4 py-16 max-w-4xl">
           <div className="text-center mb-12 animate-slide-up">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-10 h-10 text-primary" />
+            <div className="w-20 h-20 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-10 h-10 text-amber-400" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">
-              ManiFed Fintech
+              Private Client
             </h1>
             <p className="text-xl text-muted-foreground max-w-xl mx-auto">
               Premium trading tools for prediction market professionals.
@@ -201,11 +201,11 @@ export default function FintechMenu() {
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* Free Trial Card */}
-            {!hasUsedTrial && <Card className="border-primary/50 bg-primary/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            {!hasUsedTrial && <Card className="border-amber-500/50 bg-amber-500/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <CardHeader>
                   <div className="flex items-center gap-2 mb-2">
-                    <Gift className="w-5 h-5 text-primary" />
+                    <Gift className="w-5 h-5 text-amber-400" />
                     <Badge variant="secondary">New User Offer</Badge>
                   </div>
                   <CardTitle className="text-2xl">7-Day Free Trial</CardTitle>
@@ -216,19 +216,19 @@ export default function FintechMenu() {
                 <CardContent>
                   <ul className="space-y-2 mb-6 text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
-                      <Terminal className="w-4 h-4 text-primary" />
+                      <Terminal className="w-4 h-4 text-amber-400" />
                       Trading Terminal with hotkeys
                     </li>
                     <li className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-primary" />
+                      <BarChart3 className="w-4 h-4 text-amber-400" />
                       Index Funds & batch trading
                     </li>
                     <li className="flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" />
+                      <Target className="w-4 h-4 text-amber-400" />
                       AI-verified arbitrage opportunities
                     </li>
                   </ul>
-                  <Button onClick={startFreeTrial} disabled={isStartingTrial} className="w-full gap-2" size="lg">
+                  <Button onClick={startFreeTrial} disabled={isStartingTrial} className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-black" size="lg">
                     {isStartingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
                     Start Free Trial
                   </Button>
@@ -277,7 +277,7 @@ export default function FintechMenu() {
         <Footer />
       </div>;
   }
-  return <div className="min-h-screen bg-background flex flex-col">
+  return <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       <UniversalHeader />
 
       <main className="flex-1 container mx-auto px-4 py-12 max-w-6xl">
@@ -285,7 +285,7 @@ export default function FintechMenu() {
         <div className="mb-16 animate-slide-up">
           <div className="flex items-center gap-3 mb-4">
             <h1 className="text-5xl md:text-6xl font-bold text-foreground tracking-tight">
-              Fintech Tools
+              Private Client
             </h1>
             {isAdmin && <Badge variant="secondary">Admin</Badge>}
           </div>

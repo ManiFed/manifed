@@ -151,7 +151,7 @@ export default function Hub() {
               </Link>
               <Link to="/fintech/menu">
                 <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  Fintech
+                  Private Client
                 </Button>
               </Link>
             </nav>
@@ -276,16 +276,16 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Fintech Tools */}
+            {/* Private Client */}
             <Link to="/fintech/menu" className="group">
-              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+              <Card className="h-full border-border/50 hover:border-amber-500/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
                   
-                  <CardTitle className="text-2xl font-bold">ManiFed Fintech</CardTitle>
+                  <CardTitle className="text-2xl font-bold">Private Client</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-6">AI-powered arbitrage, index funds, and advanced orders.</p>
-                  <div className="flex items-center gap-2 text-violet-500 font-medium">
+                  <div className="flex items-center gap-2 text-amber-500 font-medium">
                     Access Tools
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
