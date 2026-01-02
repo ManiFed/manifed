@@ -26,7 +26,9 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
     setLoading(true);
     try {
       // Fetch markets sorted by 24h volume (most active)
-      const response = await fetch("https://api.manifold.markets/v0/search-markets?limit=10&filter=open");
+      const response = await fetch(
+        "https://api.manifold.markets/v0/search-markets?sort=last-bet-time&limit=10&filter=open",
+      );
       if (response.ok) {
         const data = await response.json();
         const mapped = data.map((m: any) => ({
