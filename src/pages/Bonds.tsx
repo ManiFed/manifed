@@ -4,16 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Landmark, FileText, Clock, TrendingUp, Wallet, ArrowRight, Loader2, AlertCircle, CheckCircle, LogOut, Store } from 'lucide-react';
+import { FileText, Clock, TrendingUp, Wallet, ArrowRight, Loader2, CheckCircle, Store } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { TransactionModal } from '@/components/TransactionModal';
 import { format, addWeeks } from 'date-fns';
+import { UniversalHeader } from '@/components/layout/UniversalHeader';
+import { useUserBalance } from '@/hooks/useUserBalance';
+
 interface BondRate {
   term_weeks: number;
   annual_yield: number;
   monthly_yield: number;
 }
+
 interface Bond {
   id: string;
   bond_code: string;
@@ -26,6 +29,7 @@ interface Bond {
   status: string;
   total_return: number;
 }
+
 const BOND_TERMS = [{
   weeks: 4,
   label: '4 Weeks',
@@ -43,6 +47,7 @@ const BOND_TERMS = [{
   label: '52 Weeks',
   description: '1 Year T-Bill'
 }];
+
 export default function Bonds() {
   const [selectedTerm, setSelectedTerm] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
@@ -51,30 +56,24 @@ export default function Bonds() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  
+  const { balance, fetchBalance } = useUserBalance();
 
-  // Transaction modal state
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [transactionCode, setTransactionCode] = useState("");
-  const [transactionExpiresAt, setTransactionExpiresAt] = useState("");
-  const [transactionAmount, setTransactionAmount] = useState(0);
   useEffect(() => {
     checkAuthAndFetchData();
   }, []);
+
   const checkAuthAndFetchData = async () => {
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
 
       // Fetch bond rates
-      const {
-        data: ratesData
-      } = await supabase.from('bond_rates').select('*').order('term_weeks', {
-        ascending: true
-      });
+      const { data: ratesData } = await supabase
+        .from('bond_rates')
+        .select('*')
+        .order('term_weeks', { ascending: true });
+      
       if (ratesData) {
         const latestRates = BOND_TERMS.map(term => {
           const termRates = ratesData.filter(r => r.term_weeks === term.weeks);
@@ -86,12 +85,14 @@ export default function Bonds() {
         });
         setRates(latestRates);
       }
+
       if (user) {
-        const {
-          data: bondsData
-        } = await supabase.from('bonds').select('*').eq('user_id', user.id).order('created_at', {
-          ascending: false
-        });
+        const { data: bondsData } = await supabase
+          .from('bonds')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
         if (bondsData) {
           setUserBonds(bondsData as Bond[]);
         }
@@ -102,13 +103,25 @@ export default function Bonds() {
       setIsLoading(false);
     }
   };
+
   const handlePurchaseBond = async () => {
     if (!selectedTerm || !amount) return;
+    
     const purchaseAmount = parseFloat(amount);
     if (isNaN(purchaseAmount) || purchaseAmount < 10) {
       toast({
         title: 'Invalid Amount',
         description: 'Minimum bond purchase is M$10',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Check if user has sufficient balance
+    if (purchaseAmount > balance) {
+      toast({
+        title: 'Insufficient Balance',
+        description: `You need M$${purchaseAmount.toLocaleString()} but only have M$${balance.toLocaleString()}. Please deposit funds first.`,
         variant: 'destructive'
       });
       return;
@@ -134,34 +147,29 @@ export default function Bonds() {
       });
       return;
     }
+
     setIsPurchasing(true);
     try {
-      // Create pending transaction for bond purchase
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('create-pending-transaction', {
+      // Use balance-based purchase
+      const { data, error } = await supabase.functions.invoke('purchase-bond-balance', {
         body: {
           amount: purchaseAmount,
-          transactionType: 'bond_purchase',
-          metadata: {
-            termWeeks: selectedTerm,
-            annualYield: selectedRate?.annual_yield || 6
-          }
+          termWeeks: selectedTerm
         }
       });
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Show transaction modal
-      setTransactionCode(data.transactionCode);
-      setTransactionExpiresAt(data.expiresAt);
-      setTransactionAmount(data.amount);
-      setShowTransactionModal(true);
       toast({
-        title: 'Transaction Created',
-        description: 'Follow the instructions to complete your bond purchase.'
+        title: 'Bond Purchased!',
+        description: `Successfully purchased M$${purchaseAmount.toLocaleString()} bond. Code: ${data.bond?.bond_code || 'Assigned'}`,
       });
+
+      // Refresh data
+      setAmount('');
+      setSelectedTerm(null);
+      await Promise.all([checkAuthAndFetchData(), fetchBalance()]);
     } catch (error) {
       console.error('Error purchasing bond:', error);
       toast({
@@ -173,65 +181,23 @@ export default function Bonds() {
       setIsPurchasing(false);
     }
   };
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setIsAuthenticated(false);
-  };
+
   const selectedRate = rates.find(r => r.term_weeks === selectedTerm);
   const purchaseAmount = parseFloat(amount) || 0;
-  const termYears = selectedTerm ? selectedTerm / 52 : 0;
   const monthlyInterest = selectedRate ? purchaseAmount * (selectedRate.annual_yield / 100) / 12 : 0;
   const termMonths = selectedTerm ? selectedTerm / 4 : 0;
   const totalInterest = monthlyInterest * termMonths;
-  const estimatedReturn = purchaseAmount + totalInterest;
 
   // Minimum amount for M$10/month interest at current rate
   const minimumAmount = selectedRate ? Math.ceil(10 * 12 * 100 / selectedRate.annual_yield) : 2000;
-  return <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
-              
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gradient">ManiFed Bonds</h1>
-                
-              </div>
-            </Link>
 
-            <div className="flex items-center gap-3">
-              {isAuthenticated && <Link to="/bond-market">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Store className="w-4 h-4" />
-                    Bond Market
-                  </Button>
-                </Link>}
-              {isAuthenticated ? <>
-                  <Link to="/hub">
-                    <Button variant="ghost" size="sm">Back to Hub</Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </Button>
-                </> : <>
-                  <Link to="/auth">
-                    <Button variant="ghost" size="sm">Sign In</Button>
-                  </Link>
-                  <Link to="/auth?mode=signup">
-                    <Button variant="default" size="sm">Get Started</Button>
-                  </Link>
-                </>}
-            </div>
-          </div>
-        </div>
-      </header>
+  return (
+    <div className="min-h-screen bg-background">
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Hero */}
         <div className="text-center mb-12 animate-slide-up">
-          
           <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
             ManiFed <span className="text-gradient">Treasury Bonds</span>
           </h1>
@@ -239,16 +205,22 @@ export default function Bonds() {
             Earn stable yields on your M$ with our Treasury Bills. Interest paid monthly, principal returned at maturity.
             Currently offering {rates[0]?.annual_yield || 6}% APY. Each bond has a unique tracking code.
           </p>
+          {isAuthenticated && (
+            <p className="text-sm text-primary mt-2">
+              Your Balance: M${balance.toLocaleString()}
+            </p>
+          )}
         </div>
 
-        {isLoading ? <div className="flex items-center justify-center py-20">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div> : <div className="grid lg:grid-cols-3 gap-8">
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
             {/* Bond Selection */}
             <div className="lg:col-span-2 space-y-6">
-              <Card className="glass animate-slide-up" style={{
-            animationDelay: '100ms'
-          }}>
+              <Card className="glass animate-slide-up" style={{ animationDelay: '100ms' }}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-primary" />
@@ -261,9 +233,19 @@ export default function Bonds() {
                 <CardContent>
                   <div className="grid sm:grid-cols-2 gap-4">
                     {BOND_TERMS.map(term => {
-                  const rate = rates.find(r => r.term_weeks === term.weeks);
-                  const isSelected = selectedTerm === term.weeks;
-                  return <button key={term.weeks} onClick={() => setSelectedTerm(term.weeks)} className={`p-4 rounded-lg border-2 text-left transition-all ${isSelected ? 'border-primary bg-primary/10' : 'border-border/50 bg-secondary/30 hover:border-primary/50'}`} disabled={!isAuthenticated}>
+                      const rate = rates.find(r => r.term_weeks === term.weeks);
+                      const isSelected = selectedTerm === term.weeks;
+                      return (
+                        <button
+                          key={term.weeks}
+                          onClick={() => setSelectedTerm(term.weeks)}
+                          className={`p-4 rounded-lg border-2 text-left transition-all ${
+                            isSelected 
+                              ? 'border-primary bg-primary/10' 
+                              : 'border-border/50 bg-secondary/30 hover:border-primary/50'
+                          }`}
+                          disabled={!isAuthenticated}
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-foreground">{term.label}</span>
                             {isSelected && <CheckCircle className="w-5 h-5 text-primary" />}
@@ -275,42 +257,51 @@ export default function Bonds() {
                               ({rate?.monthly_yield || 0.5}% monthly)
                             </span>
                           </div>
-                        </button>;
-                })}
+                        </button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Amount Input */}
-              {isAuthenticated && selectedTerm && <Card className="glass animate-slide-up" style={{
-            animationDelay: '200ms'
-          }}>
+              {isAuthenticated && selectedTerm && (
+                <Card className="glass animate-slide-up" style={{ animationDelay: '200ms' }}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Wallet className="w-5 h-5 text-primary" />
                       Investment Amount
                     </CardTitle>
                     <CardDescription>
-                      Enter the amount you want to invest in this bond.
+                      Purchase directly from your ManiFed balance. Available: M${balance.toLocaleString()}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
-                      <p className="text-muted-foreground">How it works</p>
-                      <p className="text-foreground text-xs mt-1">
-                        Enter your investment amount and click "Purchase Bond". You'll receive a transaction code to send mana to @ManiFed on Manifold.
-                      </p>
-                    </div>
-                    
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">M$</span>
-                      <Input type="number" placeholder="Enter amount..." value={amount} onChange={e => setAmount(e.target.value)} className="pl-10 h-12 text-lg bg-secondary/50" min={minimumAmount} />
+                      <Input
+                        type="number"
+                        placeholder="Enter amount..."
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        className="pl-10 h-12 text-lg bg-secondary/50"
+                        min={minimumAmount}
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Minimum: M${minimumAmount.toLocaleString()} (ensures M$10+/month interest) • No fee
                     </p>
 
-                    {purchaseAmount >= minimumAmount && <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-3">
+                    {purchaseAmount > balance && (
+                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <p className="text-sm text-destructive">
+                          Insufficient balance. You have M${balance.toLocaleString()} available.
+                        </p>
+                      </div>
+                    )}
+
+                    {purchaseAmount >= minimumAmount && purchaseAmount <= balance && (
+                      <div className="p-4 rounded-lg bg-success/10 border border-success/30 space-y-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-muted-foreground">Monthly Interest</p>
@@ -323,74 +314,106 @@ export default function Bonds() {
                         </div>
                         <div className="pt-2 border-t border-success/20">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">Principal returned at maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})</p>
+                            <p className="text-sm text-muted-foreground">
+                              Principal returned at maturity ({format(addWeeks(new Date(), selectedTerm), 'MMM d, yyyy')})
+                            </p>
                             <p className="font-semibold text-foreground">M${purchaseAmount.toFixed(2)}</p>
                           </div>
                         </div>
-                      </div>}
+                      </div>
+                    )}
                     
-                    {purchaseAmount > 0 && purchaseAmount < minimumAmount && <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                    {purchaseAmount > 0 && purchaseAmount < minimumAmount && (
+                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
                         <p className="text-sm text-destructive">
                           Amount must be at least M${minimumAmount.toLocaleString()} to ensure M$10+ monthly interest payment.
                         </p>
-                      </div>}
+                      </div>
+                    )}
 
-                    <Button variant="default" className="w-full gap-2" onClick={handlePurchaseBond} disabled={isPurchasing || purchaseAmount < minimumAmount}>
-                      {isPurchasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                      Purchase Bond
+                    <Button
+                      variant="default"
+                      className="w-full gap-2"
+                      onClick={handlePurchaseBond}
+                      disabled={isPurchasing || purchaseAmount < minimumAmount || purchaseAmount > balance}
+                    >
+                      {isPurchasing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="w-4 h-4" />
+                      )}
+                      Purchase Bond from Balance
                     </Button>
                   </CardContent>
-                </Card>}
+                </Card>
+              )}
             </div>
 
             {/* Sidebar - My Bonds */}
             <div className="space-y-6">
-              {isAuthenticated ? <Card className="glass animate-slide-up" style={{
-            animationDelay: '150ms'
-          }}>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
-                      My Bonds
-                    </CardTitle>
-                    <CardDescription>
-                      Your active Treasury Bill holdings
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {userBonds.length === 0 ? <div className="text-center py-8">
-                        <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-                        <p className="text-sm text-muted-foreground">No bonds yet</p>
-                        <p className="text-xs text-muted-foreground mt-1">Purchase a T-Bill to get started</p>
-                      </div> : <div className="space-y-3">
-                        {userBonds.map(bond => {
-                  const bondMonthlyInterest = bond.amount * (bond.annual_yield / 100) / 12;
-                  return <div key={bond.id} className="p-3 rounded-lg bg-secondary/30">
-                              <div className="flex items-center justify-between mb-1">
-                                <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
-                                  {bond.status}
-                                </Badge>
-                                <span className="text-xs font-mono text-primary">
-                                  {bond.bond_code}
-                                </span>
+              {isAuthenticated ? (
+                <>
+                  <Card className="glass animate-slide-up" style={{ animationDelay: '150ms' }}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-primary" />
+                          My Bonds
+                        </CardTitle>
+                        <Link to="/bond-market">
+                          <Button variant="outline" size="sm" className="gap-1">
+                            <Store className="w-3 h-3" />
+                            Market
+                          </Button>
+                        </Link>
+                      </div>
+                      <CardDescription>
+                        Your active Treasury Bill holdings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {userBonds.length === 0 ? (
+                        <div className="text-center py-8">
+                          <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                          <p className="text-sm text-muted-foreground">No bonds yet</p>
+                          <p className="text-xs text-muted-foreground mt-1">Purchase a T-Bill to get started</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {userBonds.map(bond => {
+                            const bondMonthlyInterest = bond.amount * (bond.annual_yield / 100) / 12;
+                            return (
+                              <div key={bond.id} className="p-3 rounded-lg bg-secondary/30">
+                                <div className="flex items-center justify-between mb-1">
+                                  <Badge variant={bond.status === 'active' ? 'default' : 'secondary'}>
+                                    {bond.status}
+                                  </Badge>
+                                  <span className="text-xs font-mono text-primary">
+                                    {bond.bond_code}
+                                  </span>
+                                </div>
+                                <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {bond.term_weeks}w • {bond.annual_yield}% APY
+                                </p>
+                                {bond.status === 'active' && bond.next_interest_date && (
+                                  <p className="text-xs text-success mt-1">
+                                    Next interest: M${bondMonthlyInterest.toFixed(2)} on {format(new Date(bond.next_interest_date), 'MMM d')}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
+                                </p>
                               </div>
-                              <p className="font-semibold text-foreground">M${bond.amount.toLocaleString()}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {bond.term_weeks}w • {bond.annual_yield}% APY
-                              </p>
-                              {bond.status === 'active' && bond.next_interest_date && <p className="text-xs text-success mt-1">
-                                  Next interest: M${bondMonthlyInterest.toFixed(2)} on {format(new Date(bond.next_interest_date), 'MMM d')}
-                                </p>}
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Matures: {format(new Date(bond.maturity_date), 'MMM d, yyyy')}
-                              </p>
-                            </div>;
-                })}
-                      </div>}
-                  </CardContent>
-                </Card> : <Card className="glass animate-slide-up" style={{
-            animationDelay: '150ms'
-          }}>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card className="glass animate-slide-up" style={{ animationDelay: '150ms' }}>
                   <CardContent className="p-6 text-center">
                     <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground mb-4">Sign in to purchase and manage bonds</p>
@@ -398,21 +421,12 @@ export default function Bonds() {
                       <Button variant="default" size="sm">Sign In</Button>
                     </Link>
                   </CardContent>
-                </Card>}
+                </Card>
+              )}
             </div>
-          </div>}
+          </div>
+        )}
       </main>
-
-      {/* Transaction Modal */}
-      <TransactionModal isOpen={showTransactionModal} onClose={() => {
-      setShowTransactionModal(false);
-      setAmount('');
-      setSelectedTerm(null);
-    }} transactionCode={transactionCode} amount={transactionAmount} expiresAt={transactionExpiresAt} transactionType="bond_purchase" onSuccess={() => {
-      setShowTransactionModal(false);
-      setAmount('');
-      setSelectedTerm(null);
-      checkAuthAndFetchData();
-    }} />
-    </div>;
+    </div>
+  );
 }

@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Sun, Moon, LogOut, ArrowLeft, Palette, Copy, User, Wallet } from "lucide-react";
-import manifedLogo from "@/assets/manifed-logo.png";
+import { Loader2, Sun, Moon, LogOut, Palette, Copy, User, Wallet } from "lucide-react";
+import { UniversalHeader } from "@/components/layout/UniversalHeader";
 
 export default function Settings() {
   const [isFetching, setIsFetching] = useState(true);
@@ -167,33 +167,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/hub" className="flex items-center gap-3">
-              <img src={manifedLogo} alt="ManiFed" className="w-10 h-10 rounded-lg" />
-              <div className="hidden sm:block">
-                <h1 className="font-display text-lg font-bold text-foreground">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Settings</p>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-3">
-              <Link to="/hub">
-                <Button variant="outline" size="sm" className="gap-2 font-serif">
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Hub
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2 font-serif">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-8 animate-slide-up">

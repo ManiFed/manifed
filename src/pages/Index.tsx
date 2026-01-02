@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+import { UniversalHeader } from '@/components/layout/UniversalHeader';
 import { LoanCard } from '@/components/loans/LoanCard';
 import { LoanFilters } from '@/components/loans/LoanFilters';
 import { StatsBar } from '@/components/loans/StatsBar';
@@ -81,7 +81,7 @@ const Index = () => {
     investors: []
   }));
   return <div className="min-h-screen">
-      <Header />
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Hero Section */}
