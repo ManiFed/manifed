@@ -1,24 +1,33 @@
 import DocsPage from "../DocsPage";
 import { useOutletContext } from "react-router-dom";
-
 export default function TradingTerminalDocs() {
-  const { isDark } = useOutletContext<{ isDark: boolean }>();
-
-  return (
-    <DocsPage
-      title="Trading Terminal"
-      description="Fast keyboard-driven trading on Manifold Markets."
-      breadcrumb="ManiFed Private Client"
-      tableOfContents={[
-        { id: "overview", label: "Overview" },
-        { id: "setup", label: "Setup" },
-        { id: "basic-orders", label: "Basic Orders" },
-        { id: "advanced-orders", label: "Advanced Orders" },
-        { id: "relative-limit-hotkeys", label: "Relative Limit Hotkeys" },
-        { id: "mc-markets", label: "MC Markets" },
-        { id: "keyboard-shortcuts", label: "Keyboard Shortcuts" },
-      ]}
-    >
+  const {
+    isDark
+  } = useOutletContext<{
+    isDark: boolean;
+  }>();
+  return <DocsPage title="Trading Terminal" description="Fast keyboard-driven trading on Manifold Markets." breadcrumb="ManiFed Private Client" tableOfContents={[{
+    id: "overview",
+    label: "Overview"
+  }, {
+    id: "setup",
+    label: "Setup"
+  }, {
+    id: "basic-orders",
+    label: "Basic Orders"
+  }, {
+    id: "advanced-orders",
+    label: "Advanced Orders"
+  }, {
+    id: "relative-limit-hotkeys",
+    label: "Relative Limit Hotkeys"
+  }, {
+    id: "mc-markets",
+    label: "MC Markets"
+  }, {
+    id: "keyboard-shortcuts",
+    label: "Keyboard Shortcuts"
+  }]}>
       <section id="overview" className="mb-12">
         <h2 className={`text-xl font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
           Overview
@@ -45,7 +54,7 @@ export default function TradingTerminalDocs() {
         </p>
         <ol className={`list-decimal list-inside space-y-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
           <li>Go to your Manifold account settings</li>
-          <li>Navigate to the API section</li>
+          <li>Navigate to the "Account Settings" section</li>
           <li>Copy your API key</li>
           <li>Paste it into the Terminal when prompted</li>
         </ol>
@@ -232,6 +241,5 @@ export default function TradingTerminalDocs() {
           </div>
         </div>
       </section>
-    </DocsPage>
-  );
+    </DocsPage>;
 }
