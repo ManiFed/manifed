@@ -14,7 +14,7 @@ export const docsStructure = {
     { id: "guides", label: "Guides" },
     { id: "api", label: "API Reference" },
   ],
-  sections: 
+  sections: {
     introduction: [
       {
         title: "Getting Started",
