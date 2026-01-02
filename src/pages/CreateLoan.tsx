@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/layout/Header";
+import { UniversalHeader } from "@/components/layout/UniversalHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -301,7 +301,7 @@ export default function CreateLoan() {
 
   return (
     <div className="min-h-screen">
-      <Header />
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8 animate-slide-up">

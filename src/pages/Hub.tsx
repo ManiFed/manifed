@@ -6,9 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { DonationButton } from "@/components/DonationButton";
-import { HeaderWallet } from "@/components/HeaderWallet";
 import { useUserBalance } from "@/hooks/useUserBalance";
-import manifedLogo from "@/assets/manifed-logo.png";
+import { UniversalHeader } from "@/components/layout/UniversalHeader";
 import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from "lucide-react";
 interface Transaction {
   id: string;
@@ -129,49 +128,7 @@ export default function Hub() {
       </div>;
   }
   return <div className="min-h-screen relative overflow-hidden bg-background">
-      {/* Header - Anthropic/Kalshi style */}
-      <header className="sticky top-4 z-50 mx-4 md:mx-8">
-        <div className="max-w-6xl mx-auto bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
-          <div className="flex items-center justify-between py-3 px-6">
-            <Link to="/hub" className="flex items-center gap-3">
-              <img alt="ManiFed" className="h-12 md:h-16" src="/lovable-uploads/49078672-4abf-4854-9148-af40981e4b6e.png" />
-            </Link>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              <Link to="/bonds">
-                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  Treasury
-                </Button>
-              </Link>
-              <Link to="/marketplace">
-                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  P2P Loans
-                </Button>
-              </Link>
-              <Link to="/fintech/menu">
-                <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                  Fintech
-                </Button>
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              {notifications.length > 0}
-              <HeaderWallet balance={balance} hasApiKey={hasApiKey} hasWithdrawalUsername={hasWithdrawalUsername} onBalanceChange={fetchBalance} />
-              <Link to="/settings">
-                <Button variant="ghost" size="icon">
-                  <Settings className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-12 max-w-6xl relative z-10">
         {/* Welcome - Bold Anthropic style */}

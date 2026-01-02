@@ -212,11 +212,6 @@ export function UniversalHeader({
                   </Link>
                 );
               })}
-              <Link to="/about" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start font-medium">
-                  About
-                </Button>
-              </Link>
               <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start font-medium">
                   Settings

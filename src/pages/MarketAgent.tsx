@@ -6,11 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserBalance } from '@/hooks/useUserBalance';
-import { WalletPopover } from '@/components/WalletPopover';
 import { toast } from '@/hooks/use-toast';
 import trumpPortrait from '@/assets/trump-portrait.png';
-import { ArrowLeft, Settings, LogOut, Loader2, MessageSquare, ExternalLink, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquare, ExternalLink, Send, Trash2 } from 'lucide-react';
+import { UniversalHeader } from '@/components/layout/UniversalHeader';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,9 +30,7 @@ interface MarketData {
 }
 
 export default function MarketAgent() {
-  const { balance, fetchBalance } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
-  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [marketUrl, setMarketUrl] = useState('');
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [isLoadingMarket, setIsLoadingMarket] = useState(false);
@@ -48,12 +45,11 @@ export default function MarketAgent() {
 
       const { data } = await supabase
         .from('user_manifold_settings')
-        .select('manifold_api_key, withdrawal_username')
+        .select('manifold_api_key')
         .eq('user_id', user.id)
         .maybeSingle();
 
       setHasApiKey(!!data?.manifold_api_key);
-      setHasWithdrawalUsername(!!data?.withdrawal_username);
     };
 
     fetchSettings();
@@ -191,42 +187,7 @@ export default function MarketAgent() {
         <img src={trumpPortrait} alt="" className="absolute -left-32 bottom-20 w-[400px] h-auto opacity-[0.04] -rotate-12 scale-x-[-1]" />
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border/50 relative">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/hub" className="flex items-center gap-3">
-              <img
-                alt="ManiFed"
-                src="/lovable-uploads/aba42d1d-db26-419d-8f65-dc8e5c6d2339.png"
-                className="w-10 h-10 rounded-xl object-cover border-primary/50 border-0"
-              />
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gradient">ManiFed</h1>
-                <p className="text-xs text-muted-foreground -mt-0.5">Market Agent</p>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-3">
-              <WalletPopover
-                balance={balance}
-                hasApiKey={hasApiKey}
-                hasWithdrawalUsername={hasWithdrawalUsername}
-                onBalanceChange={fetchBalance}
-              />
-              <Link to="/settings">
-                <Button variant="ghost" size="icon">
-                  <Settings className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
         <Link to="/hub" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6">

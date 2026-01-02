@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Header } from "@/components/layout/Header";
+import { UniversalHeader } from "@/components/layout/UniversalHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -178,7 +178,7 @@ export default function LoanDetail() {
   };
   if (isLoading) {
     return <div className="min-h-screen">
-        <Header />
+        <UniversalHeader />
         <main className="container mx-auto px-4 py-8 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </main>
@@ -186,7 +186,7 @@ export default function LoanDetail() {
   }
   if (!loan) {
     return <div className="min-h-screen">
-        <Header />
+        <UniversalHeader />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold text-foreground mb-4">Loan Not Found</h1>
@@ -282,7 +282,7 @@ export default function LoanDetail() {
     }
   };
   return <div className="min-h-screen">
-      <Header />
+      <UniversalHeader />
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Link to="/marketplace" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
