@@ -13,7 +13,7 @@ import Hub from "./pages/Hub";
 import CreditSearch from "./pages/CreditSearch";
 import CreateLoan from "./pages/CreateLoan";
 import LoanDetail from "./pages/LoanDetail";
-import Portfolio from "./pages/Portfolio";
+import LoanNegotiations from "./pages/LoanNegotiations";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
@@ -22,20 +22,15 @@ import BondMarket from "./pages/BondMarket";
 import TreasuryAdmin from "./pages/TreasuryAdmin";
 import Memecoins from "./pages/Memecoins";
 import Market from "./pages/Market";
-// Arbitrage removed - functionality moved to TreasuryAdmin
 import MarketAgent from "./pages/MarketAgent";
 import CommentMaker from "./pages/CommentMaker";
 import MispricedScanner from "./pages/MispricedScanner";
 import PublicArbitrage from "./pages/PublicArbitrage";
-import TermsOfService from "./pages/TermsOfService";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Fintech from "./pages/Fintech";
 import FintechMenu from "./pages/FintechMenu";
 import FintechIndexFunds from "./pages/FintechIndexFunds";
 import FintechAdvancedOrders from "./pages/FintechAdvancedOrders";
 import FintechCalibration from "./pages/FintechCalibration";
 import FintechBotBuilder from "./pages/FintechBotBuilder";
-import About from "./pages/About";
 import TradingTerminal from "./pages/TradingTerminal";
 import NotFound from "./pages/NotFound";
 import DocsLayout from "./pages/docs/DocsLayout";
@@ -47,7 +42,8 @@ import {
   DepositsWithdrawalsDoc, IndexFundsDoc, AdvancedOrdersDoc, CalibrationDoc,
   BotBuilderDoc, ArbitrageDoc, TreasuryOverviewDoc, BondsDoc, BondMarketDoc,
   MemecoinsDoc, CommentMakerDoc, FirstTradeDoc, LimitOrdersDoc, HotkeysDoc,
-  ArbitrageGuideDoc, CalibrationGuideDoc, ApiOverviewDoc, ApiAuthDoc
+  ArbitrageGuideDoc, CalibrationGuideDoc, ApiOverviewDoc, ApiAuthDoc,
+  TermsOfServiceDoc, AboutDoc
 } from "./pages/docs/articles/PlaceholderDoc";
 
 const queryClient = new QueryClient();
@@ -97,13 +93,14 @@ const App = () => (
           <Route path="/hub" element={<ProtectedRoute><Hub /></ProtectedRoute>} />
           <Route path="/marketplace" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/loan/:id" element={<ProtectedRoute><LoanDetail /></ProtectedRoute>} />
+          <Route path="/loans/negotiations" element={<ProtectedRoute><LoanNegotiations /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreateLoan /></ProtectedRoute>} />
-          <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
           <Route path="/credit-search" element={<CreditSearch />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/bonds" element={<ProtectedRoute><Bonds /></ProtectedRoute>} />
           <Route path="/bond-market" element={<ProtectedRoute><BondMarket /></ProtectedRoute>} />
-          <Route path="/treasury-admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
+          <Route path="/treasury-admin" element={<Navigate to="/admin" replace />} />
           <Route path="/memecoins" element={<Memecoins />} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><Market /></ProtectedRoute>} />
@@ -112,16 +109,24 @@ const App = () => (
           <Route path="/market-agent" element={<ProtectedRoute><MarketAgent /></ProtectedRoute>} />
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/mispriced" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
-          <Route path="/fintech" element={<Navigate to="/fintech/menu" replace />} />
+          {/* Private Client routes - redirect old fintech paths */}
+          <Route path="/fintech" element={<Navigate to="/private-client" replace />} />
+          <Route path="/fintech/menu" element={<Navigate to="/private-client" replace />} />
           <Route path="/fintech/arbitrage" element={<Navigate to="/public-arbitrage" replace />} />
-          <Route path="/fintech/menu" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
-          <Route path="/fintech/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
-          <Route path="/fintech/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
-          <Route path="/fintech/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
-          <Route path="/fintech/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/fintech/index-funds" element={<Navigate to="/private-client/index-funds" replace />} />
+          <Route path="/fintech/advanced-orders" element={<Navigate to="/private-client/advanced-orders" replace />} />
+          <Route path="/fintech/calibration" element={<Navigate to="/private-client/calibration" replace />} />
+          <Route path="/fintech/bot-builder" element={<Navigate to="/private-client/bot-builder" replace />} />
+          {/* New Private Client routes */}
+          <Route path="/private-client" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
+          <Route path="/private-client/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
+          <Route path="/private-client/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
+          <Route path="/private-client/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
+          <Route path="/private-client/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
+          {/* Redirect old pages to docs */}
+          <Route path="/terms" element={<Navigate to="/docs/terms" replace />} />
+          <Route path="/privacy" element={<Navigate to="/docs/privacy" replace />} />
+          <Route path="/about" element={<Navigate to="/docs/about" replace />} />
           <Route path="/terminal" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
           <Route path="/docs" element={<DocsLayout />}>
             <Route index element={<Welcome />} />
@@ -130,7 +135,8 @@ const App = () => (
             <Route path="create-account" element={<CreateAccountDoc />} />
             <Route path="manifold-integration" element={<ManifoldIntegrationDoc />} />
             <Route path="deposits-withdrawals" element={<DepositsWithdrawalsDoc />} />
-            <Route path="fintech" element={<FintechOverview />} />
+            <Route path="private-client" element={<FintechOverview />} />
+            <Route path="fintech" element={<Navigate to="/docs/private-client" replace />} />
             <Route path="trading-terminal" element={<TradingTerminalDocs />} />
             <Route path="index-funds" element={<IndexFundsDoc />} />
             <Route path="advanced-orders" element={<AdvancedOrdersDoc />} />
@@ -149,6 +155,8 @@ const App = () => (
             <Route path="calibration-guide" element={<CalibrationGuideDoc />} />
             <Route path="api" element={<ApiOverviewDoc />} />
             <Route path="api-auth" element={<ApiAuthDoc />} />
+            <Route path="terms" element={<TermsOfServiceDoc />} />
+            <Route path="about" element={<AboutDoc />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

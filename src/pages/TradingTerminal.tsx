@@ -1633,19 +1633,39 @@ function TerminalMain() {
                 ) : (
                   <ScrollArea className="max-h-[200px]">
                     <div className="space-y-3">
-                      {marketComments.slice(0, 10).map((comment: any) => (
-                        <div key={comment.id} className="border-b border-gray-800 pb-2 last:border-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
-                            <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
+                      {marketComments.slice(0, 10).map((comment: any) => {
+                        // Extract plain text from TipTap JSON content
+                        const extractText = (content: any): string => {
+                          if (!content) return "";
+                          if (typeof content === "string") return content;
+                          if (content.text) return content.text;
+                          if (content.content && Array.isArray(content.content)) {
+                            return content.content.map((node: any) => {
+                              if (node.type === "text") return node.text || "";
+                              if (node.type === "paragraph" && node.content) {
+                                return node.content.map((c: any) => c.text || "").join("");
+                              }
+                              if (node.content) return extractText(node);
+                              return "";
+                            }).join(" ");
+                          }
+                          return "";
+                        };
+                        
+                        const commentText = comment.text || extractText(comment.content) || "";
+                        
+                        return (
+                          <div key={comment.id} className="border-b border-gray-800 pb-2 last:border-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
+                              <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
+                            </div>
+                            <div className="text-gray-400 whitespace-pre-wrap">
+                              {commentText}
+                            </div>
                           </div>
-                          <div className="text-gray-400 whitespace-pre-wrap">
-                            {typeof comment.content === 'object' 
-                              ? (comment.text || JSON.stringify(comment.content))
-                              : (comment.content || comment.text || "")}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 )}
