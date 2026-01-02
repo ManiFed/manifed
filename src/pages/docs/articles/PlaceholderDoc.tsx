@@ -105,3 +105,11 @@ export function ApiOverviewDoc() {
 export function ApiAuthDoc() {
   return <PlaceholderDoc title="Authentication" breadcrumb="API Reference" />;
 }
+
+export function TermsOfServiceDoc() {
+  return <PlaceholderDoc title="Terms of Service" breadcrumb="Legal" />;
+}
+
+export function AboutDoc() {
+  return <PlaceholderDoc title="About ManiFed" breadcrumb="About" />;
+}

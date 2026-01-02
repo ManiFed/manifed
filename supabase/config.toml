@@ -68,3 +68,9 @@ verify_jwt = true
 
 [functions.process-loan-funding]
 verify_jwt = false
+
+[functions.invest-in-loan]
+verify_jwt = true
+
+[functions.purchase-bond-balance]
+verify_jwt = true

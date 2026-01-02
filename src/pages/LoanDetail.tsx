@@ -241,68 +241,30 @@ export default function LoanDetail() {
     }
     setIsInvesting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Deduct from ManiFed balance
-      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-        p_user_id: user.id,
-        p_amount: amount,
-        p_operation: 'subtract'
-      });
-      if (balanceError) {
-        if (balanceError.message.includes('Insufficient')) {
-          throw new Error("Insufficient balance in your ManiFed account");
+      const { data, error } = await supabase.functions.invoke('invest-in-loan', {
+        body: {
+          loanId: loan.id,
+          amount: amount,
+          message: investMessage || null,
+          manifoldUsername: manifoldUsername
         }
-        throw balanceError;
-      }
-
-      // Create investment record
-      const { error: investError } = await supabase.from('investments').insert({
-        loan_id: loan.id,
-        investor_user_id: user.id,
-        investor_username: manifoldUsername,
-        amount: amount,
-        message: investMessage || null
       });
-      if (investError) {
-        // Refund if investment failed
-        await supabase.rpc('modify_user_balance', {
-          p_user_id: user.id,
-          p_amount: amount,
-          p_operation: 'add'
-        });
-        throw investError;
-      }
 
-      // Record transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'invest',
-        amount: -amount,
-        loan_id: loan.id,
-        description: `Investment in: ${loan.title}`
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Investment successful!",
-        description: `You've invested M$${amount.toLocaleString()} in this loan.`
+        description: data.message || `You've invested M$${amount.toLocaleString()} in this loan.`
       });
 
       setInvestAmount("");
       setInvestMessage("");
       
-      // Check if loan is now fully funded
-      const newFundedAmount = loan.funded_amount + amount;
-      if (newFundedAmount >= loan.amount) {
+      if (data.isFullyFunded) {
         toast({
           title: "Loan Fully Funded!",
-          description: "Processing disbursement to borrower..."
-        });
-        
-        // Trigger auto-funding
-        await supabase.functions.invoke('process-loan-funding', {
-          body: { loanId: loan.id }
+          description: "Disbursement is being processed."
         });
       }
       

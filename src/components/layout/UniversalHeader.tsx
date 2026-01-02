@@ -90,7 +90,8 @@ export function UniversalHeader({
   const defaultNavItems: NavItem[] = [
     { path: '/bonds', label: 'Treasury' },
     { path: '/marketplace', label: 'P2P Loans' },
-    { path: '/fintech/menu', label: 'Private Client' },
+    { path: '/private-client', label: 'Private Client' },
+    { path: '/docs', label: 'Docs' },
   ];
 
   const items = navItems || defaultNavItems;
@@ -133,11 +134,6 @@ export function UniversalHeader({
                 </Link>
               );
             })}
-            <Link to="/about">
-              <Button variant="ghost" size="sm" className="font-medium tracking-wide">
-                About
-              </Button>
-            </Link>
           </nav>
 
           {/* Right side */}
