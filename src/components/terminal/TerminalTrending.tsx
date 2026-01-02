@@ -26,9 +26,7 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
     setLoading(true);
     try {
       // Fetch markets sorted by 24h volume (most active)
-      const response = await fetch(
-        "https://api.manifold.markets/v0/search-markets?sort=liquidity&limit=10&filter=open"
-      );
+      const response = await fetch("https://api.manifold.markets/v0/search-markets?limit=10&filter=open");
       if (response.ok) {
         const data = await response.json();
         const mapped = data.map((m: any) => ({
@@ -72,7 +70,7 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
           <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
-      
+
       {loading && markets.length === 0 ? (
         <div className="text-gray-500 text-xs text-center py-4">Loading...</div>
       ) : markets.length === 0 ? (
@@ -85,25 +83,17 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
                 key={market.id}
                 onClick={() => onSelectMarket(market)}
                 className={`w-full text-left p-2 rounded text-xs transition-colors ${
-                  activeMarketId === market.id
-                    ? "bg-emerald-900/40 border border-emerald-700"
-                    : "hover:bg-gray-800"
+                  activeMarketId === market.id ? "bg-emerald-900/40 border border-emerald-700" : "hover:bg-gray-800"
                 }`}
               >
                 <div className="flex items-start gap-2">
                   <span className="text-gray-600 font-mono w-4 shrink-0">#{index + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-gray-300 line-clamp-2 leading-tight">
-                      {market.question}
-                    </div>
+                    <div className="text-gray-300 line-clamp-2 leading-tight">{market.question}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-emerald-400 font-mono">
-                        {(market.probability * 100).toFixed(0)}%
-                      </span>
+                      <span className="text-emerald-400 font-mono">{(market.probability * 100).toFixed(0)}%</span>
                       {market.volume24Hours !== undefined && market.volume24Hours > 0 && (
-                        <span className="text-gray-600">
-                          M${Math.round(market.volume24Hours).toLocaleString()}/24h
-                        </span>
+                        <span className="text-gray-600">M${Math.round(market.volume24Hours).toLocaleString()}/24h</span>
                       )}
                     </div>
                   </div>
