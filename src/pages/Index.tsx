@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect  from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { UniversalHeader } from '@/components/layout/UniversalHeader';
 import { LoanCard } from '@/components/loans/LoanCard';
 import { LoanFilters } from '@/components/loans/LoanFilters';
