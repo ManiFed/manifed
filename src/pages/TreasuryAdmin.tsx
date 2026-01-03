@@ -208,6 +208,12 @@ export default function TreasuryAdmin() {
   const [processingStrategy, setProcessingStrategy] = useState<string | null>(null);
   const [newStrategy, setNewStrategy] = useState({ name: '', description: '', codeSnippet: '' });
 
+  // Treasury Management
+  const [wipeUserId, setWipeUserId] = useState('');
+  const [wipingAccount, setWipingAccount] = useState(false);
+  const [testBondId, setTestBondId] = useState('');
+  const [testingBond, setTestingBond] = useState(false);
+
   useEffect(() => {
     checkAdminAndFetchData();
   }, []);
@@ -917,7 +923,112 @@ export default function TreasuryAdmin() {
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
     } finally {
-      setProcessingStrategy(null);
+    setProcessingStrategy(null);
+    }
+  };
+
+  // Treasury Management handlers
+  const handleWipeUserTreasury = async () => {
+    if (!wipeUserId.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a user ID', variant: 'destructive' });
+      return;
+    }
+
+    setWipingAccount(true);
+    try {
+      // Delete all bonds for this user
+      const { error: bondsError } = await supabase
+        .from('bonds')
+        .delete()
+        .eq('user_id', wipeUserId);
+
+      if (bondsError) throw bondsError;
+
+      // Reset user balance to 0
+      const { error: balanceError } = await supabase
+        .from('user_balances')
+        .update({ balance: 0, total_invested: 0, updated_at: new Date().toISOString() })
+        .eq('user_id', wipeUserId);
+
+      if (balanceError) console.error('Balance reset error:', balanceError);
+
+      toast({ title: 'Account Wiped', description: 'All bonds deleted and balance reset.' });
+      setWipeUserId('');
+    } catch (error) {
+      console.error('Wipe error:', error);
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to wipe account', variant: 'destructive' });
+    } finally {
+      setWipingAccount(false);
+    }
+  };
+
+  const handleTestBondLifecycle = async () => {
+    if (!testBondId.trim()) {
+      toast({ title: 'Invalid', description: 'Enter a bond ID', variant: 'destructive' });
+      return;
+    }
+
+    setTestingBond(true);
+    try {
+      // Get the bond
+      const { data: bond, error: fetchError } = await supabase
+        .from('bonds')
+        .select('*')
+        .eq('id', testBondId)
+        .single();
+
+      if (fetchError || !bond) {
+        throw new Error('Bond not found');
+      }
+
+      // Calculate interest
+      const monthlyInterest = bond.amount * (bond.annual_yield / 100) / 12;
+
+      // Credit interest to user balance
+      const { error: balanceError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: bond.user_id,
+        p_amount: monthlyInterest,
+        p_operation: 'add'
+      });
+
+      if (balanceError) throw balanceError;
+
+      // Record interest payment
+      await supabase.from('bond_interest_payments').insert({
+        bond_id: bond.id,
+        user_id: bond.user_id,
+        amount: monthlyInterest,
+        payment_date: new Date().toISOString(),
+      });
+
+      // Now mature the bond - return principal
+      const { error: principalError } = await supabase.rpc('modify_user_balance', {
+        p_user_id: bond.user_id,
+        p_amount: bond.amount,
+        p_operation: 'add'
+      });
+
+      if (principalError) throw principalError;
+
+      // Mark bond as matured
+      const { error: updateError } = await supabase
+        .from('bonds')
+        .update({ status: 'matured', updated_at: new Date().toISOString() })
+        .eq('id', testBondId);
+
+      if (updateError) throw updateError;
+
+      toast({ 
+        title: 'Bond Lifecycle Complete', 
+        description: `Paid M$${monthlyInterest.toFixed(2)} interest + M$${bond.amount} principal to user.` 
+      });
+      setTestBondId('');
+      await checkAdminAndFetchData();
+    } catch (error) {
+      console.error('Test bond error:', error);
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to test bond', variant: 'destructive' });
+    } finally {
+      setTestingBond(false);
     }
   };
 
@@ -969,10 +1080,14 @@ export default function TreasuryAdmin() {
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <Tabs defaultValue="arbitrage" className="space-y-6">
-          <TabsList className="grid grid-cols-5 sm:grid-cols-9 w-full">
+          <TabsList className="grid grid-cols-5 sm:grid-cols-10 w-full">
             <TabsTrigger value="arbitrage">
               <span className="hidden sm:inline">Arbitrage</span>
               <span className="sm:hidden">Arb</span>
+            </TabsTrigger>
+            <TabsTrigger value="treasury">
+              <span className="hidden sm:inline">Treasury</span>
+              <span className="sm:hidden">T</span>
             </TabsTrigger>
             <TabsTrigger value="rates">
               <span className="hidden sm:inline">Rates</span>
@@ -1243,6 +1358,67 @@ export default function TreasuryAdmin() {
                       ))
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Treasury Management Tab */}
+          <TabsContent value="treasury">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>Wipe User Treasury Account</CardTitle>
+                  <CardDescription>
+                    Delete all bonds and reset balance to 0 for a user. This is irreversible.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>User ID (UUID)</Label>
+                    <Input
+                      placeholder="Enter user UUID..."
+                      value={wipeUserId}
+                      onChange={(e) => setWipeUserId(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleWipeUserTreasury}
+                    disabled={wipingAccount || !wipeUserId.trim()}
+                    className="w-full"
+                  >
+                    {wipingAccount ? 'Wiping...' : 'Wipe Treasury Account'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle>Test Bond Lifecycle</CardTitle>
+                  <CardDescription>
+                    Simulate full bond lifecycle: pay interest and return principal immediately for testing.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Bond ID (UUID)</Label>
+                    <Input
+                      placeholder="Enter bond UUID..."
+                      value={testBondId}
+                      onChange={(e) => setTestBondId(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleTestBondLifecycle}
+                    disabled={testingBond || !testBondId.trim()}
+                    className="w-full"
+                  >
+                    {testingBond ? 'Processing...' : 'Run Full Lifecycle (Interest + Mature)'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    This will pay one month's interest + full principal to the user's balance and mark the bond as matured.
+                  </p>
                 </CardContent>
               </Card>
             </div>

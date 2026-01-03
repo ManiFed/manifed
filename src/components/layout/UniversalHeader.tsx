@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { HeaderWallet } from '@/components/HeaderWallet';
 import { useUserBalance } from '@/hooks/useUserBalance';
+import { DonationButton } from '@/components/DonationButton';
 import manifedLogo from '@/assets/manifed-logo-new.png';
 
 interface NavItem {
@@ -90,7 +91,7 @@ export function UniversalHeader({
   const defaultNavItems: NavItem[] = [
     { path: '/bonds', label: 'Treasury' },
     { path: '/marketplace', label: 'P2P Loans' },
-    { path: '/private-client', label: 'Private Client' },
+    { path: '/client', label: 'Client' },
     { path: '/docs', label: 'Docs' },
   ];
 
@@ -138,6 +139,7 @@ export function UniversalHeader({
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <DonationButton />
             {isAuthenticated ? (
               <>
                 <div className="hidden sm:block">

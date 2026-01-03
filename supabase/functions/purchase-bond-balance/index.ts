@@ -109,8 +109,16 @@ serve(async (req) => {
     const maturityDate = new Date(now);
     maturityDate.setDate(maturityDate.getDate() + termWeeks * 7);
 
+    // For 4-week bonds, interest is paid at maturity (not monthly)
+    // For longer bonds, interest is paid monthly
     const nextInterestDate = new Date(now);
-    nextInterestDate.setMonth(nextInterestDate.getMonth() + 1);
+    if (termWeeks === 4) {
+      // 4-week bond: interest paid at maturity only
+      nextInterestDate.setTime(maturityDate.getTime());
+    } else {
+      // Other bonds: monthly interest payments
+      nextInterestDate.setMonth(nextInterestDate.getMonth() + 1);
+    }
 
     // Calculate total return
     const termMonths = termWeeks / 4;

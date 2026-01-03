@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface OrderLevel {
   price: number;
@@ -23,6 +22,9 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
   const [liquidity, setLiquidity] = useState<number>(0);
   const [spread, setSpread] = useState<number | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const centerLineRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledRef = useRef(false);
 
   useEffect(() => {
     if (marketId) {
@@ -147,6 +149,23 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
     1
   );
 
+  // Scroll to center when order book loads
+  useLayoutEffect(() => {
+    if (!hasScrolledRef.current && centerLineRef.current && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const centerLine = centerLineRef.current;
+      const containerHeight = container.clientHeight;
+      const centerLineOffsetTop = centerLine.offsetTop;
+      container.scrollTop = centerLineOffsetTop - containerHeight / 2 + centerLine.clientHeight / 2;
+      hasScrolledRef.current = true;
+    }
+  }, [orderLevels]);
+
+  // Reset scroll flag when market changes
+  useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [marketId, answerId]);
+
   return (
     <Card className="bg-gray-900/50 border-gray-800 p-3">
       <div className="flex items-center justify-between mb-3">
@@ -170,7 +189,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           No pending limit orders
         </div>
       ) : (
-        <ScrollArea className="h-[200px]">
+        <div ref={scrollContainerRef} className="h-[200px] overflow-y-auto">
           <div className="space-y-1 pr-2">
             {/* Asks - show in reverse so lowest ask is closest to spread */}
             {orderLevels.asks.slice().reverse().map((level, i) => (
@@ -196,7 +215,10 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
             ))}
             
             {/* Current price line with spread - SOLID BACKGROUND */}
-            <div className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 sticky top-0 bg-gray-900 z-10">
+            <div 
+              ref={centerLineRef}
+              className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 bg-gray-900"
+            >
               <span className="text-sm font-bold text-emerald-400 font-mono">
                 {(currentProbability * 100).toFixed(1)}%
               </span>
@@ -230,7 +252,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
     </Card>
   );

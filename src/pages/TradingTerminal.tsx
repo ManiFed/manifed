@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -82,9 +82,9 @@ function TerminalLanding({
             <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
             <span className="text-xl font-bold text-emerald-400 font-mono">ManiFed Terminal</span>
           </div>
-          <Link to="/fintech/menu">
+          <Link to="/client">
             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
-              ← Back to Fintech
+              ← Back to Client
             </Button>
           </Link>
         </div>
@@ -313,7 +313,7 @@ function MediaPanel({
 // Main terminal component
 
 // Main terminal component
-function TerminalMain() {
+function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}) {
   const [apiKey, setApiKey] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -332,6 +332,8 @@ function TerminalMain() {
   const [selectedMcIndex, setSelectedMcIndex] = useState<number>(0);
   const [showEditMode, setShowEditMode] = useState(false);
   const [conditionalOrders, setConditionalOrders] = useState<any[]>([]);
+  const [hotkeyMode, setHotkeyMode] = useState(false); // When true, command line not focused, hotkeys work globally
+  const [quickLimitAmount, setQuickLimitAmount] = useState<number>(100); // Preset amount for CMD+F and SHIFT+F shortcuts
   const {
     panels,
     saveLayout,
@@ -358,6 +360,47 @@ function TerminalMain() {
       setYoutubeInput(savedYoutube);
     }
   }, []);
+
+  // Load market from URL slug if provided
+  useEffect(() => {
+    if (initialMarketSlug && apiKey) {
+      const loadMarketFromSlug = async () => {
+        try {
+          // Try to find market by slug
+          const response = await fetch(`https://api.manifold.markets/v0/slug/${initialMarketSlug}`);
+          if (response.ok) {
+            const market = await response.json();
+            if (market && !market.isResolved) {
+              setActiveMarket({
+                id: market.id,
+                question: market.question,
+                probability: market.probability,
+                url: market.url,
+                outcomeType: market.outcomeType,
+                isResolved: market.isResolved,
+                answers: market.answers
+              });
+              
+              // Set up MC options if applicable
+              if (market.outcomeType === "MULTIPLE_CHOICE" && market.answers) {
+                const options = market.answers.map((a: any, i: number) => ({
+                  index: i + 1,
+                  id: a.id,
+                  text: a.text,
+                  probability: a.probability ?? 0
+                }));
+                setMcOptions(options);
+                setSelectedMcIndex(1);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load market from slug:", err);
+        }
+      };
+      loadMarketFromSlug();
+    }
+  }, [initialMarketSlug, apiKey]);
 
   // Save hotkeys to localStorage
   useEffect(() => {
@@ -1031,18 +1074,51 @@ function TerminalMain() {
         return;
       }
 
+      // CMD/CTRL+F+[0-9]: Limit order at X% ABOVE current market price
+      // SHIFT+F+[0-9]: Limit order at X% BELOW current market price  
+      if (e.key >= "0" && e.key <= "9" && activeMarket && apiKey) {
+        const digit = parseInt(e.key);
+        const currentProb = mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] 
+          ? Math.round(mcOptions[selectedMcIndex - 1].probability * 100) 
+          : Math.round(activeMarket.probability * 100);
+        const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+        
+        // CMD/CTRL+F+digit: limit order above current price (digit = how many % above)
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+          const targetPrice = Math.min(99, currentProb + digit);
+          e.preventDefault();
+          e.stopPropagation();
+          executeTrade("YES", quickLimitAmount, targetPrice, undefined, answerId);
+          addLog(`Quick Limit`, true, `YES limit M$${quickLimitAmount} @${targetPrice}% (+${digit}%)`);
+          return;
+        }
+        
+        // SHIFT+digit: limit order below current price (digit = how many % below)
+        if (e.shiftKey && !e.metaKey && !e.ctrlKey) {
+          const target = e.target as HTMLElement;
+          if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+          
+          const targetPrice = Math.max(1, currentProb - digit);
+          e.preventDefault();
+          e.stopPropagation();
+          executeTrade("YES", quickLimitAmount, targetPrice, undefined, answerId);
+          addLog(`Quick Limit`, true, `YES limit M$${quickLimitAmount} @${targetPrice}% (-${digit}%)`);
+          return;
+        }
+      }
+
       // Ignore if typing in input (except for arrow navigation in command input)
       const target = e.target as HTMLElement;
       const isCommandInput = target === commandInputRef.current;
 
-      // MC option navigation with arrow keys or w/s (works even in command input if empty)
+      // MC option navigation with arrow keys ONLY (removed w/s)
       if (mcOptions.length > 0 && activeMarket) {
-        const isNavKey = e.key === "ArrowUp" || e.key === "ArrowDown" || e.key.toLowerCase() === "w" || e.key.toLowerCase() === "s";
+        const isNavKey = e.key === "ArrowUp" || e.key === "ArrowDown";
 
         // Only handle nav in input if command is empty
         if (isNavKey && (!isCommandInput || commandInput.trim() === "")) {
           e.preventDefault();
-          const goUp = e.key === "ArrowUp" || e.key.toLowerCase() === "w";
+          const goUp = e.key === "ArrowUp";
           setSelectedMcIndex(prev => {
             if (goUp) {
               return prev > 1 ? prev - 1 : mcOptions.length;
@@ -1084,7 +1160,7 @@ function TerminalMain() {
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [hotkeys, activeMarket, apiKey, sellAllPositions, mcOptions, selectedMcIndex, commandInput]);
+  }, [hotkeys, activeMarket, apiKey, sellAllPositions, mcOptions, selectedMcIndex, commandInput, quickLimitAmount, addLog]);
   const addHotkey = () => {
     const newHotkey: Hotkey = {
       id: crypto.randomUUID(),
@@ -1224,11 +1300,25 @@ function TerminalMain() {
             <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Button 
+              variant={hotkeyMode ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => {
+                setHotkeyMode(!hotkeyMode);
+                if (!hotkeyMode) {
+                  // Blur command input when entering hotkey mode
+                  commandInputRef.current?.blur();
+                }
+              }}
+              className={`gap-2 ${hotkeyMode ? 'bg-purple-600 hover:bg-purple-700' : 'border-gray-700'}`}
+            >
+              ⌨ {hotkeyMode ? "Hotkey Mode" : "Hotkeys"}
+            </Button>
             <div className="flex items-center gap-2">
               <Switch checked={autoExecute} onCheckedChange={setAutoExecute} className="data-[state=checked]:bg-emerald-600" />
               <Label className="text-sm text-gray-400">{autoExecute ? "⚡ Auto" : "Auto"}</Label>
             </div>
-            <Link to="/fintech/menu">
+            <Link to="/client">
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
                 ← Exit
               </Button>
@@ -1662,9 +1752,9 @@ function MobileBlockScreen() {
           The Trading Terminal requires a keyboard and larger screen for the best experience. Please access this page
           from a desktop or laptop computer.
         </p>
-        <Link to="/fintech/menu">
+        <Link to="/client">
           <Button variant="outline" className="mt-4 border-gray-700">
-            ← Back to Fintech Menu
+            ← Back to Client Menu
           </Button>
         </Link>
       </div>
@@ -1675,11 +1765,18 @@ function MobileBlockScreen() {
 export default function TradingTerminal() {
   const [showTerminal, setShowTerminal] = useState(false);
   const isMobile = useIsMobile();
+  const { creatorUsername, marketSlug } = useParams<{ creatorUsername?: string; marketSlug?: string }>();
 
   // Block mobile users
   if (isMobile) {
     return <MobileBlockScreen />;
   }
+  
+  // If URL has market slug, skip landing page
+  if (creatorUsername && marketSlug) {
+    return <TerminalMain initialMarketSlug={`${creatorUsername}/${marketSlug}`} />;
+  }
+  
   if (!showTerminal) {
     return <TerminalLanding onEnter={() => setShowTerminal(true)} />;
   }

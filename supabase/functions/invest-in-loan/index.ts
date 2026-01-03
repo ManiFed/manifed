@@ -118,12 +118,12 @@ serve(async (req) => {
       description: `Investment in: ${loan.title}`,
     });
 
-    // Check if loan is now fully funded
+    // Check if loan is now fully funded - disburse immediately even if funding period hasn't ended
     const newFundedAmount = loan.funded_amount + amount;
     if (newFundedAmount >= loan.amount) {
-      console.log("Loan fully funded, triggering disbursement...");
+      console.log("Loan fully funded, triggering immediate disbursement...");
       
-      // Invoke the process-loan-funding function
+      // Invoke the process-loan-funding function immediately
       const { error: fundingError } = await supabase.functions.invoke("process-loan-funding", {
         body: { loanId: loanId },
       });
@@ -131,6 +131,8 @@ serve(async (req) => {
       if (fundingError) {
         console.error("Funding processing error:", fundingError);
         // Don't throw - investment was successful, just log the error
+      } else {
+        console.log("Loan disbursed early - fully funded before deadline");
       }
     }
 
