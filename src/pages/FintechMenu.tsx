@@ -20,7 +20,7 @@ interface FintechSubscription {
 const fintechProducts = [{
   id: 'trading-terminal',
   title: 'Trading Terminal',
-  description: "Trade with exceptional speed on real-time markets. ManiFed Private Client's flagship product.",
+  description: "Trade with exceptional speed on real-time markets. ManiFed Client's flagship product.",
   path: '/terminal',
   icon: Terminal,
   color: 'text-emerald-500',
@@ -97,7 +97,7 @@ export default function FintechMenu() {
         }
       } = await supabase.auth.getUser();
       if (!user) {
-        navigate('/auth?redirect=/fintech');
+        navigate('/auth?redirect=/client');
         return;
       }
 
@@ -161,7 +161,7 @@ export default function FintechMenu() {
       if (data?.error) throw new Error(data.error);
       toast({
         title: 'Trial Started!',
-        description: 'Enjoy 7 days of free access to Private Client.'
+        description: 'Enjoy 7 days of free access to Client tools.'
       });
       setHasAccess(true);
       setHasUsedTrial(true);
@@ -192,7 +192,7 @@ export default function FintechMenu() {
               <Sparkles className="w-10 h-10 text-amber-400" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">
-              Private Client
+              Client
             </h1>
             <p className="text-xl text-muted-foreground max-w-xl mx-auto">
               Premium trading tools for prediction market professionals.
@@ -210,7 +210,7 @@ export default function FintechMenu() {
                   </div>
                   <CardTitle className="text-2xl">7-Day Free Trial</CardTitle>
                   <CardDescription>
-                    Get full access to all Private Client tools. No payment required.
+                    Get full access to all Client tools. No payment required.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -285,7 +285,7 @@ export default function FintechMenu() {
         <div className="mb-16 animate-slide-up">
           <div className="flex items-center gap-3 mb-4">
             <h1 className="text-5xl md:text-6xl font-bold text-foreground tracking-tight">
-              Private Client
+              Client
             </h1>
             {isAdmin && <Badge variant="secondary">Admin</Badge>}
           </div>

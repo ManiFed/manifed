@@ -81,7 +81,7 @@ export default function TerminalLiveTrades({
             return {
               id: bet.id,
               createdTime: bet.createdTime,
-              userName: bet.userName || bet.userUsername || "Unknown",
+              userName: bet.userUsername || bet.userName || "Unknown",
               userId: bet.userId,
               amount: Math.abs(bet.amount),
               outcome: bet.outcome,

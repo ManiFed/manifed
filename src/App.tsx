@@ -110,19 +110,27 @@ const App = () => (
           <Route path="/comment-maker" element={<ProtectedRoute><CommentMaker /></ProtectedRoute>} />
           <Route path="/mispriced" element={<ProtectedRoute><MispricedScanner /></ProtectedRoute>} />
           {/* Private Client routes - redirect old fintech paths */}
-          <Route path="/fintech" element={<Navigate to="/private-client" replace />} />
-          <Route path="/fintech/menu" element={<Navigate to="/private-client" replace />} />
+          <Route path="/fintech" element={<Navigate to="/client" replace />} />
+          <Route path="/fintech/menu" element={<Navigate to="/client" replace />} />
           <Route path="/fintech/arbitrage" element={<Navigate to="/public-arbitrage" replace />} />
-          <Route path="/fintech/index-funds" element={<Navigate to="/private-client/index-funds" replace />} />
-          <Route path="/fintech/advanced-orders" element={<Navigate to="/private-client/advanced-orders" replace />} />
-          <Route path="/fintech/calibration" element={<Navigate to="/private-client/calibration" replace />} />
-          <Route path="/fintech/bot-builder" element={<Navigate to="/private-client/bot-builder" replace />} />
-          {/* New Private Client routes */}
-          <Route path="/private-client" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
-          <Route path="/private-client/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
-          <Route path="/private-client/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
-          <Route path="/private-client/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
-          <Route path="/private-client/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
+          <Route path="/fintech/index-funds" element={<Navigate to="/client/index-funds" replace />} />
+          <Route path="/fintech/advanced-orders" element={<Navigate to="/client/advanced-orders" replace />} />
+          <Route path="/fintech/calibration" element={<Navigate to="/client/calibration" replace />} />
+          <Route path="/fintech/bot-builder" element={<Navigate to="/client/bot-builder" replace />} />
+          {/* Redirect old private-client paths to new client paths */}
+          <Route path="/private-client" element={<Navigate to="/client" replace />} />
+          <Route path="/private-client/index-funds" element={<Navigate to="/client/index-funds" replace />} />
+          <Route path="/private-client/advanced-orders" element={<Navigate to="/client/advanced-orders" replace />} />
+          <Route path="/private-client/calibration" element={<Navigate to="/client/calibration" replace />} />
+          <Route path="/private-client/bot-builder" element={<Navigate to="/client/bot-builder" replace />} />
+          {/* New Client routes */}
+          <Route path="/client" element={<ProtectedRoute><FintechMenu /></ProtectedRoute>} />
+          <Route path="/client/index-funds" element={<ProtectedRoute><FintechIndexFunds /></ProtectedRoute>} />
+          <Route path="/client/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
+          <Route path="/client/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
+          <Route path="/client/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
+          {/* Market slug routing for terminal */}
+          <Route path="/:creatorUsername/:marketSlug" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
           {/* Redirect old pages to docs */}
           <Route path="/terms" element={<Navigate to="/docs/terms" replace />} />
           <Route path="/privacy" element={<Navigate to="/docs/privacy" replace />} />

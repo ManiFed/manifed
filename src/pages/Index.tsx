@@ -23,7 +23,7 @@ interface Loan {
   loan_type?: string;
 }
 const Index = () => {
-  const [activeStatus, setActiveStatus] = useState('all');
+  const [activeStatus, setActiveStatus] = useState('seeking_funding');
   const [searchQuery, setSearchQuery] = useState('');
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
