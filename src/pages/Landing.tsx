@@ -249,10 +249,10 @@ export default function Landing() {
       free: true,
     },
     {
-      title: "ManiFed Fintech",
+      title: "Client",
       description: "Premium tools: Trading Terminal, Index Funds, Arbitrage Opportunities, and more.",
       icon: Sparkles,
-      link: "/fintech/menu",
+      link: "/client",
       free: false,
     },
   ];
@@ -278,9 +278,9 @@ export default function Landing() {
                   P2P Loans
                 </Button>
               </Link>
-              <Link to="/auth?redirect=/fintech/menu">
+              <Link to="/auth?redirect=/client">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  Private Client
+                  Client
                 </Button>
               </Link>
               <Link to="/about">
@@ -321,9 +321,9 @@ export default function Landing() {
                 P2P Loans
               </Button>
             </Link>
-            <Link to="/fintech">
+            <Link to="/client">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
-                Fintech
+                Client
               </Button>
             </Link>
             <Link to="/about">
