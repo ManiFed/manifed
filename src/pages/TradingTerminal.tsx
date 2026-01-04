@@ -1291,35 +1291,34 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
     return null;
   }, [commandInput, activeMarket, autoExecute, mcOptions, selectedMcIndex, liquidity]);
   const priceImpact = getPriceImpactPreview();
-  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 pb-16 font-mono overflow-y-auto">
+  return <div className="min-h-screen bg-[#0a0e14] text-gray-100 p-4 pb-16 font-mono overflow-y-auto">
       <div className="max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+        <div className="flex items-center justify-between border-b border-[#1e2736] pb-4">
           <div className="flex items-center gap-3">
             <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
-            <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
+            <h1 className="text-xl font-bold text-white">ManiFed Terminal</h1>
           </div>
           <div className="flex items-center gap-4">
             <Button 
-              variant={hotkeyMode ? "default" : "outline"} 
+              variant={hotkeyMode ? "default" : "ghost"} 
               size="sm" 
               onClick={() => {
                 setHotkeyMode(!hotkeyMode);
                 if (!hotkeyMode) {
-                  // Blur command input when entering hotkey mode
                   commandInputRef.current?.blur();
                 }
               }}
-              className={`gap-2 ${hotkeyMode ? 'bg-purple-600 hover:bg-purple-700' : 'border-gray-700'}`}
+              className={`gap-2 text-xs ${hotkeyMode ? 'bg-purple-600 hover:bg-purple-700' : 'text-gray-400 hover:text-white'}`}
             >
-              ⌨ {hotkeyMode ? "Hotkey Mode" : "Hotkeys"}
+              ⌨ {hotkeyMode ? "Hotkey Mode ON" : "Hotkeys"}
             </Button>
             <div className="flex items-center gap-2">
               <Switch checked={autoExecute} onCheckedChange={setAutoExecute} className="data-[state=checked]:bg-emerald-600" />
-              <Label className="text-sm text-gray-400">{autoExecute ? "⚡ Auto" : "Auto"}</Label>
+              <Label className="text-xs text-gray-400">{autoExecute ? "⚡ Auto" : "Auto"}</Label>
             </div>
             <Link to="/client">
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white gap-2 text-xs">
                 ← Exit
               </Button>
             </Link>
@@ -1334,54 +1333,52 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
       }} onCancel={() => setShowEditMode(false)} />}
 
         {/* API Key Warning */}
-        {!apiKey && <Card className="bg-yellow-900/20 border-yellow-800/50 p-4">
+        {!apiKey && <div className="bg-[#0d1117] border border-yellow-700/50 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <span className="text-yellow-500 font-mono">⚠</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-yellow-500 font-mono">[K]</span>
-                  <span className="font-semibold text-yellow-400">API Key Required</span>
+                  <span className="font-semibold text-yellow-400 text-sm">API Key Required</span>
                 </div>
-                <p className="text-sm text-gray-400 mb-3">
+                <p className="text-xs text-gray-400 mb-3">
                   Enter your Manifold API key to enable trading. Your key is stored{" "}
-                  <span className="text-emerald-400">locally in your browser only</span> — we never send it to our
-                  servers.
+                  <span className="text-emerald-400">locally in your browser only</span>.
                 </p>
                 <div className="flex gap-2">
-                  <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Enter API key..." className="bg-gray-800 border-gray-700 text-white font-mono max-w-md" />
-                  <Button onClick={saveApiKey} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} placeholder="Enter API key..." className="bg-[#1a2332] border-[#1e2736] text-white font-mono max-w-md h-9 text-sm" />
+                  <Button onClick={saveApiKey} className="bg-emerald-600 hover:bg-emerald-700 h-9">
                     Save
                   </Button>
                 </div>
               </div>
             </div>
-          </Card>}
+          </div>}
 
         <div className="flex gap-4">
-          {/* Left Sidebar - Trending, Hotkeys + Watchlist */}
-          <div className="w-56 flex-shrink-0 space-y-4">
+          {/* Left Sidebar - Trending + Watchlist */}
+          <div className="w-52 flex-shrink-0 space-y-3">
             <TerminalTrending onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} />
             <HotkeyDisplayPanel hotkeys={hotkeys} onUpdateHotkey={updateHotkey} />
             <TerminalWatchlist onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} currentMarket={activeMarket} />
           </div>
 
           {/* Main Trading Area */}
-          <div className="flex-1 space-y-4 min-w-0 pb-8">
+          <div className="flex-1 space-y-3 min-w-0 pb-8">
             {/* Market Search - Minimizes when market selected */}
             {activeMarket ? <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setActiveMarket(null)} className="border-gray-700 text-gray-400 hover:text-white gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setActiveMarket(null)} className="text-gray-400 hover:text-white gap-2 text-xs border border-[#1e2736]">
                   🔍 Change Market
                 </Button>
               </div> : <div className="relative">
-                <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-800 rounded-lg px-3">
+                <div className="flex items-center gap-2 bg-[#0d1117] border border-[#1e2736] rounded-lg px-3">
                   <span className="text-gray-500 font-mono">🔍</span>
                   <Input ref={searchInputRef} value={searchQuery} onChange={e => {
                 setSearchQuery(e.target.value);
                 searchMarkets(e.target.value);
-              }} placeholder="Search markets..." className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0" />
+              }} placeholder="Search markets..." className="border-0 bg-transparent text-white focus-visible:ring-0 focus-visible:ring-offset-0 h-10" />
                 </div>
-                {searchResults.length > 0 && <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden z-50">
-                    {searchResults.map(market => <button key={market.id} onClick={() => selectMarket(market)} className="w-full p-3 text-left hover:bg-gray-800 border-b border-gray-800 last:border-0">
+                {searchResults.length > 0 && <div className="absolute top-full left-0 right-0 mt-1 bg-[#0d1117] border border-[#1e2736] rounded-lg overflow-hidden z-50">
+                    {searchResults.map(market => <button key={market.id} onClick={() => selectMarket(market)} className="w-full p-3 text-left hover:bg-[#1a2332] border-b border-[#1e2736] last:border-0">
                         <div className="text-sm text-white line-clamp-2">{market.question}</div>
                         <div className="text-xs text-emerald-400 mt-1">{(market.probability * 100).toFixed(1)}%</div>
                       </button>)}
@@ -1389,38 +1386,35 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
               </div>}
 
             {/* Active Market */}
-            {activeMarket ? <Card className="bg-gray-900/50 border-gray-800 p-4">
+            {activeMarket ? <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`font-mono ${isConnected ? "text-emerald-500" : "text-red-500"}`}>
-                        {isConnected ? "◉" : "○"}
+                      <span className={`font-mono text-xs ${isConnected ? "text-emerald-500" : "text-red-500"}`}>
+                        {isConnected ? "◉ LIVE" : "○ DISCONNECTED"}
                       </span>
-                      <Badge variant="outline" className="text-xs border-gray-700">
-                        {isConnected ? "LIVE" : "DISCONNECTED"}
-                      </Badge>
-                      {mcOptions.length > 0 && <Badge variant="outline" className="text-xs border-purple-700 text-purple-400">
+                      {mcOptions.length > 0 && <span className="text-xs text-purple-400 px-2 py-0.5 border border-purple-700/50 rounded">
                           MC ({mcOptions.length} options)
-                        </Badge>}
+                        </span>}
                     </div>
 
                     {/* Show selected MC option name at top if applicable */}
-                    {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && <div className="text-sm text-purple-400 mb-1 font-mono">
+                    {mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] && <div className="text-xs text-purple-400 mb-1 font-mono">
                         Trading: #{selectedMcIndex} {mcOptions[selectedMcIndex - 1].text.slice(0, 50)}
                         {mcOptions[selectedMcIndex - 1].text.length > 50 ? "..." : ""}
                       </div>}
 
-                    <h2 className="text-lg text-white mb-2">{activeMarket.question}</h2>
+                    <h2 className="text-base text-white mb-3">{activeMarket.question}</h2>
 
                     {/* Multiple Choice Options - Clickable to add to command */}
                     {mcOptions.length > 0 ? <div className="space-y-1 mb-3">
-                        <div className="text-xs text-gray-500 mb-2">
-                          Click option to add to command • ↑↓ or W/S to navigate
+                        <div className="text-[10px] text-gray-500 mb-2">
+                          Click option to add to command • ↑↓ to navigate
                         </div>
-                        <ScrollArea className="h-[120px]">
-                          {mcOptions.map(opt => <div key={opt.id} className={`flex items-center justify-between p-2 rounded text-sm cursor-pointer transition-colors ${opt.index === selectedMcIndex ? "bg-emerald-900/40 border border-emerald-700" : "hover:bg-gray-800"}`} onClick={() => appendMcOptionToCommand(opt)}>
+                        <ScrollArea className="h-[100px]">
+                          {mcOptions.map(opt => <div key={opt.id} className={`flex items-center justify-between p-2 rounded text-xs cursor-pointer transition-colors ${opt.index === selectedMcIndex ? "bg-emerald-900/30 border border-emerald-700/50" : "hover:bg-[#1a2332]"}`} onClick={() => appendMcOptionToCommand(opt)}>
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-500 w-5 text-right">#{opt.index}</span>
+                                <span className="text-gray-500 w-5 text-right text-[10px]">#{opt.index}</span>
                                 <span className={opt.index === selectedMcIndex ? "text-emerald-400" : "text-gray-300"}>
                                   {opt.text.slice(0, 40)}
                                   {opt.text.length > 40 ? "..." : ""}
@@ -1432,7 +1426,7 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                             </div>)}
                         </ScrollArea>
                       </div> : <div className="flex items-center gap-3">
-                        <div className="text-4xl font-bold text-emerald-400">
+                        <div className="text-3xl font-bold text-emerald-400 font-mono">
                           {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability) ? `${(activeMarket.probability * 100).toFixed(1)}%` : "—"}
                         </div>
                         {/* Price impact preview when auto mode is off */}
@@ -1450,69 +1444,47 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                       </div>}
                   </div>
                 </div>
-              </Card> : <Card className="bg-gray-900/50 border-gray-800 p-8 text-center">
-                <div className="text-gray-500">Search and select a market to start trading</div>
-              </Card>}
+              </div> : <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-8 text-center">
+                <div className="text-gray-500 text-sm">Search and select a market to start trading</div>
+              </div>}
 
             {/* Command Bar */}
             <div className="relative">
-              <Input ref={commandInputRef} value={commandInput} onChange={e => handleCommandChange(e.target.value)} onKeyDown={handleCommandKeyDown} placeholder={activeMarket && apiKey ? "Enter command here" : "Select a market first..."} disabled={!activeMarket || !apiKey} className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4" />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+              <Input ref={commandInputRef} value={commandInput} onChange={e => handleCommandChange(e.target.value)} onKeyDown={handleCommandKeyDown} placeholder={activeMarket && apiKey ? "Enter command..." : "Select a market first..."} disabled={!activeMarket || !apiKey} className="bg-[#0d1117] border-[#1e2736] text-white font-mono text-lg h-12 px-4" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">
                 {autoExecute ? "⚡ AUTO" : "↵ ENTER"}
               </div>
             </div>
 
             {/* Dropdowns Row - Syntax, Description, Comments */}
             <div className="flex items-center gap-2 text-xs">
-              {/* Syntax Guide Dropdown */}
-              <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "syntax" ? null : "syntax")} className={`h-6 px-2 text-[10px] ${activeDropdown === "syntax" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
-                Syntax Guide {activeDropdown === "syntax" ? "▲" : "▼"}
+              <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "syntax" ? null : "syntax")} className={`h-6 px-2 text-[10px] ${activeDropdown === "syntax" ? "bg-[#1a2332] text-white" : "text-gray-500 hover:text-white"}`}>
+                Syntax {activeDropdown === "syntax" ? "▲" : "▼"}
               </Button>
-
-              {/* Market Description Dropdown */}
-              {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "description" ? null : "description")} className={`h-6 px-2 text-[10px] ${activeDropdown === "description" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
-                  Description {activeDropdown === "description" ? "▲" : "▼"}
+              {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "description" ? null : "description")} className={`h-6 px-2 text-[10px] ${activeDropdown === "description" ? "bg-[#1a2332] text-white" : "text-gray-500 hover:text-white"}`}>
+                  Info {activeDropdown === "description" ? "▲" : "▼"}
                 </Button>}
-
-              {/* Recent Comments Dropdown */}
-              {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "comments" ? null : "comments")} className={`h-6 px-2 text-[10px] ${activeDropdown === "comments" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
+              {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "comments" ? null : "comments")} className={`h-6 px-2 text-[10px] ${activeDropdown === "comments" ? "bg-[#1a2332] text-white" : "text-gray-500 hover:text-white"}`}>
                   Comments {activeDropdown === "comments" ? "▲" : "▼"}
                 </Button>}
             </div>
 
             {/* Dropdown Content */}
-            {activeDropdown === "syntax" && <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs text-gray-500">
+            {activeDropdown === "syntax" && <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-3 text-xs text-gray-500">
                 <div className="space-y-1">
-                  <div>
-                    <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span>{" "}
-                    Buy NO
-                  </div>
-                  <div>
-                    <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
-                    <span className="text-gray-400">30/100B@45/</span> With 30min cancel
-                  </div>
-                  <div>
-                    <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% •{" "}
-                    <span className="text-yellow-400">30/LS100@55</span> With expiry
-                  </div>
-                  <div>
-                    <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split •{" "}
-                    <span className="text-purple-400">30/ST5/100/</span> With expiry
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits •{" "}
-                    <span className="text-gray-400">Cmd+L</span> Cancel all limits
-                  </div>
+                  <div><span className="text-emerald-400">100B</span> Buy YES • <span className="text-red-400">100S</span> Buy NO</div>
+                  <div><span className="text-yellow-400">/100B@45/</span> Limit YES @45% • <span className="text-yellow-400">30/100B@45/</span> With 30min cancel</div>
+                  <div><span className="text-orange-400">LS100@55</span> Limit sell @55% • <span className="text-purple-400">ST5/100/</span> Straddle ±5%</div>
+                  <div><span className="text-gray-400">Cmd+X</span> Sell all • <span className="text-gray-400">Cmd+L</span> Cancel limits • <span className="text-gray-400">Cmd+[0-9]</span> Quick limit</div>
                 </div>
-              </Card>}
+              </div>}
 
             {activeDropdown === "description" && activeMarket && <MarketDescriptionDropdown marketId={activeMarket.id} marketUrl={activeMarket.url} />}
 
-            {activeDropdown === "comments" && activeMarket && <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs">
-                {loadingComments ? <div className="text-gray-500 text-center py-4">Loading comments...</div> : marketComments.length === 0 ? <div className="text-gray-500 text-center py-4">No recent comments</div> : <ScrollArea className="max-h-[200px]">
-                    <div className="space-y-3">
+            {activeDropdown === "comments" && activeMarket && <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-3 text-xs">
+                {loadingComments ? <div className="text-gray-500 text-center py-4">Loading...</div> : marketComments.length === 0 ? <div className="text-gray-500 text-center py-4">No comments</div> : <ScrollArea className="max-h-[150px]">
+                    <div className="space-y-2">
                       {marketComments.slice(0, 10).map((comment: any) => {
-                  // Extract plain text from TipTap JSON content
                   const extractText = (content: any): string => {
                     if (!content) return "";
                     if (typeof content === "string") return content;
@@ -1530,74 +1502,58 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                     return "";
                   };
                   const commentText = comment.text || extractText(comment.content) || "";
-                  return <div key={comment.id} className="border-b border-gray-800 pb-2 last:border-0">
+                  return <div key={comment.id} className="border-b border-[#1e2736] pb-2 last:border-0">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-emerald-400 font-medium">@{comment.userName || "Anonymous"}</span>
-                              <span className="text-gray-600">{new Date(comment.createdTime).toLocaleDateString()}</span>
+                              <span className="text-emerald-400 text-[10px]">@{comment.userName || "Anon"}</span>
+                              <span className="text-gray-600 text-[10px]">{new Date(comment.createdTime).toLocaleDateString()}</span>
                             </div>
-                            <div className="text-gray-400 whitespace-pre-wrap">
-                              {commentText}
-                            </div>
+                            <div className="text-gray-400 text-[11px] line-clamp-2">{commentText}</div>
                           </div>;
                 })}
                     </div>
                   </ScrollArea>}
-              </Card>}
+              </div>}
 
             {/* Logs & Config Tabs */}
             <Tabs defaultValue="logs" className="w-full">
-              <TabsList className="w-full bg-gray-900 border border-gray-800">
-                <TabsTrigger value="logs" className="flex-1 data-[state=active]:bg-gray-800">
+              <TabsList className="w-full bg-[#0d1117] border border-[#1e2736]">
+                <TabsTrigger value="logs" className="flex-1 text-xs data-[state=active]:bg-[#1a2332]">
                   Logs
                 </TabsTrigger>
-                <TabsTrigger value="hotkeys" className="flex-1 data-[state=active]:bg-gray-800">
+                <TabsTrigger value="hotkeys" className="flex-1 text-xs data-[state=active]:bg-[#1a2332]">
                   Hotkeys
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="flex-1 data-[state=active]:bg-gray-800">
+                <TabsTrigger value="settings" className="flex-1 text-xs data-[state=active]:bg-[#1a2332]">
                   Settings
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="logs" className="mt-2">
-                <Card className="bg-gray-900/50 border-gray-800">
-                  <ScrollArea className="h-[300px] p-3">
-                    {executionLogs.length === 0 ? <div className="text-gray-500 text-sm text-center py-8">No executions yet</div> : <div className="space-y-2">
-                        {executionLogs.map(log => <div key={log.id} className={`text-xs p-2 rounded border ${log.success ? "border-emerald-900/50 bg-emerald-950/20" : "border-red-900/50 bg-red-950/20"}`}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={log.success ? "text-emerald-400" : "text-red-400"}>{log.action}</span>
-                              <span className="text-gray-500">{log.timestamp.toLocaleTimeString()}</span>
+                <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg">
+                  <ScrollArea className="h-[200px] p-3">
+                    {executionLogs.length === 0 ? <div className="text-gray-500 text-xs text-center py-8">No executions yet</div> : <div className="space-y-1">
+                        {executionLogs.map(log => <div key={log.id} className={`text-xs p-2 rounded ${log.success ? "bg-emerald-900/20 border-l-2 border-emerald-500" : "bg-red-900/20 border-l-2 border-red-500"}`}>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className={log.success ? "text-emerald-400 font-mono" : "text-red-400 font-mono"}>{log.action}</span>
+                              <span className="text-gray-600 text-[10px]">{log.timestamp.toLocaleTimeString()}</span>
                             </div>
-                            <div className="text-gray-400">{log.details}</div>
+                            <div className="text-gray-500 text-[10px]">{log.details}</div>
                           </div>)}
                       </div>}
                   </ScrollArea>
-                </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="hotkeys" className="mt-2">
-                <Card className="bg-gray-900/50 border-gray-800 p-3">
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-3">
+                <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-3">
+                  <ScrollArea className="h-[200px]">
+                    <div className="space-y-2">
                       {/* Syntax-based hotkey creation */}
-                      <div className="p-3 bg-gray-800/50 rounded-lg space-y-2">
-                        <div className="text-xs text-gray-500 mb-2">
-                          Add hotkey using syntax: <span className="text-emerald-400">[key]:[syntax]</span>
+                      <div className="p-2 bg-[#1a2332] rounded space-y-2">
+                        <div className="text-[10px] text-gray-500">
+                          Add hotkey: <span className="text-emerald-400">[key]:[syntax]</span> (e.g. Q:100B, E:/100B@45/)
                         </div>
-                        <div className="text-[10px] text-gray-600 space-y-0.5">
-                          <div>
-                            • <span className="text-gray-400">Q:100B</span> → Q key = 100 YES market
-                          </div>
-                          <div>
-                            • <span className="text-gray-400">W:50S</span> → W key = 50 NO market
-                          </div>
-                          <div>
-                            • <span className="text-gray-400">E:/100B@45/</span> → E key = limit YES @45%
-                          </div>
-                          <div>
-                            • <span className="text-gray-400">R:ST5/100/</span> → R key = straddle ±5%
-                          </div>
-                        </div>
-                        <Input placeholder="e.g. Q:100B or W:ST5/200/" className="bg-gray-700 border-gray-600 font-mono text-sm" onKeyDown={e => {
+                        <Input placeholder="e.g. Q:100B" className="bg-[#0d1117] border-[#1e2736] font-mono text-xs h-8" onKeyDown={e => {
                         if (e.key === "Enter") {
                           const input = e.currentTarget.value.trim().toUpperCase();
                           const colonIndex = input.indexOf(":");
@@ -1608,7 +1564,6 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                           const key = input.slice(0, colonIndex).slice(0, 1);
                           const syntax = input.slice(colonIndex + 1);
 
-                          // Parse the syntax to create hotkey
                           const newHotkey: Hotkey = {
                             id: crypto.randomUUID(),
                             key,
@@ -1617,7 +1572,6 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                             orderType: "market"
                           };
 
-                          // Market order: 100B or 100S
                           const marketMatch = syntax.match(/^(\d+)(B|S)$/);
                           if (marketMatch) {
                             newHotkey.side = marketMatch[2] === "B" ? "YES" : "NO";
@@ -1625,11 +1579,10 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                             newHotkey.orderType = "market";
                             setHotkeys([...hotkeys, newHotkey]);
                             e.currentTarget.value = "";
-                            toast.success(`Hotkey ${key} added: ${newHotkey.amount}M ${newHotkey.side}`);
+                            toast.success(`Hotkey ${key} added`);
                             return;
                           }
 
-                          // Limit order: /100B@45/ or 30/100B@45/
                           const limitMatch = syntax.match(/^(\d+)?\/(\d+)(B|S)@(\d+)\/$/);
                           if (limitMatch) {
                             newHotkey.side = limitMatch[3] === "B" ? "YES" : "NO";
@@ -1639,11 +1592,10 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                             if (limitMatch[1]) newHotkey.expirationMinutes = parseInt(limitMatch[1]);
                             setHotkeys([...hotkeys, newHotkey]);
                             e.currentTarget.value = "";
-                            toast.success(`Hotkey ${key} added: ${newHotkey.amount}M ${newHotkey.side} @${newHotkey.limitPrice}%`);
+                            toast.success(`Hotkey ${key} added`);
                             return;
                           }
 
-                          // Straddle: ST5/100/ or 30/ST5/100/
                           const straddleMatch = syntax.match(/^(\d+)?\/??ST(\d+)\/(\d+)\/$/);
                           if (straddleMatch) {
                             newHotkey.side = "STRADDLE";
@@ -1653,56 +1605,55 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                             if (straddleMatch[1]) newHotkey.expirationMinutes = parseInt(straddleMatch[1]);
                             setHotkeys([...hotkeys, newHotkey]);
                             e.currentTarget.value = "";
-                            toast.success(`Hotkey ${key} added: Straddle ±${newHotkey.straddleDelta}% M$${newHotkey.amount}`);
+                            toast.success(`Hotkey ${key} added`);
                             return;
                           }
-                          toast.error("Could not parse syntax. Try: 100B, /100B@45/, ST5/100/");
+                          toast.error("Could not parse syntax");
                         }
                       }} />
                       </div>
 
                       {/* Display existing hotkeys */}
-                      {hotkeys.map(hotkey => <div key={hotkey.id} className="p-2 bg-gray-800/30 rounded flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="w-8 h-8 flex items-center justify-center text-lg font-bold border-emerald-500/50 text-emerald-400">
+                      {hotkeys.map(hotkey => <div key={hotkey.id} className="p-2 bg-[#1a2332] rounded flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 flex items-center justify-center text-sm font-bold border border-emerald-500/50 text-emerald-400 rounded">
                               {hotkey.key || "?"}
-                            </Badge>
-                            <div className="text-xs">
+                            </span>
+                            <div className="text-[10px]">
                               <span className={hotkey.side === "YES" ? "text-emerald-400" : hotkey.side === "NO" ? "text-red-400" : "text-purple-400"}>
                                 {hotkey.side === "STRADDLE" ? "STR" : hotkey.side}
                               </span>
                               <span className="text-gray-400 ml-1">M${hotkey.amount}</span>
                               {hotkey.orderType === "limit-fixed" && hotkey.limitPrice && <span className="text-yellow-400 ml-1">@{hotkey.limitPrice}%</span>}
                               {hotkey.orderType === "straddle" && hotkey.straddleDelta && <span className="text-purple-400 ml-1">±{hotkey.straddleDelta}%</span>}
-                              {hotkey.expirationMinutes && <span className="text-gray-500 ml-1">{hotkey.expirationMinutes}m</span>}
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => deleteHotkey(hotkey.id)} className="text-red-400 hover:text-red-300 h-6 w-6 p-0">
+                          <button onClick={() => deleteHotkey(hotkey.id)} className="text-gray-500 hover:text-red-400 text-xs">
                             ✕
-                          </Button>
+                          </button>
                         </div>)}
 
-                      {hotkeys.length === 0 && <div className="text-center text-gray-500 text-xs py-4">
-                          No hotkeys configured. Add one above using syntax.
+                      {hotkeys.length === 0 && <div className="text-center text-gray-500 text-[10px] py-2">
+                          No hotkeys configured
                         </div>}
                     </div>
                   </ScrollArea>
-                </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="settings" className="mt-2">
-                <Card className="bg-gray-900/50 border-gray-800 p-4 space-y-4">
+                <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-3 space-y-3">
                   <div>
-                    <Label className="text-sm text-gray-400 mb-2 block">API Key</Label>
+                    <Label className="text-xs text-gray-400 mb-1 block">API Key</Label>
                     <div className="flex gap-2">
-                      <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} className="bg-gray-800 border-gray-700" />
-                      <Button onClick={saveApiKey} size="sm" className="bg-emerald-600">
+                      <Input type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)} className="bg-[#1a2332] border-[#1e2736] h-8 text-xs" />
+                      <Button onClick={saveApiKey} size="sm" className="bg-emerald-600 h-8 text-xs">
                         Save
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">Stored locally in your browser only.</p>
+                    <p className="text-[10px] text-gray-600 mt-1">Stored locally in your browser.</p>
                   </div>
-                  {apiKey && <Button variant="destructive" size="sm" onClick={() => {
+                  {apiKey && <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => {
                   localStorage.removeItem(STORAGE_KEYS.API_KEY);
                   setApiKey("");
                   setApiKeyInput("");
@@ -1710,16 +1661,13 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
                 }}>
                       Clear API Key
                     </Button>}
-                </Card>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
 
-          {/* Right Side Panel - Charts & Video */}
-          <div className="w-80 flex-shrink-0 space-y-4">
-            {/* YouTube/RSS Panel - AT TOP */}
-            <MediaPanel youtubeUrl={youtubeUrl} youtubeInput={youtubeInput} setYoutubeInput={setYoutubeInput} saveYoutube={saveYoutube} embedUrl={embedUrl} />
-
+          {/* Right Side Panel - Charts & Data */}
+          <div className="w-72 flex-shrink-0 space-y-3">
             {/* Price Chart */}
             {activeMarket && <TerminalPriceChart marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} />}
 
@@ -1735,7 +1683,8 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
             {/* Positions & P&L */}
             {activeMarket && apiKey && <TerminalPositions positions={positions} marketId={activeMarket.id} currentProbability={activeMarket.probability} apiKey={apiKey} onRefresh={fetchPositions} />}
 
-            {/* YouTube/RSS Panel - MOVED TO TOP */}
+            {/* YouTube/RSS Panel */}
+            <MediaPanel youtubeUrl={youtubeUrl} youtubeInput={youtubeInput} setYoutubeInput={setYoutubeInput} saveYoutube={saveYoutube} embedUrl={embedUrl} />
           </div>
         </div>
       </div>
