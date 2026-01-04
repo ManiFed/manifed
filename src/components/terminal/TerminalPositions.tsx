@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 interface Position {
@@ -20,7 +17,7 @@ interface StopLoss {
   id: string;
   positionOutcome: string;
   answerId?: string;
-  lossThreshold: number; // in mana
+  lossThreshold: number;
   isActive: boolean;
 }
 
@@ -46,7 +43,6 @@ export default function TerminalPositions({
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
 
-  // Load stop losses from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(STOP_LOSS_KEY);
     if (saved) {
@@ -54,15 +50,12 @@ export default function TerminalPositions({
     }
   }, []);
 
-  // Save stop losses
   useEffect(() => {
     localStorage.setItem(STOP_LOSS_KEY, JSON.stringify(stopLosses));
   }, [stopLosses]);
 
-  // Calculate P&L for each position
   const enrichedPositions = positions.map(pos => {
-    // Estimate entry price from shares (simplified - in reality would need bet history)
-    const estimatedEntryPrice = 0.5; // Default assumption
+    const estimatedEntryPrice = 0.5;
     const currentPrice = pos.outcome === 'YES' ? currentProbability : (1 - currentProbability);
     const currentValue = pos.shares * currentPrice;
     const costBasis = pos.shares * estimatedEntryPrice;
@@ -78,7 +71,6 @@ export default function TerminalPositions({
     };
   });
 
-  // Monitor stop losses
   useEffect(() => {
     if (stopLosses.length === 0 || !apiKey || !marketId) return;
 
@@ -92,11 +84,9 @@ export default function TerminalPositions({
         );
         
         if (pos && pos.pnl && pos.pnl < -sl.lossThreshold) {
-          // Trigger stop loss
           toast.warning(`Stop-loss triggered for ${sl.positionOutcome}: Loss exceeds M$${sl.lossThreshold}`);
           await executeSell(pos);
           
-          // Deactivate the stop loss
           setStopLosses(prev => prev.map(s => 
             s.id === sl.id ? { ...s, isActive: false } : s
           ));
@@ -166,122 +156,138 @@ export default function TerminalPositions({
   };
 
   const totalPnL = enrichedPositions.reduce((sum, p) => sum + (p.pnl || 0), 0);
+  const totalDelta = enrichedPositions.reduce((sum, p) => sum + (p.outcome === 'YES' ? p.shares : -p.shares), 0);
 
   return (
-    <Card className="bg-gray-900/50 border-gray-800 p-3">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Positions & P&L</span>
-          {isMonitoring && stopLosses.some(s => s.isActive) && (
-            <Badge variant="outline" className="text-xs border-yellow-700 text-yellow-400">
-              Monitoring
-            </Badge>
-          )}
+    <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white mb-1">Risk Controls</h3>
+          <p className="text-xs text-gray-500">Real-time position limits and exposure monitoring</p>
         </div>
-        <div className={`text-sm font-mono ${totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-          {totalPnL >= 0 ? '+' : ''}M${totalPnL.toFixed(2)}
+        {isMonitoring && stopLosses.some(s => s.isActive) && (
+          <span className="text-xs text-yellow-400 px-2 py-0.5 border border-yellow-700 rounded">
+            Monitoring
+          </span>
+        )}
+      </div>
+
+      {/* Group Delta Table */}
+      <div className="mb-4">
+        <div className="text-xs text-gray-500 mb-2">Group Delta</div>
+        <div className="border border-[#1e2736] rounded">
+          {/* Table Header */}
+          <div className="grid grid-cols-3 gap-2 text-[10px] text-gray-500 uppercase tracking-wider p-2 border-b border-[#1e2736]">
+            <span>Position</span>
+            <span className="text-right">Delta</span>
+            <span className="text-right">Max Loss</span>
+          </div>
+          
+          {enrichedPositions.length === 0 ? (
+            <div className="text-xs text-gray-500 text-center py-4">No positions</div>
+          ) : (
+            <div className="divide-y divide-[#1e2736]">
+              {enrichedPositions.map((pos, i) => {
+                const posKey = `${pos.outcome}-${pos.answerId || 'binary'}`;
+                const activeStopLoss = stopLosses.find(sl => 
+                  sl.positionOutcome === pos.outcome && 
+                  sl.answerId === pos.answerId && 
+                  sl.isActive
+                );
+                const delta = pos.outcome === 'YES' ? pos.shares : -pos.shares;
+                const maxLoss = -pos.shares * (pos.outcome === 'YES' ? currentProbability : (1 - currentProbability));
+
+                return (
+                  <div key={i} className="p-2">
+                    <div className="grid grid-cols-3 gap-2 text-xs font-mono items-center">
+                      <span className={pos.outcome === 'YES' ? 'text-emerald-400' : 'text-red-400'}>
+                        {pos.outcome}-{pos.shares.toFixed(0)}
+                      </span>
+                      <span className={`text-right ${delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {delta >= 0 ? '+' : ''}{delta.toFixed(0)}
+                      </span>
+                      <span className="text-right text-red-400">
+                        -${Math.abs(maxLoss).toFixed(0)}
+                      </span>
+                    </div>
+                    
+                    {/* Stop Loss Controls */}
+                    <div className="mt-2 flex items-center gap-2">
+                      {activeStopLoss ? (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-yellow-400 px-2 py-0.5 border border-yellow-700 rounded">
+                            Stop @ -M${activeStopLoss.lossThreshold}
+                          </span>
+                          <button
+                            onClick={() => removeStopLoss(activeStopLoss.id)}
+                            className="text-gray-500 hover:text-red-400 text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : selectedPosition === posKey ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            value={newStopLossAmount}
+                            onChange={(e) => setNewStopLossAmount(e.target.value)}
+                            placeholder="Loss M$"
+                            className="h-6 text-xs bg-[#1a2332] border-[#1e2736] w-20"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => addStopLoss(pos.outcome, pos.answerId)}
+                            className="h-6 text-xs bg-yellow-600 hover:bg-yellow-700"
+                          >
+                            Set
+                          </Button>
+                          <button
+                            onClick={() => setSelectedPosition(null)}
+                            className="text-gray-500 hover:text-white text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setSelectedPosition(posKey)}
+                          className="text-xs text-gray-500 hover:text-yellow-400"
+                        >
+                          + Stop-Loss
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Summary Row */}
+              {enrichedPositions.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono p-2 bg-[#0a0e14]">
+                  <span className="text-gray-400">Sum</span>
+                  <span className={`text-right ${totalDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(0)}
+                  </span>
+                  <span className="text-right text-red-400">
+                    -${Math.abs(enrichedPositions.reduce((sum, p) => 
+                      sum + p.shares * (p.outcome === 'YES' ? currentProbability : (1 - currentProbability)), 0
+                    )).toFixed(0)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <ScrollArea className="h-[150px]">
-        {enrichedPositions.length === 0 ? (
-          <div className="text-xs text-gray-500 text-center py-4">
-            No positions in this market
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {enrichedPositions.map((pos, i) => {
-              const posKey = `${pos.outcome}-${pos.answerId || 'binary'}`;
-              const activeStopLoss = stopLosses.find(sl => 
-                sl.positionOutcome === pos.outcome && 
-                sl.answerId === pos.answerId && 
-                sl.isActive
-              );
-
-              return (
-                <div
-                  key={i}
-                  className="p-2 bg-gray-800/50 rounded text-xs space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${
-                          pos.outcome === 'YES' 
-                            ? 'border-emerald-700 text-emerald-400' 
-                            : 'border-red-700 text-red-400'
-                        }`}
-                      >
-                        {pos.outcome}
-                      </Badge>
-                      <span className="text-gray-400">{pos.shares.toFixed(2)} shares</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs">{(pos.pnl ?? 0) >= 0 ? '↑' : '↓'}</span>
-                      <span className={`font-mono ${(pos.pnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {(pos.pnl ?? 0) >= 0 ? '+' : ''}M${(pos.pnl ?? 0).toFixed(2)}
-                        <span className="text-gray-500 ml-1">
-                          ({(pos.pnlPercent ?? 0) >= 0 ? '+' : ''}{(pos.pnlPercent ?? 0).toFixed(1)}%)
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Stop Loss Controls */}
-                  <div className="flex items-center gap-2">
-                    {activeStopLoss ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <Badge variant="outline" className="text-xs border-yellow-700 text-yellow-400">
-                          Stop @ -M${activeStopLoss.lossThreshold}
-                        </Badge>
-                        <button
-                          onClick={() => removeStopLoss(activeStopLoss.id)}
-                          className="text-gray-500 hover:text-red-400"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : selectedPosition === posKey ? (
-                      <div className="flex items-center gap-1 flex-1">
-                        <Input
-                          type="number"
-                          value={newStopLossAmount}
-                          onChange={(e) => setNewStopLossAmount(e.target.value)}
-                          placeholder="Loss M$"
-                          className="h-6 text-xs bg-gray-700 border-gray-600 w-20"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => addStopLoss(pos.outcome, pos.answerId)}
-                          className="h-6 text-xs bg-yellow-600 hover:bg-yellow-700"
-                        >
-                          Set
-                        </Button>
-                        <button
-                          onClick={() => setSelectedPosition(null)}
-                          className="text-gray-500 hover:text-white"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedPosition(posKey)}
-                        className="h-6 text-xs text-gray-500 hover:text-yellow-400"
-                      >
-                        + Add Stop-Loss
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
-    </Card>
+      {/* Total P&L */}
+      <div className="flex items-center justify-between pt-3 border-t border-[#1e2736] text-sm">
+        <span className="text-gray-500">Total P&L</span>
+        <span className={`font-mono font-bold ${totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          {totalPnL >= 0 ? '+' : ''}M${totalPnL.toFixed(2)}
+        </span>
+      </div>
+    </div>
   );
 }

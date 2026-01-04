@@ -1,14 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { RefreshCw } from "lucide-react";
-
-interface BetPoint {
-  time: number;
-  probability: number;
-  probAfter: number;
-}
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 interface TerminalPriceChartProps {
   marketId: string;
@@ -26,7 +18,7 @@ const TIME_PRESETS = [
 export default function TerminalPriceChart({ marketId, currentProbability }: TerminalPriceChartProps) {
   const [chartData, setChartData] = useState<{ time: string; prob: number }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedMinutes, setSelectedMinutes] = useState(30); // Default to 30 minutes
+  const [selectedMinutes, setSelectedMinutes] = useState(30);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,7 +31,6 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
     setLoading(true);
     setError(null);
     try {
-      // Fetch recent bets to build price history
       const response = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=500`);
       if (response.ok) {
         const bets = await response.json();
@@ -49,12 +40,8 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
           return;
         }
 
-        // Convert bets to time-series data
-        const cutoffTime = selectedMinutes > 0 ? Date.now() - selectedMinutes * 60 * 1000 : 0; // 0 = show all time
-
+        const cutoffTime = selectedMinutes > 0 ? Date.now() - selectedMinutes * 60 * 1000 : 0;
         const points: { time: string; prob: number; timestamp: number }[] = [];
-
-        // Process bets in chronological order
         const sortedBets = [...bets].sort((a, b) => a.createdTime - b.createdTime);
 
         for (const bet of sortedBets) {
@@ -70,7 +57,6 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
           }
         }
 
-        // Add current probability as the latest point
         points.push({
           time: new Date().toLocaleTimeString("en-US", {
             hour: "2-digit",
@@ -80,7 +66,6 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
           timestamp: Date.now(),
         });
 
-        // Sample to avoid too many points
         const maxPoints = 50;
         if (points.length > maxPoints) {
           const step = Math.ceil(points.length / maxPoints);
@@ -104,9 +89,13 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
   };
 
   return (
-    <Card className="bg-gray-900/50 border-gray-800 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-gray-500">Price Chart ({getTimeLabel()})</span>
+    <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm font-semibold text-white">PnL Chart</h3>
+          <p className="text-[10px] text-gray-500">Price history ({getTimeLabel()})</p>
+        </div>
         <div className="flex items-center gap-0.5">
           {TIME_PRESETS.map((preset) => (
             <Button
@@ -126,6 +115,7 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
         </div>
       </div>
 
+      {/* Chart */}
       <div className="h-[120px]">
         {loading ? (
           <div className="h-full flex items-center justify-center text-gray-500 text-xs">Loading...</div>
@@ -145,7 +135,7 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
               <XAxis
                 dataKey="time"
                 tick={{ fontSize: 9, fill: "#6b7280" }}
-                axisLine={{ stroke: "#374151" }}
+                axisLine={{ stroke: "#1e2736" }}
                 tickLine={false}
               />
               <YAxis
@@ -161,14 +151,14 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
                   ];
                 })()}
                 tick={{ fontSize: 9, fill: "#6b7280" }}
-                axisLine={{ stroke: "#374151" }}
+                axisLine={{ stroke: "#1e2736" }}
                 tickLine={false}
                 tickFormatter={(v) => `${v}%`}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
+                  backgroundColor: "#0d1117",
+                  border: "1px solid #1e2736",
                   borderRadius: "6px",
                   fontSize: "11px",
                 }}
@@ -181,19 +171,11 @@ export default function TerminalPriceChart({ marketId, currentProbability }: Ter
         )}
       </div>
 
-      {/* Refresh Button */}
-      <div className="mt-2 flex justify-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={fetchBetHistory}
-          disabled={loading}
-          className="h-6 px-2 text-[10px] text-gray-500 hover:text-white gap-1"
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+      {/* Current Value */}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1e2736] text-xs">
+        <span className="text-gray-500">Current</span>
+        <span className="text-emerald-400 font-mono font-bold">{(currentProbability * 100).toFixed(1)}%</span>
       </div>
-    </Card>
+    </div>
   );
 }

@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, RefreshCw } from "lucide-react";
 
 interface TrendingMarket {
   id: string;
@@ -25,7 +22,6 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
   const fetchTrending = async () => {
     setLoading(true);
     try {
-      // Fetch markets sorted by 24h volume (most active)
       const response = await fetch("https://api.manifold.markets/v0/search-markets?limit=10&filter=open");
       if (response.ok) {
         const data = await response.json();
@@ -48,26 +44,26 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
 
   useEffect(() => {
     fetchTrending();
-    // Refresh every 5 minutes
     const interval = setInterval(fetchTrending, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <Card className="bg-gray-900/50 border-gray-800 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
-          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Top 10 Markets</span>
+    <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Trending</h3>
+          <p className="text-[10px] text-gray-500">Top 10 active markets</p>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={fetchTrending}
           disabled={loading}
-          className="h-5 w-5 p-0 text-gray-500 hover:text-white"
+          className="h-6 px-2 text-[10px] text-gray-500 hover:text-white"
         >
-          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+          {loading ? "..." : "↻"}
         </Button>
       </div>
 
@@ -76,33 +72,33 @@ export function TerminalTrending({ onSelectMarket, activeMarketId }: TerminalTre
       ) : markets.length === 0 ? (
         <div className="text-gray-500 text-xs text-center py-4">No markets found</div>
       ) : (
-        <ScrollArea className="h-[180px]">
-          <div className="space-y-1 pr-2">
-            {markets.map((market, index) => (
-              <button
-                key={market.id}
-                onClick={() => onSelectMarket(market)}
-                className={`w-full text-left p-2 rounded text-xs transition-colors ${
-                  activeMarketId === market.id ? "bg-emerald-900/40 border border-emerald-700" : "hover:bg-gray-800"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-gray-600 font-mono w-4 shrink-0">#{index + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-gray-300 line-clamp-2 leading-tight">{market.question}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-emerald-400 font-mono">{(market.probability * 100).toFixed(0)}%</span>
-                      {market.volume24Hours !== undefined && market.volume24Hours > 0 && (
-                        <span className="text-gray-600">M${Math.round(market.volume24Hours).toLocaleString()}/24h</span>
-                      )}
-                    </div>
+        <div className="h-[200px] overflow-y-auto space-y-1">
+          {markets.map((market, index) => (
+            <button
+              key={market.id}
+              onClick={() => onSelectMarket(market)}
+              className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                activeMarketId === market.id 
+                  ? "bg-emerald-900/30 border border-emerald-700/50" 
+                  : "hover:bg-[#1a2332]"
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-gray-600 font-mono w-4 shrink-0 text-[10px]">#{index + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-gray-300 line-clamp-2 leading-tight text-[11px]">{market.question}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-emerald-400 font-mono text-[10px]">{(market.probability * 100).toFixed(0)}%</span>
+                    {market.volume24Hours !== undefined && market.volume24Hours > 0 && (
+                      <span className="text-gray-600 text-[10px]">M${Math.round(market.volume24Hours).toLocaleString()}</span>
+                    )}
                   </div>
                 </div>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
+              </div>
+            </button>
+          ))}
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
