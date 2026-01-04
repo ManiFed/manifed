@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { useTradeSound } from "@/hooks/useTradeSound";
-
 interface Trade {
   id: string;
   createdTime: number;
@@ -19,7 +21,6 @@ interface Trade {
   orderAmount?: number;
   isFilled?: boolean;
 }
-
 interface TerminalLiveTradesProps {
   marketId: string;
   answers?: {
@@ -29,7 +30,6 @@ interface TerminalLiveTradesProps {
   selectedAnswerId?: string;
   soundEnabled?: boolean;
 }
-
 export default function TerminalLiveTrades({
   marketId,
   answers,
@@ -41,21 +41,18 @@ export default function TerminalLiveTrades({
   const lastTradeIdRef = useRef<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const { playTradeSound } = useTradeSound();
-
-  // Stats
-  const makerCount = trades.filter(t => t.isLimitOrder).length;
-  const takerCount = trades.filter(t => !t.isLimitOrder).length;
-
   useEffect(() => {
     if (marketId) {
+      // Initial fetch
       fetchTrades(true);
+
+      // Poll every 2 seconds for new trades
       pollingRef.current = setInterval(() => fetchTrades(false), 2000);
       return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
     }
   }, [marketId, selectedAnswerId]);
-
   const fetchTrades = async (isInitial: boolean) => {
     if (isInitial) setLoading(true);
     try {
@@ -63,17 +60,23 @@ export default function TerminalLiveTrades({
       const response = await fetch(url);
       if (response.ok) {
         const bets = await response.json();
+
+        // Map to our trade format
         const mappedTrades: Trade[] = bets
           .filter((bet: any) => {
+            // Filter by selected answer if MC market
             if (selectedAnswerId && bet.answerId !== selectedAnswerId) return false;
             return true;
           })
           .map((bet: any) => {
+            // Find answer text if this is MC market
             let answerText = "";
             if (bet.answerId && answers) {
               const answer = answers.find((a) => a.id === bet.answerId);
               answerText = answer?.text || "";
             }
+
+            // Determine if this is a limit order
             const isLimitOrder = bet.limitProb !== undefined && bet.limitProb !== null;
             return {
               id: bet.id,
@@ -95,6 +98,7 @@ export default function TerminalLiveTrades({
             };
           });
 
+        // Play sound if new trade detected
         if (!isInitial && soundEnabled && mappedTrades.length > 0) {
           const latestTrade = mappedTrades[0];
           if (lastTradeIdRef.current && latestTrade.id !== lastTradeIdRef.current) {
@@ -112,82 +116,79 @@ export default function TerminalLiveTrades({
       if (isInitial) setLoading(false);
     }
   };
-
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return date.toLocaleDateString();
   };
-
   return (
-    <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
-      {/* Header */}
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white mb-1">Blotter</h3>
-        <p className="text-xs text-gray-500">Real-time trade execution and monitoring</p>
+    <Card className="bg-gray-900/50 border-gray-800 p-3">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-gray-500">Live Trades</span>
       </div>
 
-      {/* Stats Row */}
-      <div className="flex items-center gap-6 mb-4 text-xs border-b border-[#1e2736] pb-3">
-        <div>
-          <span className="text-gray-500">TRADES:</span>
-          <span className="text-white font-mono ml-1">{trades.length}</span>
-        </div>
-        <div>
-          <span className="text-gray-500">MAKER:</span>
-          <span className="text-white font-mono ml-1">{makerCount}</span>
-        </div>
-        <div>
-          <span className="text-gray-500">TAKER:</span>
-          <span className="text-white font-mono ml-1">{takerCount}</span>
-        </div>
-      </div>
-
-      {/* Table Header */}
-      <div className="grid grid-cols-6 gap-2 text-[10px] text-gray-500 uppercase tracking-wider mb-2 px-1">
-        <span>Time</span>
-        <span>Side</span>
-        <span className="text-right">Qty</span>
-        <span className="text-right">Px</span>
-        <span className="text-right">P&L</span>
-        <span className="text-right">M/T</span>
-      </div>
-
-      {/* Trades List */}
       {loading ? (
-        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">Loading...</div>
+        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">Loading trades...</div>
       ) : trades.length === 0 ? (
         <div className="h-32 flex items-center justify-center text-gray-500 text-xs">No recent trades</div>
       ) : (
-        <div className="h-[180px] overflow-y-auto space-y-0.5">
-          {trades.slice(0, 15).map((trade) => {
-            const pnlChange = trade.probAfter - trade.probBefore;
-            const pnlValue = pnlChange * trade.amount;
-            return (
-              <div 
-                key={trade.id} 
-                className="grid grid-cols-6 gap-2 text-xs py-1.5 px-1 hover:bg-[#1a2332] rounded transition-colors font-mono"
-              >
-                <span className="text-gray-400">{formatTime(trade.createdTime)}</span>
-                <span className={trade.outcome === "YES" ? "text-emerald-400" : "text-red-400"}>
-                  {trade.outcome}
-                </span>
-                <span className={`text-right ${trade.outcome === "YES" ? "text-emerald-400" : "text-red-400"}`}>
-                  {trade.outcome === "YES" ? "+" : "-"}{Math.round(trade.amount)}
-                </span>
-                <span className="text-right text-gray-300">
-                  ${(trade.probAfter).toFixed(2)}
-                </span>
-                <span className={`text-right ${pnlValue >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {pnlValue >= 0 ? "+" : ""}${pnlValue.toFixed(2)}
-                </span>
-                <span className="text-right text-gray-500">
-                  {trade.isLimitOrder ? "M" : "T"}
-                </span>
+        <ScrollArea className="h-48">
+          <div className="space-y-1 pr-2">
+            {trades.map((trade) => (
+              <div key={trade.id} className="text-xs p-2 rounded bg-gray-800/50 hover:bg-gray-800 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-mono font-bold ${trade.outcome === "YES" ? "text-emerald-400" : "text-red-400"}`}
+                    >
+                      {trade.outcome}
+                    </span>
+                    <span className="text-gray-400">M${Math.round(trade.amount)}</span>
+                    {trade.isLimitOrder ? (
+                      <span className="text-yellow-400 text-[10px]">[LMT]</span>
+                    ) : (
+                      <span className="text-blue-400 text-[10px]">[MKT]</span>
+                    )}
+                    {trade.isApi && <span className="text-purple-400 text-[10px]">[API]</span>}
+                  </div>
+                  <span className="text-gray-600">{formatTime(trade.createdTime)}</span>
+                </div>
+                <div className="flex items-center justify-between text-gray-500">
+                  <a 
+                    href={`https://manifold.markets/${trade.userName}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-cyan-500 hover:text-cyan-400 hover:underline truncate max-w-[100px]"
+                  >
+                    @{trade.userName}
+                  </a>
+                  <span
+                    className={`font-mono ${trade.probAfter > trade.probBefore ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {(trade.probBefore * 100).toFixed(0)}→{(trade.probAfter * 100).toFixed(0)}%
+                  </span>
+                </div>
+                {/* Limit order details */}
+                {trade.isLimitOrder && trade.limitProb !== undefined && (
+                  <div className="text-[10px] text-yellow-500/80 mt-1">
+                    Limit @{(trade.limitProb * 100).toFixed(0)}%
+                    {trade.orderAmount && ` • Order: M$${Math.round(trade.orderAmount)}`}
+                    {trade.isFilled !== undefined && (
+                      <span className={trade.isFilled ? " • Filled" : " • Partial"}></span>
+                    )}
+                  </div>
+                )}
+                {trade.answerText && <div className="text-gray-500 truncate mt-1 text-[10px]">{trade.answerText}</div>}
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </ScrollArea>
       )}
-    </div>
+    </Card>
   );
 }

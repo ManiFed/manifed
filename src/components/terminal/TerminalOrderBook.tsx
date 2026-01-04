@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface OrderLevel {
   price: number;
@@ -27,7 +29,9 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
   useEffect(() => {
     if (marketId) {
       fetchOrderBook();
+      // Refresh every 3 seconds for live updates
       pollingRef.current = setInterval(fetchOrderBook, 3000);
+      
       return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
@@ -36,6 +40,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
 
   const fetchOrderBook = async () => {
     try {
+      // Fetch market details for volume and liquidity
       const marketResponse = await fetch(`https://api.manifold.markets/v0/market/${marketId}`);
       if (marketResponse.ok) {
         const market = await marketResponse.json();
@@ -43,22 +48,30 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         setLiquidity(market.totalLiquidity || 0);
       }
 
+      // Fetch bets to get limit orders
       const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=1000`);
       if (betsResponse.ok) {
         const bets = await betsResponse.json();
         
+        // Filter for unfilled limit orders only
         const limitOrders = bets.filter((bet: any) => {
+          // Must have a limit probability set
           if (bet.limitProb === undefined || bet.limitProb === null) return false;
+          // Skip cancelled or fully filled orders
           if (bet.isCancelled || bet.isFilled) return false;
+          // Calculate remaining amount
           const orderAmount = bet.orderAmount || bet.amount || 0;
           const filledAmount = bet.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
           const remaining = orderAmount - filledAmount;
           if (remaining <= 0) return false;
+          // Filter by answerId for MC markets
           if (answerId && bet.answerId !== answerId) return false;
           return true;
         });
         
         const currentProbPercent = Math.round(currentProbability * 100);
+        
+        // Aggregate orders by price and side
         const ordersByPrice: { [key: string]: { amount: number; count: number; side: 'YES' | 'NO' } } = {};
         
         for (const order of limitOrders) {
@@ -78,6 +91,8 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           ordersByPrice[key].count += 1;
         }
         
+        // Bids: YES orders below current price OR NO orders above current price
+        // (both represent offers to buy below/sell above market)
         const bids: OrderLevel[] = [];
         const asks: OrderLevel[] = [];
         
@@ -86,23 +101,31 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           const price = parseInt(priceStr);
           
           if (side === 'YES') {
+            // YES limit order: bid if below current, ask if above current
             if (price < currentProbPercent) {
               bids.push({ price, amount: Math.round(data.amount), side: 'YES', orderCount: data.count });
             } else if (price > currentProbPercent) {
               asks.push({ price, amount: Math.round(data.amount), side: 'YES', orderCount: data.count });
             }
           } else {
+            // NO limit order: show at its actual limit price
+            // NO order at X% means they want to sell YES at (100-X)%
+            // But for clarity, show NO orders directly
             if (price < currentProbPercent) {
+              // NO order below current = willing to buy NO cheap (bearish)
               bids.push({ price, amount: Math.round(data.amount), side: 'NO', orderCount: data.count });
             } else if (price > currentProbPercent) {
+              // NO order above current = conditional order
               asks.push({ price, amount: Math.round(data.amount), side: 'NO', orderCount: data.count });
             }
           }
         }
         
+        // Sort bids descending (best bid first), asks ascending (best ask first)
         bids.sort((a, b) => b.price - a.price);
         asks.sort((a, b) => a.price - b.price);
         
+        // Calculate spread from best bid and best ask
         if (bids.length > 0 && asks.length > 0) {
           const bestBid = bids[0].price;
           const bestAsk = asks[0].price;
@@ -126,6 +149,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
     1
   );
 
+  // Scroll to center when order book loads
   useLayoutEffect(() => {
     if (!hasScrolledRef.current && centerLineRef.current && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
@@ -137,91 +161,99 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
     }
   }, [orderLevels]);
 
+  // Reset scroll flag when market changes
   useEffect(() => {
     hasScrolledRef.current = false;
   }, [marketId, answerId]);
 
   return (
-    <div className="bg-[#0d1117] border border-[#1e2736] rounded-lg p-4">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1">Orderbook</h3>
-          <p className="text-xs text-gray-500">Order entry with live market depth</p>
+    <Card className="bg-gray-900/50 border-gray-800 p-3">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-gray-500">Order Book</span>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs border-gray-700 text-gray-400">
+            24h: M${Math.round(volume24h).toLocaleString()}
+          </Badge>
+          <Badge variant="outline" className="text-xs border-gray-700 text-gray-400">
+            Liq: M${Math.round(liquidity).toLocaleString()}
+          </Badge>
         </div>
       </div>
 
-      {/* Column Headers */}
-      <div className="grid grid-cols-5 gap-1 text-[10px] text-gray-500 uppercase tracking-wider mb-2 px-1">
-        <span>Our_Qty</span>
-        <span className="text-right">Bid_Size</span>
-        <span className="text-center">Bid</span>
-        <span className="text-center">Ask</span>
-        <span>Ask_Size</span>
-      </div>
-
       {loading && orderLevels.bids.length === 0 ? (
-        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">Loading...</div>
+        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
+          Loading...
+        </div>
       ) : orderLevels.bids.length === 0 && orderLevels.asks.length === 0 ? (
-        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">No pending limit orders</div>
+        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
+          No pending limit orders
+        </div>
       ) : (
         <div ref={scrollContainerRef} className="h-[200px] overflow-y-auto">
-          <div className="space-y-0.5">
-            {/* Asks - reversed so lowest ask is closest to spread */}
+          <div className="space-y-1 pr-2">
+            {/* Asks - show in reverse so lowest ask is closest to spread */}
             {orderLevels.asks.slice().reverse().map((level, i) => (
-              <div key={`ask-${i}`} className="grid grid-cols-5 gap-1 text-xs py-1 px-1 hover:bg-[#1a2332] rounded font-mono items-center">
-                <span className="text-gray-600">—</span>
-                <span className="text-right text-gray-400">{level.amount}</span>
-                <span className="text-center text-yellow-400 font-bold">{level.price}</span>
-                <span className={`text-center font-bold ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {level.price}
+              <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
+                <div
+                  className="absolute right-0 h-full transition-all duration-300"
+                  style={{ 
+                    width: `${(level.amount / maxAmount) * 100}%`,
+                    backgroundColor: level.side === 'YES' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                  }}
+                />
+                <span className={`relative z-10 w-14 font-mono ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {level.price}%
                 </span>
-                <span className="text-gray-400">{level.amount}</span>
+                <span className="relative z-10 w-10 text-[10px] text-gray-500">{level.side}</span>
+                <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
+                  M${Math.round(level.amount).toLocaleString()}
+                </span>
+                <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
+                  ({level.orderCount})
+                </span>
               </div>
             ))}
             
-            {/* Current price line */}
+            {/* Current price line with spread - SOLID BACKGROUND */}
             <div 
               ref={centerLineRef}
-              className="py-2 my-1 border-y border-[#1e2736] bg-[#0a0e14]"
+              className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 bg-gray-900"
             >
-              <div className="text-center">
-                <span className="text-lg font-bold text-emerald-400 font-mono">
-                  {(currentProbability * 100).toFixed(1)}%
+              <span className="text-sm font-bold text-emerald-400 font-mono">
+                {(currentProbability * 100).toFixed(1)}%
+              </span>
+              {spread !== null && (
+                <span className="text-[10px] text-gray-500">
+                  Spread: {spread}%
                 </span>
-                {spread !== null && (
-                  <span className="text-xs text-gray-500 ml-2">
-                    Spread: {spread}%
-                  </span>
-                )}
-              </div>
+              )}
             </div>
             
             {/* Bids */}
             {orderLevels.bids.map((level, i) => (
-              <div key={`bid-${i}`} className="grid grid-cols-5 gap-1 text-xs py-1 px-1 hover:bg-[#1a2332] rounded font-mono items-center">
-                <span className="text-gray-600">—</span>
-                <span className="text-right text-gray-400">{level.amount}</span>
-                <span className={`text-center font-bold ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {level.price}
+              <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
+                <div
+                  className="absolute left-0 h-full transition-all duration-300"
+                  style={{ 
+                    width: `${(level.amount / maxAmount) * 100}%`,
+                    backgroundColor: level.side === 'YES' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                  }}
+                />
+                <span className={`relative z-10 w-14 font-mono ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {level.price}%
                 </span>
-                <span className="text-center text-yellow-400 font-bold">{level.price}</span>
-                <span className="text-gray-400">{level.amount}</span>
+                <span className="relative z-10 w-10 text-[10px] text-gray-500">{level.side}</span>
+                <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
+                  M${Math.round(level.amount).toLocaleString()}
+                </span>
+                <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
+                  ({level.orderCount})
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Footer Stats */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1e2736] text-xs">
-        <div className="text-gray-500">
-          24h Vol: <span className="text-white font-mono">M${Math.round(volume24h).toLocaleString()}</span>
-        </div>
-        <div className="text-gray-500">
-          Liquidity: <span className="text-white font-mono">M${Math.round(liquidity).toLocaleString()}</span>
-        </div>
-      </div>
-    </div>
+    </Card>
   );
 }
