@@ -41,8 +41,35 @@ serve(async (req) => {
       );
     }
 
-    const { action, apiKey, marketId, targetExitPrice, orderId } = await req.json();
+    const requestBody = await req.json();
+    const { action, apiKey: providedApiKey, marketId, targetExitPrice, orderId } = requestBody;
     console.log(`[limit-sell-order] Action: ${action}, User: ${user.id}, Market: ${marketId}`);
+
+    // Get API key from request or fetch from user settings (server-side)
+    let apiKey = providedApiKey;
+    if (!apiKey) {
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      const { data: settings, error: settingsError } = await supabaseAdmin
+        .from('user_manifold_settings')
+        .select('manifold_api_key')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (settingsError || !settings?.manifold_api_key) {
+        console.error('[limit-sell-order] No API key found:', settingsError);
+        return new Response(
+          JSON.stringify({ error: 'No Manifold API key configured. Please add your API key in Settings.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      apiKey = settings.manifold_api_key;
+      console.log('[limit-sell-order] Using API key from user settings');
+    }
 
     if (action === 'get-position') {
       // Get user's position in a market
