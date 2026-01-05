@@ -141,7 +141,7 @@ serve(async (req) => {
       );
     }
 
-    if (action === 'place-limit-sell') {
+    if (action === 'place-limit-sell' || action === 'create-order') {
       // Place a limit sell order by creating an opposite limit order
       if (!apiKey || !marketId || !targetExitPrice) {
         return new Response(
