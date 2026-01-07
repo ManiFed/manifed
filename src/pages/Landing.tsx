@@ -249,11 +249,19 @@ export default function Landing() {
       free: true,
     },
     {
-      title: "Client",
-      description: "Premium tools: Trading Terminal, Index Funds, Arbitrage Opportunities, and more.",
+      title: "Terminal",
+      description: "Fast keyboard-driven trading interface with hotkeys and command syntax.",
       icon: Sparkles,
+      link: "/terminal",
+      free: false,
+    },
+    {
+      title: "Client",
+      description: "Experimental beta tools: Index Funds, Arbitrage Scanner, Advanced Orders.",
+      icon: Shield,
       link: "/client",
       free: false,
+      beta: true,
     },
   ];
   return (
@@ -278,9 +286,9 @@ export default function Landing() {
                   P2P Loans
                 </Button>
               </Link>
-              <Link to="/auth?redirect=/client">
+              <Link to="/auth?redirect=/terminal">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  Client
+                  Terminal
                 </Button>
               </Link>
               <Link to="/about">
@@ -321,9 +329,9 @@ export default function Landing() {
                 P2P Loans
               </Button>
             </Link>
-            <Link to="/client">
+            <Link to="/auth?redirect=/terminal">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
-                Client
+                Terminal
               </Button>
             </Link>
             <Link to="/about">
@@ -380,33 +388,50 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {products.map((product, index) => (
               <Card
                 key={product.title}
-                className="glass border-border/50 animate-slide-up hover:border-accent/50 transition-all hover:-translate-y-1"
+                className={`glass animate-slide-up hover:-translate-y-1 transition-all ${
+                  product.beta 
+                    ? "border-destructive/30 hover:border-destructive/50 bg-destructive/5" 
+                    : "border-border/50 hover:border-accent/50"
+                }`}
                 style={{
                   animationDelay: `${index * 100}ms`,
                 }}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
-                      <product.icon className="w-6 h-6 text-foreground" />
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      product.beta ? "bg-destructive/10" : "bg-secondary"
+                    }`}>
+                      <product.icon className={`w-6 h-6 ${product.beta ? "text-destructive" : "text-foreground"}`} />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
-                      {product.free === true && (
-                        <Badge variant="outline" className="text-xs mt-0.5">
-                          Free
-                        </Badge>
-                      )}
+                      <div className="flex gap-1 mt-0.5">
+                        {product.free === true && (
+                          <Badge variant="outline" className="text-xs">
+                            Free
+                          </Badge>
+                        )}
+                        {product.beta && (
+                          <Badge variant="destructive" className="text-xs">
+                            Beta
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <p className="font-serif text-sm text-muted-foreground mb-4">{product.description}</p>
                   <Link to={product.link}>
-                    <Button variant="outline" className="w-full font-serif gap-2" size="sm">
-                      Access <ArrowRight className="w-4 h-4" />
+                    <Button 
+                      variant={product.beta ? "destructive" : "outline"} 
+                      className={`w-full font-serif gap-2 ${product.beta ? "bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30" : ""}`} 
+                      size="sm"
+                    >
+                      {product.beta ? "Access (Unstable)" : "Access"} <ArrowRight className="w-4 h-4" />
                     </Button>
                   </Link>
                 </CardContent>
