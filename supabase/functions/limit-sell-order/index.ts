@@ -43,6 +43,7 @@ interface Position {
   invested: number;
   hasYesShares: boolean;
   hasNoShares: boolean;
+  answerId?: string;
 }
 
 interface MarketInfo {
@@ -50,6 +51,8 @@ interface MarketInfo {
   question: string;
   url: string;
   probability: number;
+  mechanism?: string;
+  outcomeType?: string;
 }
 
 serve(async (req) => {
@@ -245,6 +248,10 @@ serve(async (req) => {
       }
       marketData = await marketResponse.json();
       contractId = marketData.id;
+      
+      // Check if this is a multiple choice market
+      const isMultiChoice = marketData.mechanism === 'cpmm-multi-1' || marketData.outcomeType === 'MULTIPLE_CHOICE';
+      console.log(`[limit-sell-order] Market type: ${marketData.outcomeType}, isMultiChoice: ${isMultiChoice}`);
 
       // Get user's position using contract ID
       const positionResponse = await fetch(
@@ -310,6 +317,28 @@ serve(async (req) => {
 
       console.log(`[limit-sell-order] Placing limit order: ${oppositeOutcome} at ${limitProb}, amount: ${cashRequired}`);
 
+      // Build bet payload - include answerId for multi-choice markets
+      const betPayload: Record<string, unknown> = {
+        amount: Math.floor(cashRequired),
+        contractId: contractId,
+        outcome: oppositeOutcome,
+        limitProb: Math.round(limitProb * 100) / 100 // Round to 2 decimal places
+      };
+      
+      // For multiple choice markets, we need the answerId from the position
+      if (isMultiChoice) {
+        const answerId = position.answerId;
+        if (!answerId) {
+          console.error('[limit-sell-order] Multi-choice market requires answerId but position has none');
+          return new Response(
+            JSON.stringify({ error: 'Cannot place limit sell on multiple choice market - answer ID not found in position' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        betPayload.answerId = answerId;
+        console.log(`[limit-sell-order] Multi-choice market, using answerId: ${answerId}`);
+      }
+
       // Place the limit order
       const betResponse = await fetch('https://api.manifold.markets/v0/bet', {
         method: 'POST',
@@ -317,12 +346,7 @@ serve(async (req) => {
           'Authorization': `Key ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          amount: Math.floor(cashRequired),
-          contractId: contractId,
-          outcome: oppositeOutcome,
-          limitProb: Math.round(limitProb * 100) / 100 // Round to 2 decimal places
-        })
+        body: JSON.stringify(betPayload)
       });
 
       if (!betResponse.ok) {
