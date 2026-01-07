@@ -6,6 +6,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ENCRYPTION_KEY = Deno.env.get("API_ENCRYPTION_KEY") || "";
+
+// Decrypt AES-GCM encrypted API key
+async function decryptApiKey(encryptedData: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  
+  // Derive key from encryption secret
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32)),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"]
+  );
+  
+  // Decode base64 and extract IV + ciphertext
+  const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+  
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    keyMaterial,
+    ciphertext
+  );
+  
+  return decoder.decode(decrypted);
+}
+
 interface Position {
   contractId: string;
   totalShares: { YES?: number; NO?: number };
@@ -67,8 +98,17 @@ serve(async (req) => {
         );
       }
       
-      apiKey = settings.manifold_api_key;
-      console.log('[limit-sell-order] Using API key from user settings');
+      // Decrypt the API key
+      try {
+        apiKey = await decryptApiKey(settings.manifold_api_key);
+        console.log('[limit-sell-order] Decrypted API key from user settings');
+      } catch (decryptError) {
+        console.error('[limit-sell-order] Failed to decrypt API key:', decryptError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to decrypt API key. Please re-add your API key in Settings.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (action === 'get-position') {
