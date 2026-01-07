@@ -191,12 +191,11 @@ export default function Hub() {
         animationDelay: "100ms"
       }}>
           <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">Products</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* P2P Loans */}
             <Link to="/marketplace" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
-                  
                   <CardTitle className="text-2xl font-bold">P2P Loans</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -215,7 +214,6 @@ export default function Hub() {
             <Link to="/bonds" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
-                  
                   <CardTitle className="text-2xl font-bold">Treasury Bonds</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -228,17 +226,37 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Fintech Tools */}
-            <Link to="/fintech/menu" className="group">
+            {/* Trading Terminal - Standalone */}
+            <Link to="/terminal" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
-                  
-                  <CardTitle className="text-2xl font-bold">ManiFed Fintech</CardTitle>
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    Terminal
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-6">AI-powered arbitrage, index funds, and advanced orders.</p>
-                  <div className="flex items-center gap-2 text-violet-500 font-medium">
-                    Access Tools
+                  <p className="text-muted-foreground mb-6">Fast keyboard-driven trading interface with hotkeys.</p>
+                  <div className="flex items-center gap-2 text-blue-500 font-medium">
+                    Open Terminal
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Client Tools - Beta Warning */}
+            <Link to="/client" className="group">
+              <Card className="h-full border-destructive/30 hover:border-destructive/50 transition-all duration-300 group-hover:shadow-lg bg-destructive/5">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl font-bold">Client</CardTitle>
+                    <Badge variant="destructive" className="text-xs">Beta</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-6">Experimental tools: Index Funds, Arbitrage, Advanced Orders.</p>
+                  <div className="flex items-center gap-2 text-destructive font-medium">
+                    Access (Unstable)
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
                 </CardContent>
