@@ -17,7 +17,7 @@ import LoanNegotiations from "./pages/LoanNegotiations";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
-import Bonds from "./pages/Bonds";
+import Loans from "./pages/Loans";
 import BondMarket from "./pages/BondMarket";
 import TreasuryAdmin from "./pages/TreasuryAdmin";
 import Memecoins from "./pages/Memecoins";
@@ -32,6 +32,7 @@ import FintechAdvancedOrders from "./pages/FintechAdvancedOrders";
 import FintechCalibration from "./pages/FintechCalibration";
 import FintechBotBuilder from "./pages/FintechBotBuilder";
 import TradingTerminal from "./pages/TradingTerminal";
+import NAVLOC from "./pages/NAVLOC";
 import NotFound from "./pages/NotFound";
 import DocsLayout from "./pages/docs/DocsLayout";
 import Welcome from "./pages/docs/articles/Welcome";
@@ -97,8 +98,10 @@ const App = () => (
           <Route path="/create" element={<ProtectedRoute><CreateLoan /></ProtectedRoute>} />
           <Route path="/credit-search" element={<CreditSearch />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/bonds" element={<ProtectedRoute><Bonds /></ProtectedRoute>} />
+          <Route path="/loans" element={<ProtectedRoute><Loans /></ProtectedRoute>} />
+          <Route path="/bonds" element={<Navigate to="/loans" replace />} />
           <Route path="/bond-market" element={<ProtectedRoute><BondMarket /></ProtectedRoute>} />
+          <Route path="/navloc" element={<ProtectedRoute><NAVLOC /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><TreasuryAdmin /></ProtectedRoute>} />
           <Route path="/treasury-admin" element={<Navigate to="/admin" replace />} />
           <Route path="/memecoins" element={<Memecoins />} />

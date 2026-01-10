@@ -192,34 +192,34 @@ export default function Hub() {
       }}>
           <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">Products</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* P2P Loans */}
-            <Link to="/marketplace" className="group">
+            {/* Loans (Bonds + P2P) */}
+            <Link to="/loans" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-2xl font-bold">P2P Loans</CardTitle>
+                  <CardTitle className="text-2xl font-bold">Loans</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-6">
-                    Invest in peer-to-peer loans backed by Manifold Markets predictions.
+                    Treasury Bonds with 6% APY and P2P lending marketplace.
                   </p>
                   <div className="flex items-center gap-2 text-primary font-medium">
-                    Go to Marketplace
+                    Go to Loans
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
                 </CardContent>
               </Card>
             </Link>
 
-            {/* Treasury Bonds */}
-            <Link to="/bonds" className="group">
+            {/* NAVLOC */}
+            <Link to="/navloc" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-2xl font-bold">Treasury Bonds</CardTitle>
+                  <CardTitle className="text-2xl font-bold">NAVLOC</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-6">Fixed-income instruments with guaranteed 6% APY yields.</p>
+                  <p className="text-muted-foreground mb-6">Net Account Value Line of Credit — instant credit access.</p>
                   <div className="flex items-center gap-2 text-emerald-500 font-medium">
-                    View Bonds
+                    View Credit
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
                 </CardContent>
