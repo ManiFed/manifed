@@ -274,6 +274,33 @@ export type Database = {
           },
         ]
       }
+      bond_issuers: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_verified: boolean
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_verified?: boolean
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_verified?: boolean
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       bond_listings: {
         Row: {
           asking_price: number
@@ -384,6 +411,7 @@ export type Database = {
           bond_code: string | null
           created_at: string
           id: string
+          issuer_id: string | null
           maturity_date: string
           monthly_yield: number
           next_interest_date: string | null
@@ -400,6 +428,7 @@ export type Database = {
           bond_code?: string | null
           created_at?: string
           id?: string
+          issuer_id?: string | null
           maturity_date: string
           monthly_yield?: number
           next_interest_date?: string | null
@@ -416,6 +445,7 @@ export type Database = {
           bond_code?: string | null
           created_at?: string
           id?: string
+          issuer_id?: string | null
           maturity_date?: string
           monthly_yield?: number
           next_interest_date?: string | null
@@ -426,7 +456,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bonds_issuer_id_fkey"
+            columns: ["issuer_id"]
+            isOneToOne: false
+            referencedRelation: "bond_issuers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bot_run_history: {
         Row: {
@@ -531,6 +569,42 @@ export type Database = {
           trigger_direction?: string
           triggered_at?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      credit_applications: {
+        Row: {
+          created_at: string
+          id: string
+          manifold_username: string | null
+          notes: string | null
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          manifold_username?: string | null
+          notes?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          manifold_username?: string | null
+          notes?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -990,6 +1064,122 @@ export type Database = {
           pool_tokens?: number
           symbol?: string
           total_supply?: number
+        }
+        Relationships: []
+      }
+      navloc_credit_lines: {
+        Row: {
+          available_credit: number | null
+          credit_grade: string
+          credit_limit: number
+          current_balance: number
+          granted_at: string
+          granted_by: string | null
+          id: string
+          interest_due: number
+          interest_rate: number
+          is_active: boolean
+          last_interest_payment: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_credit?: number | null
+          credit_grade: string
+          credit_limit?: number
+          current_balance?: number
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          interest_due?: number
+          interest_rate?: number
+          is_active?: boolean
+          last_interest_payment?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_credit?: number | null
+          credit_grade?: string
+          credit_limit?: number
+          current_balance?: number
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          interest_due?: number
+          interest_rate?: number
+          is_active?: boolean
+          last_interest_payment?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      navloc_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          credit_line_id: string
+          description: string | null
+          id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          credit_line_id: string
+          description?: string | null
+          id?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          credit_line_id?: string
+          description?: string | null
+          id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "navloc_transactions_credit_line_id_fkey"
+            columns: ["credit_line_id"]
+            isOneToOne: false
+            referencedRelation: "navloc_credit_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      net_worth_history: {
+        Row: {
+          basic_net_worth: number
+          id: string
+          liquidity_adjusted_net_worth: number
+          recorded_at: string
+          total_net_worth: number
+          user_id: string
+        }
+        Insert: {
+          basic_net_worth?: number
+          id?: string
+          liquidity_adjusted_net_worth?: number
+          recorded_at?: string
+          total_net_worth?: number
+          user_id: string
+        }
+        Update: {
+          basic_net_worth?: number
+          id?: string
+          liquidity_adjusted_net_worth?: number
+          recorded_at?: string
+          total_net_worth?: number
+          user_id?: string
         }
         Relationships: []
       }
