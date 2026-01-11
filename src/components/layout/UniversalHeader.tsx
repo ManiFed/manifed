@@ -89,8 +89,9 @@ export function UniversalHeader({
   };
 
   const defaultNavItems: NavItem[] = [
-    { path: '/bonds', label: 'Treasury' },
-    { path: '/marketplace', label: 'P2P Loans' },
+    { path: '/loans', label: 'Loans' },
+    { path: '/navloc', label: 'NAVLOC' },
+    { path: '/terminal', label: 'Terminal' },
     { path: '/client', label: 'Client' },
     { path: '/docs', label: 'Docs' },
   ];

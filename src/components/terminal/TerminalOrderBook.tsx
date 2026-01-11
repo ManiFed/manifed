@@ -91,44 +91,39 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           ordersByPrice[key].count += 1;
         }
         
-        // Bids: YES orders below current price OR NO orders above current price
-        // (both represent offers to buy below/sell above market)
+        // Order book logic:
+        // ASKS (above current price): orders that will fill when price goes UP
+        // - YES limit orders ABOVE current price (bullish, waiting for price to rise)
+        // - NO limit orders ABOVE current price (bearish, betting against rise)
+        // BIDS (below current price): orders that will fill when price goes DOWN  
+        // - YES limit orders BELOW current price (buy the dip)
+        // - NO limit orders BELOW current price (bearish, waiting for drop)
         const bids: OrderLevel[] = [];
         const asks: OrderLevel[] = [];
         
         for (const [key, data] of Object.entries(ordersByPrice)) {
-          const [priceStr, side] = key.split('-');
+          const [priceStr] = key.split('-');
           const price = parseInt(priceStr);
           
-          if (side === 'YES') {
-            // YES limit order: bid if below current, ask if above current
-            if (price < currentProbPercent) {
-              bids.push({ price, amount: Math.round(data.amount), side: 'YES', orderCount: data.count });
-            } else if (price > currentProbPercent) {
-              asks.push({ price, amount: Math.round(data.amount), side: 'YES', orderCount: data.count });
-            }
-          } else {
-            // NO limit order: show at its actual limit price
-            // NO order at X% means they want to sell YES at (100-X)%
-            // But for clarity, show NO orders directly
-            if (price < currentProbPercent) {
-              // NO order below current = willing to buy NO cheap (bearish)
-              bids.push({ price, amount: Math.round(data.amount), side: 'NO', orderCount: data.count });
-            } else if (price > currentProbPercent) {
-              // NO order above current = conditional order
-              asks.push({ price, amount: Math.round(data.amount), side: 'NO', orderCount: data.count });
-            }
+          // Classify based on price relative to current probability only
+          if (price > currentProbPercent) {
+            // ASKS - orders above current price
+            asks.push({ price, amount: Math.round(data.amount), side: data.side as 'YES' | 'NO', orderCount: data.count });
+          } else if (price < currentProbPercent) {
+            // BIDS - orders below current price
+            bids.push({ price, amount: Math.round(data.amount), side: data.side as 'YES' | 'NO', orderCount: data.count });
           }
         }
         
-        // Sort bids descending (best bid first), asks ascending (best ask first)
+        // Sort asks ascending (lowest ask at bottom, closest to spread)
+        // Sort bids descending (highest bid at top, closest to spread)
         bids.sort((a, b) => b.price - a.price);
         asks.sort((a, b) => a.price - b.price);
         
         // Calculate spread from best bid and best ask
         if (bids.length > 0 && asks.length > 0) {
           const bestBid = bids[0].price;
-          const bestAsk = asks[0].price;
+          const bestAsk = asks[asks.length - 1]?.price || asks[0].price;
           setSpread(Math.abs(bestAsk - bestBid));
         } else {
           setSpread(null);
@@ -191,17 +186,18 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
       ) : (
         <div ref={scrollContainerRef} className="h-[200px] overflow-y-auto">
           <div className="space-y-1 pr-2">
-            {/* Asks - show in reverse so lowest ask is closest to spread */}
+            {/* Asks - orders ABOVE current probability, shown in RED */}
+            {/* Highest asks at top, lowest (closest to spread) at bottom */}
             {orderLevels.asks.slice().reverse().map((level, i) => (
               <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
                 <div
                   className="absolute right-0 h-full transition-all duration-300"
                   style={{ 
                     width: `${(level.amount / maxAmount) * 100}%`,
-                    backgroundColor: level.side === 'YES' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                    backgroundColor: 'rgba(239, 68, 68, 0.4)'
                   }}
                 />
-                <span className={`relative z-10 w-14 font-mono ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className="relative z-10 w-14 font-mono text-red-400">
                   {level.price}%
                 </span>
                 <span className="relative z-10 w-10 text-[10px] text-gray-500">{level.side}</span>
@@ -229,17 +225,18 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
               )}
             </div>
             
-            {/* Bids */}
+            {/* Bids - orders BELOW current probability, shown in GREEN */}
+            {/* Highest bids (closest to spread) at top */}
             {orderLevels.bids.map((level, i) => (
               <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
                 <div
                   className="absolute left-0 h-full transition-all duration-300"
                   style={{ 
                     width: `${(level.amount / maxAmount) * 100}%`,
-                    backgroundColor: level.side === 'YES' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
+                    backgroundColor: 'rgba(16, 185, 129, 0.4)'
                   }}
                 />
-                <span className={`relative z-10 w-14 font-mono ${level.side === 'YES' ? 'text-emerald-400' : 'text-red-400'}`}>
+                <span className="relative z-10 w-14 font-mono text-emerald-400">
                   {level.price}%
                 </span>
                 <span className="relative z-10 w-10 text-[10px] text-gray-500">{level.side}</span>

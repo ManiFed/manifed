@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Target, X, RefreshCw, ExternalLink, ShieldAlert } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Target, X, RefreshCw, ExternalLink, ShieldAlert, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import CopyTradeOrder from "./CopyTradeOrder";
 
 interface Position {
   yesShares: number;
@@ -14,6 +17,8 @@ interface Position {
   invested: number;
   hasYesShares: boolean;
   hasNoShares: boolean;
+  answerId?: string;
+  answerText?: string;
 }
 
 interface Market {
@@ -21,6 +26,12 @@ interface Market {
   question: string;
   url: string;
   probability: number;
+  outcomeType?: string;
+  answers?: {
+    id: string;
+    text: string;
+    probability: number;
+  }[];
 }
 
 interface LimitSellOrder {
@@ -49,6 +60,7 @@ export default function AdvancedOrders() {
   const [userBalance, setUserBalance] = useState<number>(0);
   const [targetExitPrice, setTargetExitPrice] = useState("");
   const [limitSellOrders, setLimitSellOrders] = useState<LimitSellOrder[]>([]);
+  const [selectedAnswerId, setSelectedAnswerId] = useState<string>("");
 
   useEffect(() => {
     fetchOrders();
@@ -78,12 +90,7 @@ export default function AdvancedOrders() {
     return null;
   };
 
-  const loadPosition = async () => {
-    if (!apiKey || !marketUrl) {
-      toast({ title: 'Missing fields', description: 'Enter API key and market URL', variant: 'destructive' });
-      return;
-    }
-
+  const loadMarket = async () => {
     const marketId = extractMarketId(marketUrl);
     if (!marketId) {
       toast({ title: 'Invalid URL', description: 'Could not parse market URL', variant: 'destructive' });
@@ -92,18 +99,64 @@ export default function AdvancedOrders() {
 
     setIsLoading(true);
     try {
+      const response = await fetch(`https://api.manifold.markets/v0/slug/${marketId}`);
+      if (!response.ok) throw new Error('Market not found');
+      const data = await response.json();
+      setMarket({
+        id: data.id,
+        question: data.question,
+        url: data.url,
+        probability: data.probability,
+        outcomeType: data.outcomeType,
+        answers: data.answers
+      });
+      setPosition(null);
+      setSelectedAnswerId('');
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to load market', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadPosition = async () => {
+    if (!apiKey || !market) {
+      toast({ title: 'Missing fields', description: 'Enter API key and load market first', variant: 'destructive' });
+      return;
+    }
+
+    // For MC markets, require answer selection
+    if (market.outcomeType === 'MULTIPLE_CHOICE' && !selectedAnswerId) {
+      toast({ title: 'Select an option', description: 'Choose an option for Multiple Choice markets', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
       const { data, error } = await supabase.functions.invoke('limit-sell-order', {
-        body: { action: 'get-position', apiKey, marketId }
+        body: { 
+          action: 'get-position', 
+          apiKey, 
+          marketId: market.id,
+          answerId: selectedAnswerId || undefined
+        }
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setMarket(data.market);
-      setPosition(data.position);
+      const pos = data.position;
+      if (selectedAnswerId && market.answers) {
+        const answer = market.answers.find(a => a.id === selectedAnswerId);
+        pos.answerId = selectedAnswerId;
+        pos.answerText = answer?.text;
+      }
+
+      setMarket(prev => prev ? { ...prev, probability: data.market?.probability || prev.probability } : null);
+      setPosition(pos);
       setUserBalance(data.user?.balance || 0);
 
-      toast({ title: 'Position loaded', description: `Found ${data.position.hasYesShares ? 'YES' : 'NO'} shares` });
+      toast({ title: 'Position loaded', description: `Found ${pos.hasYesShares ? 'YES' : 'NO'} shares` });
     } catch (error) {
       toast({ 
         title: 'Error', 
@@ -134,13 +187,13 @@ export default function AdvancedOrders() {
           action: 'place-limit-sell', 
           apiKey, 
           marketId: market.id,
-          targetExitPrice: targetPrice
+          targetExitPrice: targetPrice,
+          answerId: position.answerId || undefined
         }
       });
 
       if (error) throw error;
       if (data?.error) {
-        // Show detailed error message if available
         const errorMsg = data.details || data.error;
         toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
         return;
@@ -150,7 +203,8 @@ export default function AdvancedOrders() {
       setPosition(null);
       setMarket(null);
       setTargetExitPrice("");
-      setApiKey(""); // Clear API key after use
+      setSelectedAnswerId("");
+      setApiKey("");
       fetchOrders();
     } catch (error) {
       toast({ 
@@ -231,6 +285,7 @@ export default function AdvancedOrders() {
   };
 
   const preview = calculatePreview();
+  const isMultiChoice = market?.outcomeType === 'MULTIPLE_CHOICE';
 
   return (
     <div className="space-y-6">
@@ -259,100 +314,163 @@ export default function AdvancedOrders() {
         </CardContent>
       </Card>
 
-      {/* Limit Sell Order Creation */}
-      <Card className="glass">
-        <CardHeader>
-          <CardTitle className="font-display flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            Limit Sell Orders
-          </CardTitle>
-          <CardDescription className="font-serif">
-            Exit your position by placing an opposite limit order. When the market reaches your target price,
-            you'll hold equal YES and NO shares, locking in profit regardless of resolution.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="font-serif">Market URL or ID</Label>
-            <div className="flex gap-2">
-              <Input
-                value={marketUrl}
-                onChange={(e) => setMarketUrl(e.target.value)}
-                placeholder="https://manifold.markets/..."
-                className="font-serif flex-1"
-              />
-              <Button onClick={loadPosition} disabled={isLoading || !apiKey} className="font-serif">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Position'}
-              </Button>
-            </div>
-          </div>
+      {/* Order Types Tabs */}
+      <Tabs defaultValue="limit-sell" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="limit-sell" className="gap-2">
+            <Target className="w-4 h-4" /> Limit Sell
+          </TabsTrigger>
+          <TabsTrigger value="copy-trade" className="gap-2">
+            <Copy className="w-4 h-4" /> Copy Trade
+          </TabsTrigger>
+        </TabsList>
 
-          {market && position && (
-            <>
-              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                <p className="font-serif text-sm text-muted-foreground">Market</p>
-                <p className="font-serif font-medium">{market.question}</p>
-                <div className="flex gap-4 text-sm">
-                  <span>Current: <strong>{(market.probability * 100).toFixed(1)}%</strong></span>
-                  <span>
-                    Position: <strong>{position.hasYesShares ? 'YES' : 'NO'}</strong> 
-                    {' '}({(position.hasYesShares ? position.yesShares : position.noShares).toFixed(2)} shares)
-                  </span>
+        <TabsContent value="limit-sell">
+          {/* Limit Sell Order Creation */}
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle className="font-display flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Limit Sell Orders
+              </CardTitle>
+              <CardDescription className="font-serif">
+                Exit your position by placing an opposite limit order. When the market reaches your target price,
+                you'll hold equal YES and NO shares, locking in profit regardless of resolution.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="font-serif">Market URL or ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={marketUrl}
+                    onChange={(e) => setMarketUrl(e.target.value)}
+                    placeholder="https://manifold.markets/..."
+                    className="font-serif flex-1"
+                  />
+                  <Button onClick={loadMarket} disabled={isLoading || !marketUrl} className="font-serif">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Market'}
+                  </Button>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-serif">Target Exit Price (%)</Label>
-                <Input
-                  type="number"
-                  value={targetExitPrice}
-                  onChange={(e) => setTargetExitPrice(e.target.value)}
-                  placeholder={position.hasYesShares ? "e.g. 70 (sell when YES reaches 70%)" : "e.g. 30 (sell when NO reaches 30%)"}
-                  min="1"
-                  max="99"
-                  className="font-serif"
-                />
-              </div>
-
-              {preview && (
-                <div className="p-4 rounded-lg bg-accent/10 border border-accent/20 space-y-2">
-                  <p className="font-serif font-medium text-accent">Order Preview</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm font-serif">
-                    <span className="text-muted-foreground">Will place:</span>
-                    <span>{preview.oppositeOutcome} limit @ {(preview.limitPrice * 100).toFixed(0)}%</span>
-                    <span className="text-muted-foreground">Cash required:</span>
-                    <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : ''}>
-                      Ṁ{preview.cashRequired.toFixed(2)}
-                    </span>
-                    <span className="text-muted-foreground">Your balance:</span>
-                    <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : 'text-green-400'}>
-                      Ṁ{userBalance.toFixed(2)}
-                    </span>
-                    <span className="text-muted-foreground">Expected profit:</span>
-                    <span className={preview.expectedProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      Ṁ{preview.expectedProfit.toFixed(2)}
-                    </span>
+              {/* Market Info */}
+              {market && (
+                <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                  <p className="font-serif font-medium">{market.question}</p>
+                  <div className="flex gap-4 text-sm">
+                    <span>Current: <strong>{(market.probability * 100).toFixed(1)}%</strong></span>
+                    {isMultiChoice && (
+                      <Badge variant="outline">Multiple Choice ({market.answers?.length} options)</Badge>
+                    )}
                   </div>
-                  {!preview.hasEnoughBalance && (
-                    <p className="text-sm text-red-400 mt-2">
-                      ⚠️ Insufficient balance. You need Ṁ{Math.ceil(preview.cashRequired - userBalance)} more to place this order.
-                    </p>
-                  )}
                 </div>
               )}
 
-              <Button 
-                onClick={placeLimitSellOrder} 
-                disabled={isLoading || !preview || !preview.hasEnoughBalance}
-                className="w-full font-serif"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Place Limit Sell Order
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              {/* MC Option Selection */}
+              {isMultiChoice && market?.answers && (
+                <div className="space-y-2">
+                  <Label className="font-serif">Select Option</Label>
+                  <Select value={selectedAnswerId} onValueChange={setSelectedAnswerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an option..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {market.answers.map((answer) => (
+                        <SelectItem key={answer.id} value={answer.id}>
+                          {answer.text} ({(answer.probability * 100).toFixed(1)}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {market && (
+                <Button 
+                  onClick={loadPosition} 
+                  disabled={isLoading || !apiKey || (isMultiChoice && !selectedAnswerId)} 
+                  className="font-serif"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Load Position'}
+                </Button>
+              )}
+
+              {market && position && (
+                <>
+                  <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                    <p className="font-serif text-sm text-muted-foreground">Your Position</p>
+                    <div className="flex gap-4 text-sm">
+                      <span>
+                        Position: <strong className={position.hasYesShares ? 'text-emerald-500' : 'text-red-500'}>
+                          {position.hasYesShares ? 'YES' : 'NO'}
+                        </strong> 
+                        {' '}({(position.hasYesShares ? position.yesShares : position.noShares).toFixed(2)} shares)
+                      </span>
+                    </div>
+                    {position.answerText && (
+                      <p className="text-xs text-muted-foreground">Option: {position.answerText}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-serif">Target Exit Price (%)</Label>
+                    <Input
+                      type="number"
+                      value={targetExitPrice}
+                      onChange={(e) => setTargetExitPrice(e.target.value)}
+                      placeholder={position.hasYesShares ? "e.g. 70 (sell when YES reaches 70%)" : "e.g. 30 (sell when NO reaches 30%)"}
+                      min="1"
+                      max="99"
+                      className="font-serif"
+                    />
+                  </div>
+
+                  {preview && (
+                    <div className="p-4 rounded-lg bg-accent/10 border border-accent/20 space-y-2">
+                      <p className="font-serif font-medium text-accent">Order Preview</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm font-serif">
+                        <span className="text-muted-foreground">Will place:</span>
+                        <span>{preview.oppositeOutcome} limit @ {(preview.limitPrice * 100).toFixed(0)}%</span>
+                        <span className="text-muted-foreground">Cash required:</span>
+                        <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : ''}>
+                          Ṁ{preview.cashRequired.toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground">Your balance:</span>
+                        <span className={!preview.hasEnoughBalance ? 'text-red-400 font-medium' : 'text-green-400'}>
+                          Ṁ{userBalance.toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground">Expected profit:</span>
+                        <span className={preview.expectedProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          Ṁ{preview.expectedProfit.toFixed(2)}
+                        </span>
+                      </div>
+                      {!preview.hasEnoughBalance && (
+                        <p className="text-sm text-red-400 mt-2">
+                          ⚠️ Insufficient balance. You need Ṁ{Math.ceil(preview.cashRequired - userBalance)} more to place this order.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <Button 
+                    onClick={placeLimitSellOrder} 
+                    disabled={isLoading || !preview || !preview.hasEnoughBalance}
+                    className="w-full font-serif"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Place Limit Sell Order
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="copy-trade">
+          <CopyTradeOrder apiKey={apiKey} onOrderPlaced={fetchOrders} />
+        </TabsContent>
+      </Tabs>
 
       {/* Limit Sell Orders List */}
       <Card className="glass">
