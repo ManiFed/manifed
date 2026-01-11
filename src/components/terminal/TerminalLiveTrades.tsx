@@ -78,10 +78,13 @@ export default function TerminalLiveTrades({
 
             // Determine if this is a limit order
             const isLimitOrder = bet.limitProb !== undefined && bet.limitProb !== null;
+            // Manifold API returns userName, userUsername, or username - try all in order
+            const displayName = bet.userName || bet.userUsername || bet.username || "Unknown";
+            
             return {
               id: bet.id,
               createdTime: bet.createdTime,
-              userName: bet.userName || bet.username || bet.userUsername || "Unknown",
+              userName: displayName,
               userId: bet.userId,
               amount: Math.abs(bet.amount),
               outcome: bet.outcome,

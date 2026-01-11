@@ -26,15 +26,24 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const manifedApiKey = Deno.env.get("MANIFED_API_KEY");
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log("Processing monthly bond interest payments...");
+    if (!manifedApiKey) {
+      console.error("MANIFED_API_KEY not configured");
+      return new Response(
+        JSON.stringify({ error: "ManiFed API key not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Processing monthly bond interest payments via Managram...");
 
     // Find all active bonds with next_interest_date <= now and not yet matured
     const now = new Date().toISOString();
     const { data: bondsForInterest, error: fetchError } = await supabase
       .from("bonds")
-      .select("*")
+      .select("*, profiles:user_id(username)")
       .eq("status", "active")
       .lte("next_interest_date", now)
       .gt("maturity_date", now); // Not yet matured
@@ -60,19 +69,36 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(`Processing interest for bond ${bond.id} (${bond.bond_code}): M$${monthlyInterest.toFixed(2)}`);
-
-        // Credit the user's ManiFed balance with monthly interest
-        const { error: balanceError } = await supabase.rpc('modify_user_balance', {
-          p_user_id: bond.user_id,
-          p_amount: monthlyInterest,
-          p_operation: 'add'
-        });
-
-        if (balanceError) {
-          console.error(`Error updating balance for bond ${bond.id}:`, balanceError);
+        // Get user's Manifold username for managram
+        const username = bond.profiles?.username;
+        if (!username) {
+          console.log(`Skipping bond ${bond.id} - no username found for user ${bond.user_id}`);
           continue;
         }
+
+        console.log(`Processing interest for bond ${bond.id} (${bond.bond_code}): M$${monthlyInterest.toFixed(2)} to @${username}`);
+
+        // Send managram via Manifold API
+        const managramResponse = await fetch("https://api.manifold.markets/v0/managram", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Key ${manifedApiKey}`,
+          },
+          body: JSON.stringify({
+            toIds: [username],
+            amount: Math.round(monthlyInterest),
+            message: `Monthly interest payment for T-Bill ${bond.bond_code} (${bond.annual_yield}% APY)`,
+          }),
+        });
+
+        if (!managramResponse.ok) {
+          const errorText = await managramResponse.text();
+          console.error(`Managram failed for bond ${bond.id}:`, errorText);
+          continue;
+        }
+
+        console.log(`Managram sent successfully for bond ${bond.id}`);
 
         // Record the interest payment
         await supabase.from("bond_interest_payments").insert({
@@ -87,7 +113,7 @@ serve(async (req) => {
           user_id: bond.user_id,
           type: "bond_interest",
           amount: monthlyInterest,
-          description: `Monthly interest payment for ${bond.bond_code}`,
+          description: `Monthly interest payment for ${bond.bond_code} (via Managram)`,
         });
 
         // Update next_interest_date to 1 month from now
@@ -105,7 +131,7 @@ serve(async (req) => {
         processedCount++;
         totalPaid += monthlyInterest;
 
-        console.log(`Bond ${bond.bond_code}: paid M$${monthlyInterest.toFixed(2)} interest to user ${bond.user_id}`);
+        console.log(`Bond ${bond.bond_code}: paid M$${monthlyInterest.toFixed(2)} interest to @${username}`);
 
       } catch (bondError) {
         console.error(`Error processing interest for bond ${bond.id}:`, bondError);
@@ -119,7 +145,7 @@ serve(async (req) => {
         success: true,
         processedCount,
         totalPaid,
-        message: `Processed ${processedCount} interest payments, paid out M$${totalPaid.toFixed(2)}`,
+        message: `Processed ${processedCount} interest payments, paid out M$${totalPaid.toFixed(2)} via Managram`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
