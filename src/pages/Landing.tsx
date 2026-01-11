@@ -235,17 +235,17 @@ export default function Landing() {
   }, []);
   const products = [
     {
-      title: "Treasury Bonds",
-      description: "Fixed-income Treasury Bonds with 6% APY. Guaranteed yields at maturity.",
+      title: "Loans",
+      description: "Treasury Bonds with 6% APY and peer-to-peer lending marketplace.",
       icon: FileText,
-      link: "/bonds",
+      link: "/loans",
       free: true,
     },
     {
-      title: "P2P Loans",
-      description: "Peer-to-peer marketplace for prediction market loans. 0.5% fee on funded loans.",
-      icon: TrendingUp,
-      link: "/marketplace",
+      title: "NAVLOC",
+      description: "Net Account Value Line of Credit. Instant credit access based on your creditworthiness.",
+      icon: Landmark,
+      link: "/navloc",
       free: true,
     },
     {
@@ -276,14 +276,14 @@ export default function Landing() {
 
             {/* Main Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              <Link to="/auth?redirect=/bonds">
+              <Link to="/auth?redirect=/loans">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  Treasury
+                  Loans
                 </Button>
               </Link>
-              <Link to="/auth?redirect=/marketplace">
+              <Link to="/auth?redirect=/navloc">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  P2P Loans
+                  NAVLOC
                 </Button>
               </Link>
               <Link to="/auth?redirect=/terminal">
@@ -291,9 +291,9 @@ export default function Landing() {
                   Terminal
                 </Button>
               </Link>
-              <Link to="/about">
+              <Link to="/docs">
                 <Button variant="ghost" size="sm" className="font-serif">
-                  About
+                  Docs
                 </Button>
               </Link>
             </nav>
@@ -319,14 +319,14 @@ export default function Landing() {
       <div className="md:hidden sticky top-20 z-40 mx-4 mt-2">
         <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-xl px-4 py-2 overflow-x-auto">
           <div className="flex gap-2">
-            <Link to="/auth?redirect=/bonds">
+            <Link to="/auth?redirect=/loans">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
-                Treasury
+                Loans
               </Button>
             </Link>
-            <Link to="/auth?redirect=/marketplace">
+            <Link to="/auth?redirect=/navloc">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
-                P2P Loans
+                NAVLOC
               </Button>
             </Link>
             <Link to="/auth?redirect=/terminal">
@@ -334,9 +334,9 @@ export default function Landing() {
                 Terminal
               </Button>
             </Link>
-            <Link to="/about">
+            <Link to="/docs">
               <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
-                About
+                Docs
               </Button>
             </Link>
           </div>

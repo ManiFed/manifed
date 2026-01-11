@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { UniversalHeader } from '@/components/layout/UniversalHeader';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { TrendingUp, TrendingDown, Plus, Trash2, ArrowUpDown } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -23,6 +27,19 @@ interface ManualLoan {
   created_at: string;
 }
 
+interface NetWorthHistory {
+  date: string;
+  basicNetWorth: number;
+  trueNetWorth: number;
+  totalNetWorth: number;
+}
+
+interface NAVLOCData {
+  current_balance: number;
+  credit_limit: number;
+  is_active: boolean;
+}
+
 export default function Profile() {
   const { userId } = useParams();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -37,10 +54,14 @@ export default function Profile() {
   const [bondValue, setBondValue] = useState(0);
   const [loanInvestments, setLoanInvestments] = useState(0);
   const [liabilities, setLiabilities] = useState(0);
+  const [navlocBalance, setNavlocBalance] = useState(0);
+  const [marketPositionsValue, setMarketPositionsValue] = useState(0); // Liquidity locked in markets
   const [manualLoans, setManualLoans] = useState<ManualLoan[]>([]);
   const [newLoanDesc, setNewLoanDesc] = useState('');
   const [newLoanAmount, setNewLoanAmount] = useState('');
   const [newLoanIsLiability, setNewLoanIsLiability] = useState(false);
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
+  const [netWorthHistory, setNetWorthHistory] = useState<NetWorthHistory[]>([]);
 
   useEffect(() => {
     fetchProfile();
@@ -113,11 +134,40 @@ export default function Profile() {
       const totalLiabilities = userLoans?.reduce((sum, l) => sum + l.funded_amount, 0) || 0;
       setLiabilities(totalLiabilities);
 
+      // Fetch NAVLOC balance (liability)
+      const { data: navlocData } = await supabase
+        .from('navloc_credit_lines')
+        .select('current_balance, is_active')
+        .eq('user_id', targetUserId)
+        .eq('is_active', true)
+        .maybeSingle();
+      setNavlocBalance(navlocData?.current_balance || 0);
+
+      // Fetch net worth history
+      const { data: historyData } = await supabase
+        .from('net_worth_history')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .order('recorded_at', { ascending: true })
+        .limit(30);
+      
+      if (historyData && historyData.length > 0) {
+        setNetWorthHistory(historyData.map(h => ({
+          date: new Date(h.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          basicNetWorth: h.basic_net_worth,
+          trueNetWorth: h.liquidity_adjusted_net_worth,
+          totalNetWorth: h.total_net_worth
+        })));
+      }
+
       // Manual loans stored in localStorage
       const stored = localStorage.getItem(`manual_loans_${targetUserId}`);
       if (stored) {
         setManualLoans(JSON.parse(stored));
       }
+
+      // Placeholder for market positions (would need API call to Manifold)
+      setMarketPositionsValue(0);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -160,7 +210,7 @@ export default function Profile() {
     localStorage.setItem(`manual_loans_${profile.user_id}`, JSON.stringify(updated));
     setNewLoanDesc('');
     setNewLoanAmount('');
-    toast({ title: 'Loan added' });
+    toast({ title: 'Entry added' });
   };
 
   const removeManualLoan = (id: string) => {
@@ -170,10 +220,26 @@ export default function Profile() {
     localStorage.setItem(`manual_loans_${profile.user_id}`, JSON.stringify(updated));
   };
 
-  // Calculate net worth
+  // Sort manual loans
+  const sortedManualLoans = [...manualLoans].sort((a, b) => {
+    if (sortBy === 'date') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    return b.amount - a.amount;
+  });
+
+  // Calculate net worth layers
   const manualAssets = manualLoans.filter(l => !l.is_liability).reduce((sum, l) => sum + l.amount, 0);
   const manualLiabilities = manualLoans.filter(l => l.is_liability).reduce((sum, l) => sum + l.amount, 0);
-  const netWorth = balance + bondValue + loanInvestments + manualAssets - liabilities - manualLiabilities;
+  
+  // Basic net worth: balance + bonds + loan investments - loans owed
+  const basicNetWorth = balance + bondValue + loanInvestments - liabilities - navlocBalance;
+  
+  // True net worth: basic + market positions (liquidity locked)
+  const trueNetWorth = basicNetWorth + marketPositionsValue;
+  
+  // Total net worth: true + manual assets - manual liabilities
+  const totalNetWorth = trueNetWorth + manualAssets - manualLiabilities;
 
   if (isLoading) {
     return (
@@ -185,27 +251,13 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 glass border-b border-border/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/hub" className="flex items-center gap-3">
-              <span className="text-lg font-bold text-gradient">ManiFed</span>
-            </Link>
-            {isOwner && (
-              <div className="flex items-center gap-3">
-                <Link to="/market"><Button variant="outline" size="sm">Shop</Button></Link>
-                <Link to="/settings"><Button variant="ghost" size="sm">Settings</Button></Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <UniversalHeader />
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+      <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         {/* Profile Header */}
-        <Card className="glass">
+        <Card className="border-border/50">
           <CardHeader className="text-center">
-            <div className="w-20 h-20 rounded-full bg-gradient-primary mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-primary-foreground">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/50 mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-primary-foreground">
               {profile?.username?.charAt(0).toUpperCase() || '?'}
             </div>
             {isEditing ? (
@@ -228,65 +280,188 @@ export default function Profile() {
           </CardHeader>
         </Card>
 
-        {/* Net Worth Card */}
-        <Card className="glass border-emerald-500/30">
+        {/* Net Worth Layers */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <Card className="border-border/50">
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">Basic Net Worth</p>
+              <p className="text-3xl font-bold text-foreground">
+                M${basicNetWorth.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">Balance + Bonds + Loans Given - Loans Owed</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">True Net Worth</p>
+              <p className={`text-3xl font-bold ${trueNetWorth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                M${trueNetWorth.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">Basic + Market Positions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-emerald-500/30 bg-emerald-500/5">
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground mb-1">Total Net Worth</p>
+              <p className={`text-3xl font-bold ${totalNetWorth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                M${totalNetWorth.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">True + Manual Entries</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Net Worth History Chart */}
+        {netWorthHistory.length > 0 && (
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg">Net Worth History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={netWorthHistory}>
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} 
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickFormatter={(val) => `M$${val.toLocaleString()}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: number) => [`M$${value.toLocaleString()}`, '']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="totalNetWorth" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Assets & Liabilities Breakdown */}
+        <Card className="border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Net Worth</CardTitle>
+            <CardTitle className="text-lg">Assets & Liabilities</CardTitle>
+            <CardDescription>ManiFed products auto-import. Add external entries below.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className={`text-4xl font-bold ${netWorth >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              M${netWorth.toLocaleString()}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6 text-sm">
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Balance</div>
-                <div className="font-mono text-foreground">M${balance.toLocaleString()}</div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Assets */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-emerald-500 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" /> Assets
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-3 rounded-lg bg-muted/30">
+                    <span className="text-muted-foreground">ManiFed Balance</span>
+                    <span className="font-mono text-emerald-500">+M${balance.toLocaleString()}</span>
+                  </div>
+                  {bondValue > 0 && (
+                    <div className="flex justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">Treasury Bonds</span>
+                      <span className="font-mono text-emerald-500">+M${bondValue.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {loanInvestments > 0 && (
+                    <div className="flex justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">P2P Loans Given</span>
+                      <span className="font-mono text-emerald-500">+M${loanInvestments.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {manualLoans.filter(l => !l.is_liability).map(loan => (
+                    <div key={loan.id} className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground truncate max-w-[150px]">{loan.description}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-emerald-500">+M${loan.amount.toLocaleString()}</span>
+                        {isOwner && (
+                          <Button variant="ghost" size="sm" onClick={() => removeManualLoan(loan.id)}>
+                            <Trash2 className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Bonds</div>
-                <div className="font-mono text-foreground">M${bondValue.toLocaleString()}</div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Loan Investments</div>
-                <div className="font-mono text-foreground">M${loanInvestments.toLocaleString()}</div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Liabilities</div>
-                <div className="font-mono text-red-400">-M${liabilities.toLocaleString()}</div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Manual Assets</div>
-                <div className="font-mono text-emerald-400">+M${manualAssets.toLocaleString()}</div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/30">
-                <div className="text-muted-foreground mb-1">Manual Debts</div>
-                <div className="font-mono text-red-400">-M${manualLiabilities.toLocaleString()}</div>
+
+              {/* Liabilities */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-red-500 flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4" /> Liabilities
+                </h3>
+                <div className="space-y-2">
+                  {liabilities > 0 && (
+                    <div className="flex justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">P2P Loans Owed</span>
+                      <span className="font-mono text-red-500">-M${liabilities.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {navlocBalance > 0 && (
+                    <div className="flex justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground">NAVLOC Balance</span>
+                      <span className="font-mono text-red-500">-M${navlocBalance.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {manualLoans.filter(l => l.is_liability).map(loan => (
+                    <div key={loan.id} className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
+                      <span className="text-muted-foreground truncate max-w-[150px]">{loan.description}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-red-500">-M${loan.amount.toLocaleString()}</span>
+                        {isOwner && (
+                          <Button variant="ghost" size="sm" onClick={() => removeManualLoan(loan.id)}>
+                            <Trash2 className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {liabilities === 0 && navlocBalance === 0 && manualLoans.filter(l => l.is_liability).length === 0 && (
+                    <div className="p-3 text-center text-muted-foreground text-sm">No liabilities</div>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Manual Loans Tracker */}
+        {/* Manual Entry Form - Owner Only */}
         {isOwner && (
-          <Card className="glass">
+          <Card className="border-border/50">
             <CardHeader>
-              <CardTitle className="text-lg">Manual Loan Tracker</CardTitle>
-              <p className="text-sm text-muted-foreground">Track loans made outside this platform</p>
+              <CardTitle className="text-lg">Add Manual Entry</CardTitle>
+              <CardDescription>Track external loans or assets not on ManiFed</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
                 <Input
                   placeholder="Description (e.g., Loaned to @user)"
                   value={newLoanDesc}
                   onChange={(e) => setNewLoanDesc(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 min-w-[200px]"
                 />
                 <Input
                   type="number"
                   placeholder="Amount"
                   value={newLoanAmount}
                   onChange={(e) => setNewLoanAmount(e.target.value)}
-                  className="w-28"
+                  className="w-32"
                 />
                 <Button
                   variant={newLoanIsLiability ? "destructive" : "default"}
@@ -295,33 +470,25 @@ export default function Profile() {
                 >
                   {newLoanIsLiability ? 'Debt' : 'Asset'}
                 </Button>
-                <Button onClick={addManualLoan}>Add</Button>
+                <Button onClick={addManualLoan} className="gap-2">
+                  <Plus className="w-4 h-4" /> Add
+                </Button>
               </div>
 
-              <ScrollArea className="h-48">
-                {manualLoans.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">No manual loans tracked</div>
-                ) : (
-                  <div className="space-y-2">
-                    {manualLoans.map((loan) => (
-                      <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                        <div>
-                          <div className="font-medium">{loan.description}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(loan.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant={loan.is_liability ? "destructive" : "default"}>
-                            {loan.is_liability ? '-' : '+'}M${loan.amount.toLocaleString()}
-                          </Badge>
-                          <Button variant="ghost" size="sm" onClick={() => removeManualLoan(loan.id)}>×</Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
+              {manualLoans.length > 0 && (
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Sort by:</span>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'date' | 'amount')}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="amount">Amount</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
