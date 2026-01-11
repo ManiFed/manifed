@@ -96,8 +96,9 @@ serve(async (req) => {
 
     // Skip all refund/cancel logic if already cancelled - just delete
     if (!alreadyCancelled) {
-      // If loan has funded_amount > 0 and the owner is cancelling, they must send funds back
-      if (Number(loan.funded_amount) > 0 && isOwner) {
+      // If loan has funded_amount > 0 and the OWNER is cancelling, they must send funds back
+      // Admins can cancel/delete without returning funds via managram (they handle it manually if needed)
+      if (Number(loan.funded_amount) > 0 && isOwner && !isAdmin) {
         // Get borrower's Manifold settings to send funds back
         const { data: borrowerSettings } = await supabase
           .from("user_manifold_settings")
