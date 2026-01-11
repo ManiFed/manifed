@@ -79,9 +79,13 @@ serve(async (req) => {
     const { action, apiKey: providedApiKey, marketId, targetExitPrice, orderId } = requestBody;
     console.log(`[limit-sell-order] Action: ${action}, User: ${user.id}, Market: ${marketId}`);
 
+    // Actions that don't require API key (database-only operations)
+    const noApiKeyRequired = ['get-orders'];
+    
     // Get API key from request or fetch from user settings (server-side)
+    // Only fetch if action requires it
     let apiKey = providedApiKey;
-    if (!apiKey) {
+    if (!noApiKeyRequired.includes(action) && !apiKey) {
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
