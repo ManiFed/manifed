@@ -214,6 +214,15 @@ export default function TreasuryAdmin() {
   const [testBondId, setTestBondId] = useState('');
   const [testingBond, setTestingBond] = useState(false);
 
+  // NAVLOC Applications
+  const [navlocApplications, setNavlocApplications] = useState<any[]>([]);
+  const [processingNavloc, setProcessingNavloc] = useState<string | null>(null);
+  const [navlocApprovalForm, setNavlocApprovalForm] = useState({
+    credit_grade: 'B',
+    credit_limit: 5000,
+    interest_rate: 8.5,
+  });
+
   useEffect(() => {
     checkAdminAndFetchData();
   }, []);
@@ -310,6 +319,13 @@ export default function TreasuryAdmin() {
           .eq('setting_key', 'emergency_stop')
           .single();
         if (stopData) setEmergencyStop(stopData.setting_value === 'true');
+
+        // Fetch NAVLOC applications
+        const { data: navlocData } = await supabase
+          .from('navloc_applications')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (navlocData) setNavlocApplications(navlocData);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -595,6 +611,75 @@ export default function TreasuryAdmin() {
       toast({ title: 'Error', description: 'Failed to update verification', variant: 'destructive' });
     } finally {
       setProcessingLoan(null);
+    }
+  };
+
+  // NAVLOC Application Handlers
+  const handleApproveNavloc = async (applicationId: string, userId: string) => {
+    setProcessingNavloc(applicationId);
+    try {
+      // Create or update credit line
+      const { error: creditError } = await supabase
+        .from('navloc_credit_lines')
+        .upsert({
+          user_id: userId,
+          credit_grade: navlocApprovalForm.credit_grade,
+          credit_limit: navlocApprovalForm.credit_limit,
+          interest_rate: navlocApprovalForm.interest_rate,
+          current_balance: 0,
+          available_credit: navlocApprovalForm.credit_limit,
+          is_active: true,
+          granted_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (creditError) throw creditError;
+
+      // Update application status
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: appError } = await supabase
+        .from('navloc_applications')
+        .update({ 
+          status: 'approved',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
+          admin_notes: `Approved: Grade ${navlocApprovalForm.credit_grade}, Limit M$${navlocApprovalForm.credit_limit}, Rate ${navlocApprovalForm.interest_rate}%`
+        })
+        .eq('id', applicationId);
+
+      if (appError) throw appError;
+
+      toast({ title: 'NAVLOC Approved', description: `Credit line granted with M$${navlocApprovalForm.credit_limit} limit` });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      console.error('Error approving NAVLOC:', error);
+      toast({ title: 'Error', description: 'Failed to approve application', variant: 'destructive' });
+    } finally {
+      setProcessingNavloc(null);
+    }
+  };
+
+  const handleRejectNavloc = async (applicationId: string, reason: string) => {
+    setProcessingNavloc(applicationId);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('navloc_applications')
+        .update({ 
+          status: 'rejected',
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
+          admin_notes: reason || 'Application rejected'
+        })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+
+      toast({ title: 'Application Rejected' });
+      await checkAdminAndFetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to reject application', variant: 'destructive' });
+    } finally {
+      setProcessingNavloc(null);
     }
   };
 
@@ -1120,6 +1205,10 @@ export default function TreasuryAdmin() {
             <TabsTrigger value="suggestions">
               <span className="hidden sm:inline">Suggest</span>
               <span className="sm:hidden">?</span>
+            </TabsTrigger>
+            <TabsTrigger value="navloc">
+              <span className="hidden sm:inline">NAVLOC</span>
+              <span className="sm:hidden">C</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1904,6 +1993,111 @@ export default function TreasuryAdmin() {
                               {processingSuggestion === suggestion.id ? '...' : 'Delete'}
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* NAVLOC Tab */}
+          <TabsContent value="navloc">
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle>NAVLOC Credit Applications</CardTitle>
+                <CardDescription>
+                  Review and approve Net Account Value Line of Credit applications. Set credit grade (AAA-C), limit, and interest rate.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Approval Form */}
+                <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-4">
+                  <h4 className="font-medium">Approval Parameters</h4>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Credit Grade</Label>
+                      <select 
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={navlocApprovalForm.credit_grade}
+                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_grade: e.target.value }))}
+                      >
+                        <option value="AAA">AAA - Prime</option>
+                        <option value="AA">AA - High Grade</option>
+                        <option value="A">A - Upper Medium</option>
+                        <option value="BBB">BBB - Lower Medium</option>
+                        <option value="BB">BB - Speculative</option>
+                        <option value="B">B - Highly Speculative</option>
+                        <option value="C">C - Poor</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Credit Limit (M$)</Label>
+                      <Input 
+                        type="number"
+                        value={navlocApprovalForm.credit_limit}
+                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_limit: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+                    <div>
+                      <Label>Interest Rate (%)</Label>
+                      <Input 
+                        type="number"
+                        step="0.5"
+                        value={navlocApprovalForm.interest_rate}
+                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, interest_rate: parseFloat(e.target.value) || 0 }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Applications List */}
+                {navlocApplications.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No pending applications</p>
+                ) : (
+                  <div className="space-y-3">
+                    {navlocApplications.map(app => (
+                      <div key={app.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium text-foreground">User: {app.user_id.slice(0, 8)}...</h3>
+                              <Badge variant={app.status === 'approved' ? 'success' : app.status === 'rejected' ? 'destructive' : 'pending'}>
+                                {app.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Requested: M${app.requested_limit?.toLocaleString() || 'N/A'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Applied: {new Date(app.created_at).toLocaleDateString()}
+                            </p>
+                            {app.admin_notes && (
+                              <p className="text-xs text-amber-400 mt-1">{app.admin_notes}</p>
+                            )}
+                          </div>
+                          {app.status === 'pending' && (
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => handleApproveNavloc(app.id, app.user_id)}
+                                disabled={processingNavloc === app.id}
+                              >
+                                {processingNavloc === app.id ? '...' : 'Approve'}
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleRejectNavloc(app.id, 'Does not meet credit requirements')}
+                                disabled={processingNavloc === app.id}
+                              >
+                                {processingNavloc === app.id ? '...' : 'Reject'}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
