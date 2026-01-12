@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
 interface Hotkey {
   id: string;
   key: string;
@@ -19,31 +18,20 @@ interface Hotkey {
   color?: string;
   straddleDelta?: number;
 }
-
 interface HotkeyDisplayPanelProps {
   hotkeys: Hotkey[];
   onUpdateHotkey?: (id: string, updates: Partial<Hotkey>) => void;
 }
-
-const HOTKEY_COLORS = [
-  'bg-emerald-500/20 border-emerald-500/50 text-emerald-400',
-  'bg-blue-500/20 border-blue-500/50 text-blue-400',
-  'bg-purple-500/20 border-purple-500/50 text-purple-400',
-  'bg-yellow-500/20 border-yellow-500/50 text-yellow-400',
-  'bg-pink-500/20 border-pink-500/50 text-pink-400',
-  'bg-orange-500/20 border-orange-500/50 text-orange-400',
-  'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
-  'bg-red-500/20 border-red-500/50 text-red-400',
-];
-
-export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPanelProps) {
+const HOTKEY_COLORS = ['bg-emerald-500/20 border-emerald-500/50 text-emerald-400', 'bg-blue-500/20 border-blue-500/50 text-blue-400', 'bg-purple-500/20 border-purple-500/50 text-purple-400', 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400', 'bg-pink-500/20 border-pink-500/50 text-pink-400', 'bg-orange-500/20 border-orange-500/50 text-orange-400', 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400', 'bg-red-500/20 border-red-500/50 text-red-400'];
+export function HotkeyDisplayPanel({
+  hotkeys,
+  onUpdateHotkey
+}: HotkeyDisplayPanelProps) {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
-
   const getColorClass = (index: number) => {
     return HOTKEY_COLORS[index % HOTKEY_COLORS.length];
   };
-
   const getOrderTypeLabel = (hotkey: Hotkey) => {
     if (hotkey.orderType === 'market') return 'MKT';
     if (hotkey.orderType === 'limit-fixed') return `LMT @${hotkey.limitPrice}%`;
@@ -51,23 +39,21 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
     if (hotkey.orderType === 'straddle') return `STR ±${hotkey.straddleDelta}%`;
     return '';
   };
-
   const startEditNote = (hotkey: Hotkey) => {
     setEditingNoteId(hotkey.id);
     setNoteValue(hotkey.note || '');
   };
-
   const saveNote = (id: string) => {
     if (onUpdateHotkey) {
-      onUpdateHotkey(id, { note: noteValue });
+      onUpdateHotkey(id, {
+        note: noteValue
+      });
     }
     setEditingNoteId(null);
     setNoteValue('');
   };
-
   if (hotkeys.length === 0) {
-    return (
-      <Card className="bg-gray-900/50 border-gray-800 p-3">
+    return <Card className="bg-gray-900/50 border-gray-800 p-3">
         <div className="flex items-center gap-2 text-gray-500 text-xs">
           <span className="font-mono">[⌨]</span>
           <span>No hotkeys configured</span>
@@ -75,97 +61,51 @@ export function HotkeyDisplayPanel({ hotkeys, onUpdateHotkey }: HotkeyDisplayPan
         <p className="text-[10px] text-gray-600 mt-1">
           Add hotkeys in the Hotkeys tab below
         </p>
-      </Card>
-    );
+      </Card>;
   }
-
-  return (
-    <Card className="bg-gray-900/50 border-gray-800 p-3">
+  return <Card className="bg-gray-900/50 border-gray-800 p-3">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-emerald-400 font-mono">[⌨]</span>
         <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Hotkeys</span>
       </div>
       <ScrollArea className="max-h-[200px]">
         <div className="space-y-2">
-          {hotkeys.map((hotkey, index) => (
-            <div
-              key={hotkey.id}
-              className={`flex items-center gap-2 p-2.5 rounded-lg border ${getColorClass(index)}`}
-            >
-              <Badge 
-                variant="outline" 
-                className="w-9 h-9 flex items-center justify-center text-lg font-bold border-2 bg-black/40 shrink-0"
-              >
+          {hotkeys.map((hotkey, index) => <div key={hotkey.id} className={`flex items-center gap-2 p-2.5 rounded-lg border ${getColorClass(index)}`}>
+              <Badge variant="outline" className="w-9 h-9 flex items-center justify-center text-lg font-bold border-2 bg-black/40 shrink-0">
                 {hotkey.key.toUpperCase() || '?'}
               </Badge>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs font-medium">
-                  <span className={`px-1.5 py-0.5 rounded ${
-                    hotkey.side === 'YES' 
-                      ? 'bg-emerald-500/30 text-emerald-300' 
-                      : hotkey.side === 'STRADDLE'
-                      ? 'bg-purple-500/30 text-purple-300'
-                      : 'bg-red-500/30 text-red-300'
-                  }`}>
+                  <span className={`px-1.5 py-0.5 rounded ${hotkey.side === 'YES' ? 'bg-emerald-500/30 text-emerald-300' : hotkey.side === 'STRADDLE' ? 'bg-purple-500/30 text-purple-300' : 'bg-red-500/30 text-red-300'}`}>
                     {hotkey.side === 'STRADDLE' ? 'STR' : hotkey.side}
                   </span>
                   <span className="text-gray-300">M${hotkey.amount}</span>
                   <span className="text-gray-500">{getOrderTypeLabel(hotkey)}</span>
-                  {hotkey.expirationMinutes && (
-                    <span className="text-gray-600 text-[10px]">{hotkey.expirationMinutes}m</span>
-                  )}
+                  {hotkey.expirationMinutes && <span className="text-gray-600 text-[10px]">{hotkey.expirationMinutes}m</span>}
                 </div>
                 {/* Note display/edit */}
-                {editingNoteId === hotkey.id ? (
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <Input
-                      value={noteValue}
-                      onChange={(e) => setNoteValue(e.target.value)}
-                      placeholder="Add note..."
-                      className="h-6 text-[10px] bg-black/40 border-gray-700 px-2"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveNote(hotkey.id);
-                        if (e.key === 'Escape') setEditingNoteId(null);
-                      }}
-                    />
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="w-6 h-6 hover:bg-emerald-500/20"
-                      onClick={() => saveNote(hotkey.id)}
-                    >
+                {editingNoteId === hotkey.id ? <div className="flex items-center gap-1 mt-1.5">
+                    <Input value={noteValue} onChange={e => setNoteValue(e.target.value)} placeholder="Add note..." className="h-6 text-[10px] bg-black/40 border-gray-700 px-2" autoFocus onKeyDown={e => {
+                if (e.key === 'Enter') saveNote(hotkey.id);
+                if (e.key === 'Escape') setEditingNoteId(null);
+              }} />
+                    <Button size="icon" variant="ghost" className="w-6 h-6 hover:bg-emerald-500/20" onClick={() => saveNote(hotkey.id)}>
                       ✓
                     </Button>
-                  </div>
-                ) : hotkey.note ? (
-                  <p 
-                    className="text-[10px] text-gray-400 mt-1 truncate cursor-pointer hover:text-gray-300 italic"
-                    onClick={() => startEditNote(hotkey)}
-                  >
+                  </div> : hotkey.note ? <p className="text-[10px] text-gray-400 mt-1 truncate cursor-pointer hover:text-gray-300 italic" onClick={() => startEditNote(hotkey)}>
                     "{hotkey.note}"
-                  </p>
-                ) : onUpdateHotkey && (
-                  <button 
-                    className="text-[10px] text-gray-600 hover:text-gray-400 mt-1"
-                    onClick={() => startEditNote(hotkey)}
-                  >
+                  </p> : onUpdateHotkey && <button className="text-[10px] text-gray-600 hover:text-gray-400 mt-1" onClick={() => startEditNote(hotkey)}>
                     + Add note
-                  </button>
-                )}
+                  </button>}
               </div>
-            </div>
-          ))}
+            </div>)}
         </div>
       </ScrollArea>
       <div className="mt-2 pt-2 border-t border-gray-800 space-y-1">
         <p className="text-[10px] text-gray-600">
           Press key when not in input field to execute
         </p>
-        <p className="text-[10px] text-gray-700">
-          Tip: Use <code className="text-yellow-500">/LS@55/</code> for Take Profit orders
-        </p>
+        
       </div>
-    </Card>
-  );
+    </Card>;
 }
