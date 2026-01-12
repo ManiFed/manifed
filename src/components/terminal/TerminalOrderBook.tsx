@@ -1,22 +1,29 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
 interface OrderLevel {
   price: number;
   amount: number;
   side: 'YES' | 'NO';
   orderCount: number;
 }
-
 interface TerminalOrderBookProps {
   marketId: string;
   currentProbability: number;
   answerId?: string;
 }
-
-export default function TerminalOrderBook({ marketId, currentProbability, answerId }: TerminalOrderBookProps) {
-  const [orderLevels, setOrderLevels] = useState<{ bids: OrderLevel[]; asks: OrderLevel[] }>({ bids: [], asks: [] });
+export default function TerminalOrderBook({
+  marketId,
+  currentProbability,
+  answerId
+}: TerminalOrderBookProps) {
+  const [orderLevels, setOrderLevels] = useState<{
+    bids: OrderLevel[];
+    asks: OrderLevel[];
+  }>({
+    bids: [],
+    asks: []
+  });
   const [loading, setLoading] = useState(false);
   const [volume24h, setVolume24h] = useState<number>(0);
   const [liquidity, setLiquidity] = useState<number>(0);
@@ -25,19 +32,16 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const centerLineRef = useRef<HTMLDivElement | null>(null);
   const hasScrolledRef = useRef(false);
-
   useEffect(() => {
     if (marketId) {
       fetchOrderBook();
       // Refresh every 3 seconds for live updates
       pollingRef.current = setInterval(fetchOrderBook, 3000);
-      
       return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
       };
     }
   }, [marketId, answerId]);
-
   const fetchOrderBook = async () => {
     try {
       // Fetch market details for volume and liquidity
@@ -52,7 +56,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
       const betsResponse = await fetch(`https://api.manifold.markets/v0/bets?contractId=${marketId}&limit=1000`);
       if (betsResponse.ok) {
         const bets = await betsResponse.json();
-        
+
         // Filter for unfilled limit orders only
         const limitOrders = bets.filter((bet: any) => {
           // Must have a limit probability set
@@ -68,29 +72,35 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
           if (answerId && bet.answerId !== answerId) return false;
           return true;
         });
-        
         const currentProbPercent = Math.round(currentProbability * 100);
-        
+
         // Aggregate orders by price and side
-        const ordersByPrice: { [key: string]: { amount: number; count: number; side: 'YES' | 'NO' } } = {};
-        
+        const ordersByPrice: {
+          [key: string]: {
+            amount: number;
+            count: number;
+            side: 'YES' | 'NO';
+          };
+        } = {};
         for (const order of limitOrders) {
           const limitProb = order.limitProb;
           const price = Math.round(limitProb * 100);
           const orderAmount = order.orderAmount || order.amount || 0;
           const filledAmount = order.fills?.reduce((sum: number, f: any) => sum + Math.abs(f.amount), 0) || 0;
           const remainingAmount = Math.max(0, orderAmount - filledAmount);
-          
           if (remainingAmount <= 0) continue;
-          
           const key = `${price}-${order.outcome}`;
           if (!ordersByPrice[key]) {
-            ordersByPrice[key] = { amount: 0, count: 0, side: order.outcome };
+            ordersByPrice[key] = {
+              amount: 0,
+              count: 0,
+              side: order.outcome
+            };
           }
           ordersByPrice[key].amount += remainingAmount;
           ordersByPrice[key].count += 1;
         }
-        
+
         // Order book logic:
         // ASKS (above current price): orders that will fill when price goes UP
         // - YES limit orders ABOVE current price (bullish, waiting for price to rise)
@@ -100,26 +110,35 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         // - NO limit orders BELOW current price (bearish, waiting for drop)
         const bids: OrderLevel[] = [];
         const asks: OrderLevel[] = [];
-        
         for (const [key, data] of Object.entries(ordersByPrice)) {
           const [priceStr] = key.split('-');
           const price = parseInt(priceStr);
-          
+
           // Classify based on price relative to current probability only
           if (price > currentProbPercent) {
             // ASKS - orders above current price
-            asks.push({ price, amount: Math.round(data.amount), side: data.side as 'YES' | 'NO', orderCount: data.count });
+            asks.push({
+              price,
+              amount: Math.round(data.amount),
+              side: data.side as 'YES' | 'NO',
+              orderCount: data.count
+            });
           } else if (price < currentProbPercent) {
             // BIDS - orders below current price
-            bids.push({ price, amount: Math.round(data.amount), side: data.side as 'YES' | 'NO', orderCount: data.count });
+            bids.push({
+              price,
+              amount: Math.round(data.amount),
+              side: data.side as 'YES' | 'NO',
+              orderCount: data.count
+            });
           }
         }
-        
+
         // Sort asks ascending (lowest ask at bottom, closest to spread)
         // Sort bids descending (highest bid at top, closest to spread)
         bids.sort((a, b) => b.price - a.price);
         asks.sort((a, b) => a.price - b.price);
-        
+
         // Calculate spread from best bid and best ask
         if (bids.length > 0 && asks.length > 0) {
           const bestBid = bids[0].price;
@@ -128,8 +147,10 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         } else {
           setSpread(null);
         }
-        
-        setOrderLevels({ bids, asks });
+        setOrderLevels({
+          bids,
+          asks
+        });
       }
     } catch (err) {
       console.error('Failed to fetch order book:', err);
@@ -137,12 +158,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
       setLoading(false);
     }
   };
-
-  const maxAmount = Math.max(
-    ...orderLevels.bids.map(b => b.amount),
-    ...orderLevels.asks.map(a => a.amount),
-    1
-  );
+  const maxAmount = Math.max(...orderLevels.bids.map(b => b.amount), ...orderLevels.asks.map(a => a.amount), 1);
 
   // Scroll to center when order book loads
   useLayoutEffect(() => {
@@ -160,9 +176,7 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
   useEffect(() => {
     hasScrolledRef.current = false;
   }, [marketId, answerId]);
-
-  return (
-    <Card className="bg-gray-900/50 border-gray-800 p-3">
+  return <Card className="bg-gray-900/50 border-gray-800 p-3">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-gray-500">Order Book</span>
         <div className="flex items-center gap-2">
@@ -175,28 +189,19 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
         </div>
       </div>
 
-      {loading && orderLevels.bids.length === 0 ? (
-        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
+      {loading && orderLevels.bids.length === 0 ? <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
           Loading...
-        </div>
-      ) : orderLevels.bids.length === 0 && orderLevels.asks.length === 0 ? (
-        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
+        </div> : orderLevels.bids.length === 0 && orderLevels.asks.length === 0 ? <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
           No pending limit orders
-        </div>
-      ) : (
-        <div ref={scrollContainerRef} className="h-[200px] overflow-y-auto">
+        </div> : <div ref={scrollContainerRef} className="h-[200px] overflow-y-auto">
           <div className="space-y-1 pr-2">
             {/* Asks - orders ABOVE current probability, shown in RED */}
             {/* Highest asks at top, lowest (closest to spread) at bottom */}
-            {orderLevels.asks.slice().reverse().map((level, i) => (
-              <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
-                <div
-                  className="absolute right-0 h-full transition-all duration-300"
-                  style={{ 
-                    width: `${(level.amount / maxAmount) * 100}%`,
-                    backgroundColor: 'rgba(239, 68, 68, 0.4)'
-                  }}
-                />
+            {orderLevels.asks.slice().reverse().map((level, i) => <div key={`ask-${i}`} className="relative h-6 flex items-center text-xs">
+                <div className="absolute right-0 h-full transition-all duration-300" style={{
+            width: `${level.amount / maxAmount * 100}%`,
+            backgroundColor: 'rgba(239, 68, 68, 0.4)'
+          }} />
                 <span className="relative z-10 w-14 font-mono text-red-400">
                   {level.price}%
                 </span>
@@ -207,50 +212,37 @@ export default function TerminalOrderBook({ marketId, currentProbability, answer
                 <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
                   ({level.orderCount})
                 </span>
-              </div>
-            ))}
+              </div>)}
             
             {/* Current price line with spread - SOLID BACKGROUND */}
-            <div 
-              ref={centerLineRef}
-              className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 bg-gray-900"
-            >
+            <div ref={centerLineRef} className="h-8 flex flex-col items-center justify-center border-y border-gray-700 my-1 bg-gray-900">
               <span className="text-sm font-bold text-emerald-400 font-mono">
                 {(currentProbability * 100).toFixed(1)}%
               </span>
-              {spread !== null && (
-                <span className="text-[10px] text-gray-500">
+              {spread !== null && <span className="text-[10px] text-gray-500">
                   Spread: {spread}%
-                </span>
-              )}
+                </span>}
             </div>
             
             {/* Bids - orders BELOW current probability, shown in GREEN */}
             {/* Highest bids (closest to spread) at top */}
-            {orderLevels.bids.map((level, i) => (
-              <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
-                <div
-                  className="absolute left-0 h-full transition-all duration-300"
-                  style={{ 
-                    width: `${(level.amount / maxAmount) * 100}%`,
-                    backgroundColor: 'rgba(16, 185, 129, 0.4)'
-                  }}
-                />
+            {orderLevels.bids.map((level, i) => <div key={`bid-${i}`} className="relative h-6 flex items-center text-xs">
+                <div className="absolute left-0 h-full transition-all duration-300" style={{
+            width: `${level.amount / maxAmount * 100}%`,
+            backgroundColor: 'rgba(16, 185, 129, 0.4)'
+          }} />
                 <span className="relative z-10 w-14 font-mono text-emerald-400">
                   {level.price}%
                 </span>
-                <span className="relative z-10 w-10 text-[10px] text-gray-500">{level.side}</span>
+                
                 <span className="relative z-10 flex-1 text-right text-gray-400 pr-1 font-mono">
                   M${Math.round(level.amount).toLocaleString()}
                 </span>
                 <span className="relative z-10 w-8 text-right text-gray-600 text-[10px]">
                   ({level.orderCount})
                 </span>
-              </div>
-            ))}
+              </div>)}
           </div>
-        </div>
-      )}
-    </Card>
-  );
+        </div>}
+    </Card>;
 }
