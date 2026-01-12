@@ -67,7 +67,7 @@ const BOND_TERMS = [
 ];
 
 export default function Loans() {
-  const [activeTab, setActiveTab] = useState<'bonds' | 'p2p'>('bonds');
+  const [activeTab, setActiveTab] = useState<'bonds' | 'p2p'>('p2p');
   const [selectedTerm, setSelectedTerm] = useState<number | null>(null);
   const [amount, setAmount] = useState('');
   const [rates, setRates] = useState<BondRate[]>([]);
@@ -257,30 +257,24 @@ export default function Loans() {
 
           {/* Bonds Tab */}
           <TabsContent value="bonds" className="space-y-6">
-            {/* Issuer Filter */}
+            {/* Issuer Filter - Dropdown */}
             <div className="flex items-center gap-4 mb-6">
               <span className="text-sm text-muted-foreground">Issuer:</span>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant={selectedIssuer === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedIssuer('all')}
-                >
-                  All Issuers
-                </Button>
-                {issuers.map(issuer => (
-                  <Button
-                    key={issuer.id}
-                    variant={selectedIssuer === issuer.id ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedIssuer(issuer.id)}
-                    className="gap-1"
-                  >
-                    {issuer.is_verified && <CheckCircle className="w-3 h-3" />}
-                    {issuer.name}
-                  </Button>
-                ))}
-              </div>
+              <Select value={selectedIssuer === 'all' ? (issuers[0]?.id || 'all') : selectedIssuer} onValueChange={setSelectedIssuer}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select issuer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {issuers.map(issuer => (
+                    <SelectItem key={issuer.id} value={issuer.id}>
+                      <div className="flex items-center gap-2">
+                        {issuer.is_verified && <CheckCircle className="w-3 h-3 text-primary" />}
+                        {issuer.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
