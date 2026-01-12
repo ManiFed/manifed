@@ -487,7 +487,7 @@ export default function Loans() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Select value={loanFilter} onValueChange={setLoanFilter}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-100">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
