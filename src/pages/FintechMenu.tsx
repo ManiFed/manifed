@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import { UniversalHeader } from "@/components/layout/UniversalHeader";
@@ -20,6 +23,7 @@ import {
   Sparkles,
   Clock,
   Gift,
+  MessageSquarePlus,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 interface FintechSubscription {
@@ -83,6 +87,9 @@ export default function FintechMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [isStartingTrial, setIsStartingTrial] = useState(false);
+  const [suggestionTitle, setSuggestionTitle] = useState("");
+  const [suggestionDescription, setSuggestionDescription] = useState("");
+  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
   useEffect(() => {
     checkAccess();
   }, []);
@@ -174,6 +181,50 @@ export default function FintechMenu() {
       });
     } finally {
       setIsStartingTrial(false);
+    }
+  };
+
+  const handleSubmitSuggestion = async () => {
+    if (!suggestionTitle.trim() || !suggestionDescription.trim()) {
+      toast({
+        title: "Missing fields",
+        description: "Please enter a title and description for your suggestion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingSuggestion(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Please sign in", variant: "destructive" });
+        return;
+      }
+
+      const { error } = await supabase.from("product_suggestions").insert({
+        user_id: user.id,
+        title: suggestionTitle.trim(),
+        description: suggestionDescription.trim(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Suggestion submitted!",
+        description: "Thank you for your feedback. We'll review it soon.",
+      });
+      setSuggestionTitle("");
+      setSuggestionDescription("");
+    } catch (error) {
+      console.error("Error submitting suggestion:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit suggestion. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingSuggestion(false);
     }
   };
   if (isLoading) {
@@ -371,6 +422,55 @@ export default function FintechMenu() {
               );
             })}
           </div>
+        </section>
+
+        {/* Suggestion Form */}
+        <section className="mt-16 animate-slide-up" style={{ animationDelay: "100ms" }}>
+          <Card className="border-border/50 bg-card/50">
+            <CardHeader>
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquarePlus className="w-5 h-5 text-primary" />
+                <CardTitle>Suggest a Feature</CardTitle>
+              </div>
+              <CardDescription>
+                Have an idea for a new tool or improvement? Let us know!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="suggestion-title">Title</Label>
+                <Input
+                  id="suggestion-title"
+                  placeholder="Brief title for your suggestion..."
+                  value={suggestionTitle}
+                  onChange={(e) => setSuggestionTitle(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="suggestion-description">Description</Label>
+                <Textarea
+                  id="suggestion-description"
+                  placeholder="Describe your feature idea or improvement..."
+                  value={suggestionDescription}
+                  onChange={(e) => setSuggestionDescription(e.target.value)}
+                  className="mt-1 min-h-[100px]"
+                />
+              </div>
+              <Button
+                onClick={handleSubmitSuggestion}
+                disabled={isSubmittingSuggestion || !suggestionTitle.trim() || !suggestionDescription.trim()}
+                className="gap-2"
+              >
+                {isSubmittingSuggestion ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MessageSquarePlus className="w-4 h-4" />
+                )}
+                Submit Suggestion
+              </Button>
+            </CardContent>
+          </Card>
         </section>
       </main>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -314,7 +314,7 @@ function MediaPanel({
 // Main terminal component
 
 // Main terminal component
-function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}) {
+function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlug?: string; initialMarketId?: string } = {}) {
   const [apiKey, setApiKey] = useState("");
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -362,46 +362,66 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
     }
   }, []);
 
-  // Load market from URL slug if provided
+  // Load market from URL (slug or ID) if provided
   useEffect(() => {
-    if (initialMarketSlug && apiKey) {
-      const loadMarketFromSlug = async () => {
+    const loadMarket = async () => {
+      if (!apiKey) return;
+      
+      let marketData = null;
+      
+      // Try to load by ID first
+      if (initialMarketId) {
         try {
-          // Try to find market by slug
+          const response = await fetch(`https://api.manifold.markets/v0/market/${initialMarketId}`);
+          if (response.ok) {
+            marketData = await response.json();
+          }
+        } catch (err) {
+          console.error("Failed to load market by ID:", err);
+        }
+      }
+      
+      // Fall back to slug if no ID or ID failed
+      if (!marketData && initialMarketSlug) {
+        try {
           const response = await fetch(`https://api.manifold.markets/v0/slug/${initialMarketSlug}`);
           if (response.ok) {
-            const market = await response.json();
-            if (market && !market.isResolved) {
-              setActiveMarket({
-                id: market.id,
-                question: market.question,
-                probability: market.probability,
-                url: market.url,
-                outcomeType: market.outcomeType,
-                isResolved: market.isResolved,
-                answers: market.answers
-              });
-              
-              // Set up MC options if applicable - filter out resolved options
-              if (market.outcomeType === "MULTIPLE_CHOICE" && market.answers) {
-                const options = market.answers
-                  .filter((a: any) => a.resolution === undefined || a.resolution === null)
-                  .map((a: any, i: number) => ({
-                    index: i + 1,
-                    id: a.id,
-                    text: a.text,
-                    probability: a.probability ?? 0
-                  }));
-                setMcOptions(options);
-                setSelectedMcIndex(options.length > 0 ? 1 : 0);
-              }
-            }
+            marketData = await response.json();
           }
         } catch (err) {
           console.error("Failed to load market from slug:", err);
         }
-      };
-      loadMarketFromSlug();
+      }
+      
+      if (marketData && !marketData.isResolved) {
+        setActiveMarket({
+          id: marketData.id,
+          question: marketData.question,
+          probability: marketData.probability,
+          url: marketData.url,
+          outcomeType: marketData.outcomeType,
+          isResolved: marketData.isResolved,
+          answers: marketData.answers
+        });
+        
+        // Set up MC options if applicable - filter out resolved options
+        if (marketData.outcomeType === "MULTIPLE_CHOICE" && marketData.answers) {
+          const options = marketData.answers
+            .filter((a: any) => a.resolution === undefined || a.resolution === null)
+            .map((a: any, i: number) => ({
+              index: i + 1,
+              id: a.id,
+              text: a.text,
+              probability: a.probability ?? 0
+            }));
+          setMcOptions(options);
+          setSelectedMcIndex(options.length > 0 ? 1 : 0);
+        }
+      }
+    };
+    
+    if (initialMarketId || initialMarketSlug) {
+      loadMarket();
     }
   }, [initialMarketSlug, apiKey]);
 
@@ -561,10 +581,15 @@ function TerminalMain({ initialMarketSlug }: { initialMarketSlug?: string } = {}
       setIsSearching(false);
     }
   };
+  const navigate = useNavigate();
+  
   const selectMarket = (market: Market) => {
     setActiveMarket(market);
     setSearchResults([]);
     setSearchQuery("");
+
+    // Update URL to include market ID
+    navigate(`/terminal/${market.id}`, { replace: true });
 
     // Set up multiple choice options if applicable - filter out resolved options
     if (market.outcomeType === "MULTIPLE_CHOICE" && market.answers) {
@@ -1775,14 +1800,19 @@ function MobileBlockScreen() {
 export default function TradingTerminal() {
   const [showTerminal, setShowTerminal] = useState(false);
   const isMobile = useIsMobile();
-  const { creatorUsername, marketSlug } = useParams<{ creatorUsername?: string; marketSlug?: string }>();
+  const { creatorUsername, marketSlug, marketId } = useParams<{ creatorUsername?: string; marketSlug?: string; marketId?: string }>();
 
   // Block mobile users
   if (isMobile) {
     return <MobileBlockScreen />;
   }
   
-  // If URL has market slug, skip landing page
+  // If URL has market ID (/terminal/:marketId), go directly to terminal with that market
+  if (marketId) {
+    return <TerminalMain initialMarketId={marketId} />;
+  }
+  
+  // If URL has market slug (/:creatorUsername/:marketSlug), skip landing page
   if (creatorUsername && marketSlug) {
     return <TerminalMain initialMarketSlug={`${creatorUsername}/${marketSlug}`} />;
   }

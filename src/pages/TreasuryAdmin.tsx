@@ -2012,60 +2012,18 @@ export default function TreasuryAdmin() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Approval Form */}
-                <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-4">
-                  <h4 className="font-medium">Approval Parameters</h4>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Credit Grade</Label>
-                      <select 
-                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                        value={navlocApprovalForm.credit_grade}
-                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_grade: e.target.value }))}
-                      >
-                        <option value="AAA">AAA - Prime</option>
-                        <option value="AA">AA - High Grade</option>
-                        <option value="A">A - Upper Medium</option>
-                        <option value="BBB">BBB - Lower Medium</option>
-                        <option value="BB">BB - Speculative</option>
-                        <option value="B">B - Highly Speculative</option>
-                        <option value="C">C - Poor</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label>Credit Limit (M$)</Label>
-                      <Input 
-                        type="number"
-                        value={navlocApprovalForm.credit_limit}
-                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_limit: parseInt(e.target.value) || 0 }))}
-                      />
-                    </div>
-                    <div>
-                      <Label>Interest Rate (%)</Label>
-                      <Input 
-                        type="number"
-                        step="0.5"
-                        value={navlocApprovalForm.interest_rate}
-                        onChange={(e) => setNavlocApprovalForm(f => ({ ...f, interest_rate: parseFloat(e.target.value) || 0 }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Applications List */}
-                {navlocApplications.length === 0 ? (
+                {navlocApplications.filter(a => a.status === 'pending').length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No pending applications</p>
                 ) : (
                   <div className="space-y-3">
-                    {navlocApplications.map(app => (
+                    {navlocApplications.filter(a => a.status === 'pending').map(app => (
                       <div key={app.id} className="p-4 rounded-lg bg-secondary/30 border border-border/50">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-medium text-foreground">User: {app.user_id.slice(0, 8)}...</h3>
-                              <Badge variant={app.status === 'approved' ? 'success' : app.status === 'rejected' ? 'destructive' : 'pending'}>
-                                {app.status}
-                              </Badge>
+                              <Badge variant="pending">pending</Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               Requested: M${app.requested_limit?.toLocaleString() || 'N/A'}
@@ -2073,31 +2031,56 @@ export default function TreasuryAdmin() {
                             <p className="text-xs text-muted-foreground">
                               Applied: {new Date(app.created_at).toLocaleDateString()}
                             </p>
-                            {app.admin_notes && (
-                              <p className="text-xs text-amber-400 mt-1">{app.admin_notes}</p>
-                            )}
                           </div>
-                          {app.status === 'pending' && (
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="default" 
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                                onClick={() => handleApproveNavloc(app.id, app.user_id)}
-                                disabled={processingNavloc === app.id}
-                              >
-                                {processingNavloc === app.id ? '...' : 'Approve'}
-                              </Button>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => handleRejectNavloc(app.id, 'Does not meet credit requirements')}
-                                disabled={processingNavloc === app.id}
-                              >
-                                {processingNavloc === app.id ? '...' : 'Reject'}
-                              </Button>
-                            </div>
-                          )}
+                          {/* Inline approval parameters */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select 
+                              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                              value={navlocApprovalForm.credit_grade}
+                              onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_grade: e.target.value }))}
+                            >
+                              <option value="AAA">AAA</option>
+                              <option value="AA">AA</option>
+                              <option value="A">A</option>
+                              <option value="BBB">BBB</option>
+                              <option value="BB">BB</option>
+                              <option value="B">B</option>
+                              <option value="C">C</option>
+                            </select>
+                            <Input 
+                              type="number"
+                              className="h-8 w-24 text-xs"
+                              placeholder="Limit"
+                              value={navlocApprovalForm.credit_limit}
+                              onChange={(e) => setNavlocApprovalForm(f => ({ ...f, credit_limit: parseInt(e.target.value) || 0 }))}
+                            />
+                            <Input 
+                              type="number"
+                              className="h-8 w-16 text-xs"
+                              placeholder="%"
+                              step="0.5"
+                              value={navlocApprovalForm.interest_rate}
+                              onChange={(e) => setNavlocApprovalForm(f => ({ ...f, interest_rate: parseFloat(e.target.value) || 0 }))}
+                            />
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              className="h-8 bg-emerald-600 hover:bg-emerald-700"
+                              onClick={() => handleApproveNavloc(app.id, app.user_id)}
+                              disabled={processingNavloc === app.id}
+                            >
+                              {processingNavloc === app.id ? '...' : 'Approve'}
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              className="h-8"
+                              onClick={() => handleRejectNavloc(app.id, 'Does not meet credit requirements')}
+                              disabled={processingNavloc === app.id}
+                            >
+                              Reject
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
