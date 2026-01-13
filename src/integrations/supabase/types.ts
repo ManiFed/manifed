@@ -1071,7 +1071,11 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string
+          deposit_amount: number | null
+          deposit_transaction_id: string | null
+          deposit_verified: boolean | null
           id: string
+          manifold_username: string | null
           requested_limit: number
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1082,7 +1086,11 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string
+          deposit_amount?: number | null
+          deposit_transaction_id?: string | null
+          deposit_verified?: boolean | null
           id?: string
+          manifold_username?: string | null
           requested_limit?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1093,7 +1101,11 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string
+          deposit_amount?: number | null
+          deposit_transaction_id?: string | null
+          deposit_verified?: boolean | null
           id?: string
+          manifold_username?: string | null
           requested_limit?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
