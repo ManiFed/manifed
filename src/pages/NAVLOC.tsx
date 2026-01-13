@@ -31,6 +31,8 @@ interface CreditApplication {
   status: string;
   requested_at: string;
   notes: string | null;
+  manifold_username?: string;
+  deposit_verified?: boolean;
 }
 
 interface NAVLOCTransaction {
@@ -60,6 +62,8 @@ export default function NAVLOC() {
   const [drawdownAmount, setDrawdownAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [manifoldUsername, setManifoldUsername] = useState('');
+  const [checkingDeposit, setCheckingDeposit] = useState(false);
   const { balance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
@@ -91,15 +95,22 @@ export default function NAVLOC() {
         if (txData) setTransactions(txData);
       }
 
-      // Fetch application status
+      // Fetch application status from navloc_applications
       const { data: appData } = await supabase
-        .from('credit_applications')
+        .from('navloc_applications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (appData) setApplication(appData);
+      if (appData) setApplication({
+        id: appData.id,
+        status: appData.status,
+        requested_at: appData.created_at,
+        notes: appData.admin_notes,
+        manifold_username: appData.manifold_username,
+        deposit_verified: appData.deposit_verified,
+      });
     } catch (error) {
       console.error('Error fetching NAVLOC data:', error);
     } finally {
@@ -108,33 +119,84 @@ export default function NAVLOC() {
   };
 
   const handleApply = async () => {
+    if (!manifoldUsername.trim()) {
+      toast({ title: 'Manifold Username Required', description: 'Please enter your Manifold username', variant: 'destructive' });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get manifold username
-      const { data: settings } = await supabase
-        .from('user_manifold_settings')
-        .select('manifold_username')
+      // Get user's account code
+      const { data: balanceData } = await supabase
+        .from('user_balances')
+        .select('account_code')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .single();
 
+      if (!balanceData?.account_code) {
+        toast({ title: 'Error', description: 'No account code found. Please visit your account page first.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Create application with pending deposit verification
       const { error } = await supabase
-        .from('credit_applications')
+        .from('navloc_applications')
         .insert({
           user_id: user.id,
-          manifold_username: settings?.manifold_username || null,
+          manifold_username: manifoldUsername.trim(),
+          deposit_verified: false,
+          requested_limit: 5000,
         });
 
       if (error) throw error;
 
-      toast({ title: 'Application Submitted', description: 'Your credit application is now under review.' });
+      toast({ 
+        title: 'Application Started', 
+        description: `Please deposit M$10 to @ManiFed with your account code "${balanceData.account_code}" in the message.` 
+      });
       fetchData();
     } catch (error) {
       toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to submit application', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyDeposit = async () => {
+    if (!application) return;
+    setCheckingDeposit(true);
+    try {
+      // Call verify-transactions endpoint
+      const { data, error } = await supabase.functions.invoke('verify-transactions');
+      
+      if (error) throw error;
+
+      // Check if application's deposit was verified (username matched deposit)
+      const { data: updatedApp } = await supabase
+        .from('navloc_applications')
+        .select('*')
+        .eq('id', application.id)
+        .single();
+
+      if (updatedApp?.deposit_verified) {
+        toast({ title: 'Deposit Verified!', description: 'Your application is now under review.' });
+      } else {
+        toast({ 
+          title: 'Deposit Not Found', 
+          description: 'No matching deposit found from your Manifold username. Please ensure you sent M$10 with your account code.',
+          variant: 'destructive'
+        });
+      }
+      
+      await fetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to verify deposit', variant: 'destructive' });
+    } finally {
+      setCheckingDeposit(false);
     }
   };
 
@@ -505,9 +567,21 @@ export default function NAVLOC() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button className="w-full gap-2" onClick={handleApply} disabled={isSubmitting}>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Manifold Username</label>
+                    <Input
+                      placeholder="Your Manifold username..."
+                      value={manifoldUsername}
+                      onChange={(e) => setManifoldUsername(e.target.value)}
+                      className="mb-2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      You'll need to deposit M$10 to @ManiFed from this account to verify ownership.
+                    </p>
+                  </div>
+                  <Button className="w-full gap-2" onClick={handleApply} disabled={isSubmitting || !manifoldUsername.trim()}>
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                    Submit Application
+                    Start Application
                   </Button>
                 </CardContent>
               </Card>
