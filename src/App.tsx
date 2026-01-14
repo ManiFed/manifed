@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { ManaRainReward } from "@/components/ManaRainReward";
 import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -87,6 +88,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <ManaRainReward />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />

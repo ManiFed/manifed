@@ -20,6 +20,9 @@ import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 import { TerminalTrending } from "@/components/terminal/TerminalTrending";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
 import { ResizableTerminalLayout } from "@/components/terminal/ResizableTerminalLayout";
+import { PolymarketChart } from "@/components/terminal/PolymarketChart";
+import { PolymarketTradePanel } from "@/components/terminal/PolymarketTradePanel";
+import { CollapsiblePanel } from "@/components/terminal/CollapsiblePanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
   id: string;
@@ -1486,6 +1489,16 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
                   <div className="text-gray-500">Search and select a market to start trading</div>
                 </Card>}
 
+              {/* Polymarket-style Chart - Central display */}
+              {activeMarket && (
+                <PolymarketChart 
+                  marketId={activeMarket.id} 
+                  currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] 
+                    ? mcOptions[selectedMcIndex - 1].probability 
+                    : activeMarket.probability} 
+                />
+              )}
+
               {/* Command Bar */}
               <div className="relative">
                 <Input ref={commandInputRef} value={commandInput} onChange={e => handleCommandChange(e.target.value)} onKeyDown={handleCommandKeyDown} placeholder={activeMarket && apiKey ? "Enter command here" : "Select a market first..."} disabled={!activeMarket || !apiKey} className="bg-gray-900 border-gray-800 text-white font-mono text-lg h-14 px-4" />
@@ -1751,23 +1764,63 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
           }
           rightSidebar={
             <>
-              {/* YouTube/RSS Panel - AT TOP */}
-              <MediaPanel youtubeUrl={youtubeUrl} youtubeInput={youtubeInput} setYoutubeInput={setYoutubeInput} saveYoutube={saveYoutube} embedUrl={embedUrl} />
-
-              {/* Price Chart */}
-              {activeMarket && <TerminalPriceChart marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} />}
+              {/* Trade Panel - Polymarket Style */}
+              {activeMarket && (
+                <PolymarketTradePanel
+                  currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] 
+                    ? mcOptions[selectedMcIndex - 1].probability 
+                    : activeMarket.probability}
+                  onExecuteTrade={(amount, side, isLimit, limitPrice) => {
+                    const answerId = mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined;
+                    executeTrade(side, amount, limitPrice, undefined, answerId);
+                  }}
+                  disabled={!apiKey}
+                />
+              )}
 
               {/* Order Book */}
-              {activeMarket && <TerminalOrderBook marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} answerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} />}
+              {activeMarket && (
+                <CollapsiblePanel title="Order Book" icon={<span>📊</span>}>
+                  <TerminalOrderBook 
+                    marketId={activeMarket.id} 
+                    currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} 
+                    answerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} 
+                  />
+                </CollapsiblePanel>
+              )}
 
               {/* Live Trades Log */}
-              {activeMarket && <TerminalLiveTrades marketId={activeMarket.id} answers={activeMarket.answers?.map(a => ({
-              id: a.id,
-              text: a.text
-            }))} selectedAnswerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} soundEnabled={true} />}
+              {activeMarket && (
+                <CollapsiblePanel title="Live Trades" icon={<span>⚡</span>}>
+                  <TerminalLiveTrades 
+                    marketId={activeMarket.id} 
+                    answers={activeMarket.answers?.map(a => ({
+                      id: a.id,
+                      text: a.text
+                    }))} 
+                    selectedAnswerId={mcOptions.length > 0 ? mcOptions[selectedMcIndex - 1]?.id : undefined} 
+                    soundEnabled={true} 
+                  />
+                </CollapsiblePanel>
+              )}
 
               {/* Positions & P&L */}
-              {activeMarket && apiKey && <TerminalPositions positions={positions} marketId={activeMarket.id} currentProbability={activeMarket.probability} apiKey={apiKey} onRefresh={fetchPositions} />}
+              {activeMarket && apiKey && (
+                <CollapsiblePanel title="Positions" icon={<span>💼</span>}>
+                  <TerminalPositions 
+                    positions={positions} 
+                    marketId={activeMarket.id} 
+                    currentProbability={activeMarket.probability} 
+                    apiKey={apiKey} 
+                    onRefresh={fetchPositions} 
+                  />
+                </CollapsiblePanel>
+              )}
+
+              {/* YouTube/RSS Panel */}
+              <CollapsiblePanel title="Media" icon={<span>📺</span>} defaultOpen={false}>
+                <MediaPanel youtubeUrl={youtubeUrl} youtubeInput={youtubeInput} setYoutubeInput={setYoutubeInput} saveYoutube={saveYoutube} embedUrl={embedUrl} />
+              </CollapsiblePanel>
             </>
           }
           leftDefaultSize={15}
