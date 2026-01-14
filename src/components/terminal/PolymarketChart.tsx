@@ -10,18 +10,18 @@ interface PolymarketChartProps {
 }
 
 const TIME_PRESETS = [
+  { label: "15M", minutes: 15 },
+  { label: "30M", minutes: 30 },
   { label: "1H", minutes: 60 },
-  { label: "6H", minutes: 360 },
-  { label: "1D", minutes: 1440 },
-  { label: "1W", minutes: 10080 },
-  { label: "1M", minutes: 43200 },
+  { label: "2H", minutes: 120 },
+  { label: "4H", minutes: 240 },
   { label: "ALL", minutes: 0 },
 ];
 
 export function PolymarketChart({ marketId, currentProbability }: PolymarketChartProps) {
   const [chartData, setChartData] = useState<{ time: string; prob: number; timestamp: number }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedMinutes, setSelectedMinutes] = useState(1440); // Default to 1D
+  const [selectedMinutes, setSelectedMinutes] = useState(60); // Default to 1H
   const [priceChange, setPriceChange] = useState<{ value: number; percent: number } | null>(null);
 
   useEffect(() => {
@@ -53,11 +53,9 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
           : sortedBets.filter(bet => bet.createdTime >= cutoffTime);
 
         for (const bet of filteredBets) {
-          const timeFormat = selectedMinutes <= 360 
+          const timeFormat = selectedMinutes <= 240 
             ? { hour: "2-digit" as const, minute: "2-digit" as const }
-            : selectedMinutes <= 1440
-            ? { hour: "2-digit" as const, minute: "2-digit" as const }
-            : { month: "short" as const, day: "numeric" as const };
+            : { month: "short" as const, day: "numeric" as const, hour: "2-digit" as const };
 
           points.push({
             time: new Date(bet.createdTime).toLocaleString("en-US", timeFormat),
@@ -67,11 +65,9 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
         }
 
         // Add current probability
-        const timeFormat = selectedMinutes <= 360 
+        const timeFormat = selectedMinutes <= 240 
           ? { hour: "2-digit" as const, minute: "2-digit" as const }
-          : selectedMinutes <= 1440
-          ? { hour: "2-digit" as const, minute: "2-digit" as const }
-          : { month: "short" as const, day: "numeric" as const };
+          : { month: "short" as const, day: "numeric" as const, hour: "2-digit" as const };
         
         points.push({
           time: new Date().toLocaleString("en-US", timeFormat),
@@ -112,14 +108,14 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
 
   return (
     <Card className="bg-[#1a1b23] border-gray-800 p-4">
-      {/* Price Header */}
-      <div className="flex items-start justify-between mb-4">
+      {/* Price Header - Compact */}
+      <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white">
+            <span className="text-2xl font-bold text-white">
               {Math.round(currentProbability * 100)}%
             </span>
-            <span className="text-lg text-gray-400">chance</span>
+            <span className="text-sm text-gray-400">chance</span>
           </div>
           {priceChange && (
             <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
