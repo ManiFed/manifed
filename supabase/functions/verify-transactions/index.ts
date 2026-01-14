@@ -65,6 +65,29 @@ serve(async (req) => {
 
     console.log(`[VERIFY-TRANSACTIONS] Found ${accountCodeMap.size} user account codes`);
 
+    // Get pending NAVLOC applications that need deposit verification
+    const { data: pendingApps } = await supabase
+      .from("navloc_applications")
+      .select("id, user_id, manifold_username, deposit_verified")
+      .eq("deposit_verified", false)
+      .not("manifold_username", "is", null);
+
+    console.log(`[VERIFY-TRANSACTIONS] Found ${pendingApps?.length || 0} pending NAVLOC applications`);
+
+    // Create a map of manifold username (lowercase) -> application id + user_id + account_code
+    const pendingAppMap = new Map<string, { appId: string; userId: string; accountCode: string | null }>();
+    for (const app of pendingApps || []) {
+      if (app.manifold_username) {
+        // Find the account code for this user
+        const userBalance = userBalances?.find(ub => ub.user_id === app.user_id);
+        pendingAppMap.set(app.manifold_username.toLowerCase(), {
+          appId: app.id,
+          userId: app.user_id,
+          accountCode: userBalance?.account_code || null,
+        });
+      }
+    }
+
     // Get already processed transaction IDs to avoid duplicates
     const { data: existingTxns } = await supabase
       .from("transactions")
@@ -81,6 +104,7 @@ serve(async (req) => {
     const results = {
       depositsProcessed: 0,
       totalAmount: 0,
+      navlocVerified: 0,
       errors: 0,
     };
 
@@ -115,7 +139,50 @@ serve(async (req) => {
           continue;
         }
 
-        console.log(`[VERIFY-TRANSACTIONS] Found deposit! Code: ${accountCode}, Amount: M$${txn.amount}, TxnId: ${txn.id}`);
+        console.log(`[VERIFY-TRANSACTIONS] Found deposit! Code: ${accountCode}, Amount: M$${txn.amount}, TxnId: ${txn.id}, FromId: ${txn.fromId}`);
+
+        // Check if this deposit is for NAVLOC verification
+        // We need to verify that the deposit came from the username stated in the application
+        // First, get the username of the sender
+        let senderUsername: string | null = null;
+        try {
+          const userResponse = await fetch(`https://api.manifold.markets/v0/user/by-id/${txn.fromId}`);
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            senderUsername = userData.username?.toLowerCase() || null;
+            console.log(`[VERIFY-TRANSACTIONS] Sender username: ${senderUsername}`);
+          }
+        } catch (err) {
+          console.error(`[VERIFY-TRANSACTIONS] Failed to fetch sender info:`, err);
+        }
+
+        // Check if this sender has a pending NAVLOC application
+        if (senderUsername && pendingAppMap.has(senderUsername)) {
+          const appInfo = pendingAppMap.get(senderUsername)!;
+          
+          // Verify the account code matches
+          if (appInfo.accountCode && appInfo.accountCode.toUpperCase() === accountCode) {
+            // This is a valid NAVLOC verification deposit!
+            console.log(`[VERIFY-TRANSACTIONS] Verifying NAVLOC application ${appInfo.appId} for user ${senderUsername}`);
+            
+            const { error: updateError } = await supabase
+              .from("navloc_applications")
+              .update({
+                deposit_verified: true,
+                deposit_transaction_id: txn.id,
+                deposit_amount: txn.amount,
+                status: "pending", // Mark as pending for admin review
+              })
+              .eq("id", appInfo.appId);
+
+            if (updateError) {
+              console.error(`[VERIFY-TRANSACTIONS] Failed to verify NAVLOC app:`, updateError);
+            } else {
+              results.navlocVerified++;
+              console.log(`[VERIFY-TRANSACTIONS] NAVLOC application verified for ${senderUsername}`);
+            }
+          }
+        }
 
         // Credit the user's balance using RPC
         const { error: rpcError } = await supabase.rpc("modify_user_balance", {
@@ -154,8 +221,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         results,
-        message: results.depositsProcessed > 0 
-          ? `Processed ${results.depositsProcessed} deposits totaling M$${results.totalAmount}`
+        message: results.depositsProcessed > 0 || results.navlocVerified > 0
+          ? `Processed ${results.depositsProcessed} deposits totaling M$${results.totalAmount}. Verified ${results.navlocVerified} NAVLOC applications.`
           : "No new deposits found",
       }),
       {

@@ -97,12 +97,17 @@ export default {
           "0%": { transform: "translateY(100%)" },
           "100%": { transform: "translateY(-100%)" },
         },
+        "mana-fall": {
+          "0%": { transform: "translateY(-20px) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(100vh) rotate(360deg)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 2s linear infinite",
         "chart-rise": "chart-rise 20s linear infinite",
+        "mana-fall": "mana-fall 3s ease-in forwards",
       },
     },
   },
