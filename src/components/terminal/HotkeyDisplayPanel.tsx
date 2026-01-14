@@ -103,7 +103,7 @@ export function HotkeyDisplayPanel({
       </ScrollArea>
       <div className="mt-2 pt-2 border-t border-gray-800 space-y-1">
         <p className="text-[10px] text-gray-600">
-          Press key when not in input field to execute
+          Hold <span className="text-yellow-400 font-bold">Shift</span> + key to execute
         </p>
         
       </div>

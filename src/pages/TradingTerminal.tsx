@@ -250,6 +250,14 @@ function MarketDescriptionDropdown({
 }
 
 // Media panel component for YouTube/RSS
+// RSS Feed item interface
+interface RssFeedItem {
+  title: string;
+  link: string;
+  pubDate: string;
+  description?: string;
+}
+
 function MediaPanel({
   youtubeUrl,
   youtubeInput,
@@ -265,7 +273,43 @@ function MediaPanel({
 }) {
   const [showPanel, setShowPanel] = useState(true);
   const [mediaType, setMediaType] = useState<"youtube" | "rss">("youtube");
-  const [rssUrl, setRssUrl] = useState("");
+  const [rssUrl, setRssUrl] = useState("https://polymarket.com/rss/blog");
+  const [rssItems, setRssItems] = useState<RssFeedItem[]>([]);
+  const [rssLoading, setRssLoading] = useState(false);
+  const [rssError, setRssError] = useState<string | null>(null);
+
+  const fetchRssFeed = async () => {
+    if (!rssUrl) return;
+    setRssLoading(true);
+    setRssError(null);
+    try {
+      // Use rss2json API as a CORS proxy
+      const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`);
+      const data = await response.json();
+      if (data.status === 'ok' && data.items) {
+        setRssItems(data.items.slice(0, 10).map((item: any) => ({
+          title: item.title,
+          link: item.link,
+          pubDate: item.pubDate,
+          description: item.description?.replace(/<[^>]*>/g, '').slice(0, 100)
+        })));
+      } else {
+        setRssError('Failed to parse RSS feed');
+      }
+    } catch (err) {
+      setRssError('Failed to fetch RSS feed');
+    } finally {
+      setRssLoading(false);
+    }
+  };
+
+  // Fetch RSS on mount and when URL changes
+  useEffect(() => {
+    if (mediaType === 'rss' && rssUrl) {
+      fetchRssFeed();
+    }
+  }, [mediaType]);
+
   if (!showPanel) {
     return <Card className="bg-gray-900/50 border-gray-800 p-2">
         <Button variant="ghost" size="sm" onClick={() => setShowPanel(true)} className="w-full text-gray-500 hover:text-white text-xs">
@@ -305,10 +349,38 @@ function MediaPanel({
             </div>}
         </> : <>
           <div className="flex gap-2 mb-3">
-            <Input value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="RSS Feed URL..." className="bg-gray-800 border-gray-700 text-white" />
+            <Input value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="RSS Feed URL..." className="bg-gray-800 border-gray-700 text-white text-xs" />
+            <Button onClick={fetchRssFeed} size="sm" className="bg-orange-600 hover:bg-orange-700">
+              Load
+            </Button>
           </div>
-          <div className="aspect-video rounded-lg bg-gray-800 flex items-center justify-center text-gray-500 text-sm text-center p-4">
-            RSS feeds can be added here for market news updates. Coming soon.
+          <div className="max-h-[200px] overflow-y-auto bg-gray-800 rounded-lg p-2">
+            {rssLoading ? (
+              <div className="text-gray-500 text-sm text-center py-4">Loading...</div>
+            ) : rssError ? (
+              <div className="text-red-400 text-sm text-center py-4">{rssError}</div>
+            ) : rssItems.length > 0 ? (
+              <div className="space-y-2">
+                {rssItems.map((item, idx) => (
+                  <a 
+                    key={idx} 
+                    href={item.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block p-2 rounded hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="text-xs text-white font-medium line-clamp-2">{item.title}</div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {new Date(item.pubDate).toLocaleDateString()}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm text-center py-4">
+                Enter an RSS URL and click Load
+              </div>
+            )}
           </div>
         </>}
     </Card>;
@@ -1166,6 +1238,10 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
       }
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       if (!activeMarket || !apiKey) return;
+      
+      // Custom hotkeys now require SHIFT to be held
+      if (!e.shiftKey) return;
+      
       const hotkey = hotkeys.find(h => h.key.toUpperCase() === e.key.toUpperCase());
       if (hotkey) {
         e.preventDefault();
@@ -1467,7 +1543,7 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
                               </div>)}
                           </ScrollArea>
                         </div> : <div className="flex items-center gap-3">
-                          <div className="text-4xl font-bold text-emerald-400">
+                          <div className="text-2xl font-bold text-emerald-400">
                             {typeof activeMarket.probability === "number" && !isNaN(activeMarket.probability) ? `${(activeMarket.probability * 100).toFixed(1)}%` : "—"}
                           </div>
                           {/* Price impact preview when auto mode is off */}

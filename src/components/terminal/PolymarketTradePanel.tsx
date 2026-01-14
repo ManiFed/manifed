@@ -84,21 +84,21 @@ export function PolymarketTradePanel({
         </TooltipProvider>
       </div>
 
-      {/* Yes/No Buttons */}
+      {/* Yes/No Buttons - Responsive sizing */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 onClick={() => setSide('YES')}
-                className={`h-12 text-lg font-semibold ${
+                className={`h-10 md:h-12 text-sm md:text-lg font-semibold flex-1 min-w-0 ${
                   side === 'YES'
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                     : 'bg-gray-800 hover:bg-gray-700 text-gray-400'
                 }`}
                 disabled={disabled}
               >
-                Yes <span className="ml-2 text-sm opacity-80">{yesPrice}¢</span>
+                Yes <span className="ml-1 md:ml-2 text-xs md:text-sm opacity-80">{yesPrice}¢</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -113,14 +113,14 @@ export function PolymarketTradePanel({
             <TooltipTrigger asChild>
               <Button
                 onClick={() => setSide('NO')}
-                className={`h-12 text-lg font-semibold ${
+                className={`h-10 md:h-12 text-sm md:text-lg font-semibold flex-1 min-w-0 ${
                   side === 'NO'
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-gray-800 hover:bg-gray-700 text-gray-400'
                 }`}
                 disabled={disabled}
               >
-                No <span className="ml-2 text-sm opacity-80">{noPrice}¢</span>
+                No <span className="ml-1 md:ml-2 text-xs md:text-sm opacity-80">{noPrice}¢</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -152,7 +152,7 @@ export function PolymarketTradePanel({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-1 md:gap-2">
           {quickAmounts.map(val => (
             <TooltipProvider key={val}>
               <Tooltip>
@@ -161,7 +161,7 @@ export function PolymarketTradePanel({
                     variant="outline"
                     size="sm"
                     onClick={() => handleQuickAmount(val)}
-                    className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                    className="flex-1 min-w-0 px-1 md:px-3 text-xs md:text-sm border-gray-700 text-gray-300 hover:bg-gray-800"
                     disabled={disabled}
                   >
                     +${val}
@@ -177,7 +177,7 @@ export function PolymarketTradePanel({
             variant="outline"
             size="sm"
             onClick={handleMax}
-            className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+            className="flex-1 min-w-0 px-1 md:px-3 text-xs md:text-sm border-gray-700 text-gray-300 hover:bg-gray-800"
             disabled={disabled}
           >
             Max
@@ -192,7 +192,7 @@ export function PolymarketTradePanel({
             <Button
               onClick={handleTrade}
               disabled={disabled || !amount || parseInt(amount) <= 0}
-              className={`w-full h-12 text-lg font-semibold ${
+              className={`w-full h-10 md:h-12 text-base md:text-lg font-semibold ${
                 side === 'YES' 
                   ? 'bg-emerald-500 hover:bg-emerald-600' 
                   : 'bg-red-500 hover:bg-red-600'
@@ -211,13 +211,13 @@ export function PolymarketTradePanel({
       </TooltipProvider>
 
       {/* Syntax Help */}
-      <div className="mt-4 p-3 bg-gray-800/50 rounded-lg">
-        <p className="text-xs text-gray-500 mb-2">⌨️ Keyboard shortcuts:</p>
-        <div className="text-xs text-gray-600 space-y-0.5">
-          <p><code className="text-emerald-400">100B</code> = M$100 YES market</p>
-          <p><code className="text-red-400">100S</code> = M$100 NO market</p>
-          <p><code className="text-yellow-400">/100B@45/</code> = Limit YES @45%</p>
-          <p><code className="text-purple-400">ST5/100/</code> = Straddle ±5%</p>
+      <div className="mt-3 md:mt-4 p-2 md:p-3 bg-gray-800/50 rounded-lg">
+        <p className="text-[10px] md:text-xs text-gray-500 mb-1 md:mb-2">⌨️ Hold Shift + key for hotkeys:</p>
+        <div className="text-[10px] md:text-xs text-gray-600 space-y-0.5">
+          <p><code className="text-emerald-400">100B</code> = M$100 YES</p>
+          <p><code className="text-red-400">100S</code> = M$100 NO</p>
+          <p><code className="text-yellow-400">/100B@45/</code> = Limit @45%</p>
+          <p><code className="text-purple-400">ST5/100/</code> = Straddle</p>
         </div>
       </div>
     </Card>
