@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDown, TrendingUp, RefreshCw } from "lucide-react";
 
 interface PolymarketChartProps {
   marketId: string;
   currentProbability: number;
+  showChart?: boolean;
 }
 
 const TIME_PRESETS = [
@@ -18,17 +19,32 @@ const TIME_PRESETS = [
   { label: "ALL", minutes: 0 },
 ];
 
-export function PolymarketChart({ marketId, currentProbability }: PolymarketChartProps) {
+// Custom tooltip with cleaner styling
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#1e2028] border border-gray-700 rounded-lg px-4 py-3 shadow-xl">
+        <div className="text-gray-400 text-sm font-medium mb-1">{label}</div>
+        <div className="text-emerald-400 text-lg font-bold">
+          Probability : {payload[0].value}%
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+export function PolymarketChart({ marketId, currentProbability, showChart = true }: PolymarketChartProps) {
   const [chartData, setChartData] = useState<{ time: string; prob: number; timestamp: number }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedMinutes, setSelectedMinutes] = useState(60); // Default to 1H
+  const [selectedMinutes, setSelectedMinutes] = useState(60);
   const [priceChange, setPriceChange] = useState<{ value: number; percent: number } | null>(null);
 
   useEffect(() => {
-    if (marketId) {
+    if (marketId && showChart) {
       fetchBetHistory();
     }
-  }, [marketId, selectedMinutes]);
+  }, [marketId, selectedMinutes, showChart]);
 
   const fetchBetHistory = async () => {
     setLoading(true);
@@ -47,7 +63,6 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
         const points: { time: string; prob: number; timestamp: number }[] = [];
         const sortedBets = [...bets].sort((a, b) => a.createdTime - b.createdTime);
 
-        // For "ALL" time, we want to show the market creation too
         const filteredBets = selectedMinutes === 0 
           ? sortedBets 
           : sortedBets.filter(bet => bet.createdTime >= cutoffTime);
@@ -64,7 +79,6 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
           });
         }
 
-        // Add current probability
         const timeFormat = selectedMinutes <= 240 
           ? { hour: "2-digit" as const, minute: "2-digit" as const }
           : { month: "short" as const, day: "numeric" as const, hour: "2-digit" as const };
@@ -75,7 +89,6 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
           timestamp: Date.now(),
         });
 
-        // Calculate price change
         if (points.length >= 2) {
           const firstProb = points[0].prob;
           const lastProb = points[points.length - 1].prob;
@@ -86,7 +99,6 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
           setPriceChange(null);
         }
 
-        // Sample to avoid too many points
         const maxPoints = 100;
         if (points.length > maxPoints) {
           const step = Math.ceil(points.length / maxPoints);
@@ -103,12 +115,21 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
     }
   };
 
+  if (!showChart) {
+    return (
+      <Card className="bg-[#1a1b23] border-gray-800 p-4">
+        <div className="h-[200px] flex items-center justify-center text-gray-500 text-sm">
+          Select an option to view chart
+        </div>
+      </Card>
+    );
+  }
+
   const isPositive = priceChange && priceChange.value >= 0;
   const chartColor = isPositive ? "#10b981" : "#ef4444";
 
   return (
     <Card className="bg-[#1a1b23] border-gray-800 p-4">
-      {/* Price Header - Compact */}
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-baseline gap-2">
@@ -124,9 +145,17 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
             </div>
           )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchBetHistory}
+          disabled={loading}
+          className="h-7 w-7 p-0 text-gray-500 hover:text-white"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
-      {/* Chart */}
       <div className="h-[200px] mb-4">
         {loading ? (
           <div className="h-full flex items-center justify-center text-gray-500 text-sm">Loading...</div>
@@ -166,16 +195,7 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
                 tickFormatter={(v) => `${v}%`}
                 width={40}
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-                labelStyle={{ color: "#9ca3af" }}
-                formatter={(value: number) => [`${value}%`, "Probability"]}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Area 
                 type="monotone" 
                 dataKey="prob" 
@@ -188,7 +208,6 @@ export function PolymarketChart({ marketId, currentProbability }: PolymarketChar
         )}
       </div>
 
-      {/* Time Presets - Polymarket style */}
       <div className="flex items-center gap-1">
         {TIME_PRESETS.map((preset) => (
           <Button

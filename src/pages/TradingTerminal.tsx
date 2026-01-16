@@ -1571,7 +1571,8 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
                   marketId={activeMarket.id} 
                   currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] 
                     ? mcOptions[selectedMcIndex - 1].probability 
-                    : activeMarket.probability} 
+                    : activeMarket.probability}
+                  showChart={mcOptions.length === 0 || selectedMcIndex > 0}
                 />
               )}
 
@@ -1586,43 +1587,38 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
               {/* Dropdowns Row - Syntax, Description, Comments */}
               <div className="flex items-center gap-2 text-xs">
                 {/* Syntax Guide Dropdown */}
-                <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "syntax" ? null : "syntax")} className={`h-6 px-2 text-[10px] ${activeDropdown === "syntax" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
-                  Syntax Guide {activeDropdown === "syntax" ? "▲" : "▼"}
+                <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "syntax" ? null : "syntax")} className={`h-7 px-3 text-xs font-medium border ${activeDropdown === "syntax" ? "bg-emerald-900/40 border-emerald-700 text-emerald-400" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"}`}>
+                  ⌨ Syntax Guide {activeDropdown === "syntax" ? "▲" : "▼"}
                 </Button>
 
                 {/* Market Description Dropdown */}
-                {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "description" ? null : "description")} className={`h-6 px-2 text-[10px] ${activeDropdown === "description" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
+                {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "description" ? null : "description")} className={`h-7 px-3 text-xs font-medium border ${activeDropdown === "description" ? "bg-gray-800 border-gray-600 text-white" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"}`}>
                     Description {activeDropdown === "description" ? "▲" : "▼"}
                   </Button>}
 
                 {/* Recent Comments Dropdown */}
-                {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "comments" ? null : "comments")} className={`h-6 px-2 text-[10px] ${activeDropdown === "comments" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-white"}`}>
+                {activeMarket && <Button variant="ghost" size="sm" onClick={() => setActiveDropdown(activeDropdown === "comments" ? null : "comments")} className={`h-7 px-3 text-xs font-medium border ${activeDropdown === "comments" ? "bg-gray-800 border-gray-600 text-white" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"}`}>
                     Comments {activeDropdown === "comments" ? "▲" : "▼"}
                   </Button>}
               </div>
 
               {/* Dropdown Content */}
-              {activeDropdown === "syntax" && <Card className="bg-gray-900/80 border-gray-800 p-3 text-xs text-gray-500">
-                  <div className="space-y-1">
-                    <div>
-                      <span className="text-gray-400">100B</span> Buy YES • <span className="text-gray-400">100S</span>{" "}
-                      Buy NO
+              {activeDropdown === "syntax" && <Card className="bg-emerald-950/40 border-emerald-800 p-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex gap-4 flex-wrap">
+                      <span><code className="text-emerald-400 font-bold">100B</code> <span className="text-gray-400">Buy YES</span></span>
+                      <span><code className="text-red-400 font-bold">100S</code> <span className="text-gray-400">Buy NO</span></span>
                     </div>
-                    <div>
-                      <span className="text-gray-400">/100B@45/</span> Limit YES @45% •{" "}
-                      <span className="text-gray-400">30/100B@45/</span> With 30min cancel
+                    <div className="flex gap-4 flex-wrap">
+                      <span><code className="text-yellow-400 font-bold">/100B@45/</code> <span className="text-gray-400">Limit YES @45%</span></span>
+                      <span><code className="text-yellow-400 font-bold">30/100B@45/</code> <span className="text-gray-400">With 30min cancel</span></span>
                     </div>
-                    <div>
-                      <span className="text-yellow-400">LS100@55</span> Limit sell 100 @55% •{" "}
-                      <span className="text-yellow-400">30/LS100@55</span> With expiry
+                    <div className="flex gap-4 flex-wrap">
+                      <span><code className="text-orange-400 font-bold">/LS@55/</code> <span className="text-gray-400">Take Profit @55%</span></span>
+                      <span><code className="text-purple-400 font-bold">ST5/100/</code> <span className="text-gray-400">Straddle ±5%</span></span>
                     </div>
-                    <div>
-                      <span className="text-purple-400">ST5/100/</span> Straddle ±5% with M$100 split •{" "}
-                      <span className="text-purple-400">30/ST5/100/</span> With expiry
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Cmd+X</span> Sell all + cancel limits •{" "}
-                      <span className="text-gray-400">Cmd+L</span> Cancel all limits
+                    <div className="pt-1 border-t border-emerald-800/50 text-gray-500">
+                      <span className="text-gray-400">Cmd+X</span> Sell all • <span className="text-gray-400">Cmd+L</span> Cancel limits • <span className="text-gray-400">Shift+[key]</span> Hotkey
                     </div>
                   </div>
                 </Card>}
