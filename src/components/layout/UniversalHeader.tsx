@@ -114,7 +114,7 @@ export function UniversalHeader({
         <div className="flex items-center justify-between py-3 px-6">
           {/* Logo */}
           <Link to={isAuthenticated ? "/hub" : "/"} className="flex items-center gap-3">
-            <img src={manifedLogo} alt="ManiFed" className="h-12 md:h-16" />
+            <img src={manifedLogo} alt="ManiFed" width={64} height={64} className="h-12 md:h-16" />
           </Link>
 
           {/* Desktop Navigation */}
