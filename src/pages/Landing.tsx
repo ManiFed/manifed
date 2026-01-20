@@ -221,6 +221,8 @@ function BouncingLogo() {
       <img
         src={manifedLogo}
         alt="ManiFed"
+        width={112}
+        height={112}
         className={`h-28 transition-transform duration-300 ${isHovered ? "animate-bounce-subtle" : ""}`}
       />
     </Link>
@@ -499,7 +501,7 @@ export default function Landing() {
           <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src={manifedLogo} alt="ManiFed" className="h-8" />
+                <img src={manifedLogo} alt="ManiFed" width={32} height={32} className="h-8" />
                 <span className="font-display font-semibold text-foreground">ManiFed</span>
               </div>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
