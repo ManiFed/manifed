@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DonationButton } from "@/components/DonationButton";
 import { useUserBalance } from "@/hooks/useUserBalance";
 import { UniversalHeader } from "@/components/layout/UniversalHeader";
-import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal } from "lucide-react";
+import { Landmark, TrendingUp, FileText, Coins, ArrowUpRight, ArrowDownRight, LogOut, Trophy, Settings, BarChart3, Loader2, Search, Sparkles, Store, MoreHorizontal, ChevronDown, Activity, Terminal, PenTool } from "lucide-react";
 interface Transaction {
   id: string;
   type: string;
@@ -191,7 +191,7 @@ export default function Hub() {
         animationDelay: "100ms"
       }}>
           <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">Products</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
             {/* Loans (Bonds + P2P) */}
             <Link to="/loans" className="group">
               <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
@@ -238,6 +238,25 @@ export default function Hub() {
                   <p className="text-muted-foreground mb-6">Fast keyboard-driven trading interface with hotkeys.</p>
                   <div className="flex items-center gap-2 text-blue-500 font-medium">
                     Open Terminal
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Creator Pro */}
+            <Link to="/creator" className="group">
+              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl font-bold">Creator Pro</CardTitle>
+                    <Badge variant="secondary" className="text-xs">IDE</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-6">Professional market creation with clarity analysis.</p>
+                  <div className="flex items-center gap-2 text-primary font-medium">
+                    Open Creator
                     <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
                 </CardContent>
