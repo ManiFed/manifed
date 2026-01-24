@@ -78,7 +78,8 @@ const Index = () => {
     createdAt: loan.created_at,
     riskScore: loan.risk_score as 'low' | 'medium' | 'high',
     collateralDescription: loan.collateral_description || undefined,
-    investors: []
+    investors: [],
+    loanType: loan.loan_type || 'seek'
   }));
   return <div className="min-h-screen">
       <UniversalHeader />
