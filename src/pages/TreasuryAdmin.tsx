@@ -533,13 +533,7 @@ export default function TreasuryAdmin() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      const { error: deleteError } = await supabase
-        .from('loans')
-        .delete()
-        .eq('id', loanId);
-
-      if (deleteError) throw deleteError;
-
+      // Edge function already handles deletion for admins (returns deleted: true)
       toast({ title: 'Loan Deleted', description: 'The loan has been removed from the marketplace.' });
       await checkAdminAndFetchData();
     } catch (error) {
