@@ -22,6 +22,8 @@ export function Header() {
   const navigate = useNavigate();
   const {
     balance,
+    availableBalance,
+    escrowBalance,
     fetchBalance
   } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -88,6 +90,8 @@ export function Header() {
             <div className="hidden sm:block">
               <WalletPopover
                 balance={balance}
+                availableBalance={availableBalance}
+                escrowBalance={escrowBalance}
                 hasApiKey={hasApiKey}
                 hasWithdrawalUsername={hasWithdrawalUsername}
                 onBalanceChange={fetchBalance}

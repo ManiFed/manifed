@@ -3,11 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface UserBalance {
   balance: number;
+  escrowBalance: number;
+  availableBalance: number;
   totalInvested: number;
 }
 
 export function useUserBalance() {
-  const [balance, setBalance] = useState<UserBalance>({ balance: 0, totalInvested: 0 });
+  const [balance, setBalance] = useState<UserBalance>({ 
+    balance: 0, 
+    escrowBalance: 0, 
+    availableBalance: 0, 
+    totalInvested: 0 
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -23,20 +30,24 @@ export function useUserBalance() {
 
       const { data, error } = await supabase
         .from('user_balances')
-        .select('balance, total_invested')
+        .select('balance, total_invested, escrow_balance')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
+        const totalBalance = Number(data.balance) || 0;
+        const escrow = Number(data.escrow_balance) || 0;
         setBalance({
-          balance: Number(data.balance) || 0,
+          balance: totalBalance,
+          escrowBalance: escrow,
+          availableBalance: Math.max(0, totalBalance - escrow),
           totalInvested: Number(data.total_invested) || 0,
         });
       } else {
         // No balance record exists yet - it will be created on first deposit
-        setBalance({ balance: 0, totalInvested: 0 });
+        setBalance({ balance: 0, escrowBalance: 0, availableBalance: 0, totalInvested: 0 });
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
@@ -52,7 +63,9 @@ export function useUserBalance() {
   // Update local state only - actual balance changes happen server-side via edge functions
   const setLocalBalance = useCallback((newBalance: number, newTotalInvested?: number) => {
     setBalance(prev => ({
+      ...prev,
       balance: newBalance,
+      availableBalance: Math.max(0, newBalance - prev.escrowBalance),
       totalInvested: newTotalInvested !== undefined ? newTotalInvested : prev.totalInvested,
     }));
   }, []);
@@ -84,6 +97,8 @@ export function useUserBalance() {
 
   return {
     balance: balance.balance,
+    escrowBalance: balance.escrowBalance,
+    availableBalance: balance.availableBalance,
     totalInvested: balance.totalInvested,
     isLoading,
     userId,

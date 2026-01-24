@@ -68,7 +68,7 @@ export default function Memecoins() {
   const [createOpen, setCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newCoin, setNewCoin] = useState({ name: "", symbol: "", emoji: "🪙", initialLiquidity: "" });
-  const { balance, fetchBalance } = useUserBalance();
+  const { balance, availableBalance, escrowBalance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
     fetchData();
@@ -339,6 +339,8 @@ export default function Memecoins() {
                 <>
                   <WalletPopover
                     balance={balance}
+                    availableBalance={availableBalance}
+                    escrowBalance={escrowBalance}
                     hasApiKey={hasApiKey}
                     hasWithdrawalUsername={hasWithdrawalUsername}
                     onBalanceChange={fetchBalance}

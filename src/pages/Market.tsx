@@ -70,7 +70,7 @@ export default function Market() {
   const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [equippingId, setEquippingId] = useState<string | null>(null);
-  const { balance, fetchBalance } = useUserBalance();
+  const { balance, availableBalance, escrowBalance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
     fetchData();
@@ -232,6 +232,8 @@ export default function Market() {
             <div className="flex items-center gap-3">
               <WalletPopover
                 balance={balance}
+                availableBalance={availableBalance}
+                escrowBalance={escrowBalance}
                 hasApiKey={hasApiKey}
                 hasWithdrawalUsername={hasWithdrawalUsername}
                 onBalanceChange={fetchBalance}

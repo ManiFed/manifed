@@ -150,17 +150,35 @@ serve(async (req) => {
         );
       }
 
-      // First check if user has sufficient balance
-      const { data: balanceData } = await supabase
-        .from("user_balances")
-        .select("balance")
-        .eq("user_id", user.id)
-        .single();
+      // First check if user has sufficient AVAILABLE balance (not escrowed)
+      const { data: availableData, error: availableError } = await supabase.rpc('get_available_balance', {
+        p_user_id: user.id
+      });
 
-      const currentBalance = Number(balanceData?.balance) || 0;
-      if (currentBalance < amount) {
+      if (availableError) {
+        console.error("Error getting available balance:", availableError);
         return new Response(
-          JSON.stringify({ error: "Insufficient ManiFed balance" }),
+          JSON.stringify({ error: "Failed to check available balance" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const availableBalance = Number(availableData) || 0;
+      if (availableBalance < amount) {
+        // Get escrow balance for a helpful error message
+        const { data: balanceData } = await supabase
+          .from("user_balances")
+          .select("balance, escrow_balance")
+          .eq("user_id", user.id)
+          .single();
+        
+        const escrowBalance = Number(balanceData?.escrow_balance) || 0;
+        const errorMsg = escrowBalance > 0 
+          ? `Insufficient available balance. You have M$${escrowBalance} in escrow. Available for withdrawal: M$${availableBalance}`
+          : "Insufficient ManiFed balance";
+        
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
