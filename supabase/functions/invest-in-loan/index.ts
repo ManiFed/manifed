@@ -60,9 +60,13 @@ serve(async (req) => {
       throw new Error("Loan is not accepting funding");
     }
 
-    const remainingAmount = loan.amount - loan.funded_amount;
-    if (amount > remainingAmount) {
-      throw new Error(`Maximum investment is M$${remainingAmount}`);
+    // Partial funding not allowed - must fund full amount
+    if (amount !== loan.amount) {
+      throw new Error(`This loan requires full funding of M$${loan.amount}. Partial funding is not allowed.`);
+    }
+
+    if (loan.funded_amount > 0) {
+      throw new Error("This loan has already been funded");
     }
 
     // Check user balance

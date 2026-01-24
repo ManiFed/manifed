@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { format, formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { HandshakeIcon, Check, X, Loader2, MessageSquare } from "lucide-react";
+import { HandshakeIcon, Check, X, Loader2, MessageSquare, Clock, Lock, Undo } from "lucide-react";
 
 interface Negotiation {
   id: string;
@@ -16,15 +17,18 @@ interface Negotiation {
   message: string | null;
   status: string;
   created_at: string;
+  expires_at: string | null;
+  escrow_held: boolean;
 }
 
 interface NegotiationsListProps {
   loanId: string;
   isOwner: boolean;
+  currentUserId?: string | null;
   onAccept?: (negotiation: Negotiation) => void;
 }
 
-export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsListProps) {
+export function NegotiationsList({ loanId, isOwner, currentUserId, onAccept }: NegotiationsListProps) {
   const [negotiations, setNegotiations] = useState<Negotiation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -50,33 +54,84 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
     }
   };
 
-  const handleUpdateStatus = async (negotiationId: string, status: 'accepted' | 'rejected', negotiation?: Negotiation) => {
-    setProcessingId(negotiationId);
+  const handleAccept = async (negotiation: Negotiation) => {
+    setProcessingId(negotiation.id);
     try {
-      const { error } = await supabase
-        .from('loan_negotiations')
-        .update({ status })
-        .eq('id', negotiationId);
-
-      if (error) throw error;
-
-      toast({
-        title: status === 'accepted' ? 'Proposal Accepted' : 'Proposal Rejected',
-        description: status === 'accepted' 
-          ? 'The negotiator will be notified.'
-          : 'The proposal has been declined.',
+      const { data, error } = await supabase.functions.invoke('accept-negotiation', {
+        body: { negotiationId: negotiation.id }
       });
 
-      if (status === 'accepted' && negotiation && onAccept) {
-        onAccept(negotiation);
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Proposal Accepted',
+        description: data.message || 'Funds have been transferred to your account.',
+      });
+
+      if (onAccept) onAccept(negotiation);
+      fetchNegotiations();
+    } catch (error) {
+      console.error("Error accepting negotiation:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to accept proposal",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (negotiationId: string) => {
+    setProcessingId(negotiationId);
+    try {
+      const { data, error } = await supabase.functions.invoke('reject-negotiation', {
+        body: { negotiationId }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Proposal Rejected',
+        description: data.message || 'Escrowed funds have been returned.',
+      });
 
       fetchNegotiations();
     } catch (error) {
-      console.error("Error updating negotiation:", error);
+      console.error("Error rejecting negotiation:", error);
       toast({
         title: "Error",
-        description: "Failed to update proposal status",
+        description: error instanceof Error ? error.message : "Failed to reject proposal",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleWithdraw = async (negotiationId: string) => {
+    setProcessingId(negotiationId);
+    try {
+      const { data, error } = await supabase.functions.invoke('withdraw-negotiation', {
+        body: { negotiationId }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Proposal Withdrawn',
+        description: data.message || 'Your escrowed funds have been returned.',
+      });
+
+      fetchNegotiations();
+    } catch (error) {
+      console.error("Error withdrawing negotiation:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to withdraw proposal",
         variant: "destructive",
       });
     } finally {
@@ -107,6 +162,11 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
     }
   };
 
+  const isExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt) < new Date();
+  };
+
   return (
     <Card className="glass">
       <CardHeader>
@@ -128,7 +188,15 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
                   {new Date(neg.created_at).toLocaleDateString()}
                 </p>
               </div>
-              {statusBadge(neg.status)}
+              <div className="flex items-center gap-2">
+                {neg.escrow_held && neg.status === 'pending' && (
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <Lock className="w-3 h-3" />
+                    Escrowed
+                  </Badge>
+                )}
+                {statusBadge(neg.status)}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -146,6 +214,19 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
               </div>
             </div>
 
+            {neg.expires_at && neg.status === 'pending' && (
+              <div className="flex items-center gap-2 text-xs">
+                <Clock className="w-3 h-3" />
+                {isExpired(neg.expires_at) ? (
+                  <span className="text-destructive">Expired</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Expires {formatDistanceToNow(new Date(neg.expires_at), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+            )}
+
             {neg.message && (
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
@@ -153,11 +234,12 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
               </div>
             )}
 
-            {isOwner && neg.status === 'pending' && (
+            {/* Owner actions */}
+            {isOwner && neg.status === 'pending' && !isExpired(neg.expires_at) && (
               <div className="flex gap-2 pt-2">
                 <Button
                   size="sm"
-                  onClick={() => handleUpdateStatus(neg.id, 'accepted', neg)}
+                  onClick={() => handleAccept(neg)}
                   disabled={!!processingId}
                 >
                   {processingId === neg.id ? (
@@ -170,11 +252,30 @@ export function NegotiationsList({ loanId, isOwner, onAccept }: NegotiationsList
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleUpdateStatus(neg.id, 'rejected')}
+                  onClick={() => handleReject(neg.id)}
                   disabled={!!processingId}
                 >
                   <X className="w-3 h-3 mr-1" />
                   Decline
+                </Button>
+              </div>
+            )}
+
+            {/* Negotiator can withdraw their own pending proposal */}
+            {!isOwner && currentUserId === neg.negotiator_user_id && neg.status === 'pending' && (
+              <div className="pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleWithdraw(neg.id)}
+                  disabled={!!processingId}
+                >
+                  {processingId === neg.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                  ) : (
+                    <Undo className="w-3 h-3 mr-1" />
+                  )}
+                  Withdraw Proposal
                 </Button>
               </div>
             )}

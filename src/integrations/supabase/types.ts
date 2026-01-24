@@ -890,6 +890,8 @@ export type Database = {
       loan_negotiations: {
         Row: {
           created_at: string
+          escrow_held: boolean
+          expires_at: string | null
           id: string
           loan_id: string
           message: string | null
@@ -903,6 +905,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          escrow_held?: boolean
+          expires_at?: string | null
           id?: string
           loan_id: string
           message?: string | null
@@ -916,6 +920,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          escrow_held?: boolean
+          expires_at?: string | null
           id?: string
           loan_id?: string
           message?: string | null
@@ -955,6 +961,7 @@ export type Database = {
           loan_type: string
           manifold_market_id: string | null
           maturity_date: string | null
+          offer_escrowed: boolean
           research_fee_amount: number | null
           research_fee_paid: boolean
           risk_score: string
@@ -980,6 +987,7 @@ export type Database = {
           loan_type?: string
           manifold_market_id?: string | null
           maturity_date?: string | null
+          offer_escrowed?: boolean
           research_fee_amount?: number | null
           research_fee_paid?: boolean
           risk_score?: string
@@ -1005,6 +1013,7 @@ export type Database = {
           loan_type?: string
           manifold_market_id?: string | null
           maturity_date?: string | null
+          offer_escrowed?: boolean
           research_fee_amount?: number | null
           research_fee_paid?: boolean
           risk_score?: string
@@ -1733,6 +1742,7 @@ export type Database = {
           account_code: string | null
           balance: number
           created_at: string
+          escrow_balance: number
           id: string
           total_invested: number
           updated_at: string
@@ -1742,6 +1752,7 @@ export type Database = {
           account_code?: string | null
           balance?: number
           created_at?: string
+          escrow_balance?: number
           id?: string
           total_invested?: number
           updated_at?: string
@@ -1751,6 +1762,7 @@ export type Database = {
           account_code?: string | null
           balance?: number
           created_at?: string
+          escrow_balance?: number
           id?: string
           total_invested?: number
           updated_at?: string
@@ -1903,6 +1915,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      escrow_funds: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: boolean
+      }
+      get_available_balance: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1913,6 +1930,14 @@ export type Database = {
       modify_user_balance: {
         Args: { p_amount: number; p_operation: string; p_user_id: string }
         Returns: undefined
+      }
+      release_escrow: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: boolean
+      }
+      transfer_escrowed_funds: {
+        Args: { p_amount: number; p_from_user_id: string; p_to_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {

@@ -206,19 +206,13 @@ export default function LoanDetail() {
   const StatusIcon = status.icon;
   const remainingAmount = loan.amount - loan.funded_amount;
   const handleInvest = async () => {
-    const amount = parseFloat(investAmount);
-    if (isNaN(amount) || amount < 10) {
+    // Full funding only - use loan amount
+    const amount = loan.amount;
+    
+    if (loan.funded_amount > 0) {
       toast({
-        title: "Invalid amount",
-        description: "Minimum investment is M$10",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (amount > remainingAmount) {
-      toast({
-        title: "Amount too high",
-        description: `Maximum investment for this loan is M$${remainingAmount.toLocaleString()}`,
+        title: "Already funded",
+        description: "This loan has already been funded.",
         variant: "destructive"
       });
       return;
@@ -322,10 +316,7 @@ export default function LoanDetail() {
                       )}
                     </div>
                     <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">{loan.title}</CardTitle>
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <span>by @{loan.borrower_username}</span>
-                      <Badge variant="outline">Credit: {loan.borrower_reputation}</Badge>
-                    </div>
+                    <p className="text-muted-foreground">by @{loan.borrower_username}</p>
                   </div>
                   
                 </div>
@@ -409,12 +400,10 @@ export default function LoanDetail() {
             <NegotiationsList 
               loanId={loan.id} 
               isOwner={currentUserId === loan.borrower_user_id}
-              onAccept={(negotiation) => {
-                // Could auto-update loan terms here if desired
-                toast({
-                  title: "Proposal Accepted",
-                  description: `You accepted @${negotiation.negotiator_username}'s proposal.`,
-                });
+              currentUserId={currentUserId}
+              onAccept={() => {
+                fetchLoanData();
+                fetchBalance();
               }}
             />
 
@@ -441,11 +430,13 @@ export default function LoanDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {loan.status === "seeking_funding" && currentUserId !== loan.borrower_user_id && <Card className="glass animate-slide-up sticky top-24" style={{
+            {loan.status === "seeking_funding" && currentUserId !== loan.borrower_user_id && loan.funded_amount === 0 && <Card className="glass animate-slide-up sticky top-24" style={{
             animationDelay: "150ms"
           }}>
                 <CardHeader>
-                  
+                  <CardTitle className="text-lg">
+                    {loan.loan_type === 'offer' ? 'Accept This Offer' : 'Fund This Loan'}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
@@ -453,19 +444,18 @@ export default function LoanDetail() {
                     <p className="text-lg font-bold text-foreground">M${balance.toLocaleString()}</p>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Investment Amount (M$)</p>
-                    <Input type="number" placeholder="Enter amount..." value={investAmount} onChange={e => setInvestAmount(e.target.value)} className="bg-secondary/50" />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Min: M$10 | Max: M${remainingAmount.toLocaleString()}
-                    </p>
+                  {/* Full funding notice */}
+                  <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                    <p className="text-sm text-muted-foreground">Required Amount</p>
+                    <p className="text-xl font-bold text-foreground">M${loan.amount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Full funding required (no partial investments)</p>
                   </div>
 
-                  {investAmount && parseFloat(investAmount) > 0 && <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                  {balance >= loan.amount && <div className="p-3 rounded-lg bg-success/10 border border-success/20">
                       <p className="text-sm text-muted-foreground">Expected Return</p>
                       <p className="text-lg font-bold text-success">
                         M$
-                        {(parseFloat(investAmount) * (1 + loan.interest_rate / 100)).toLocaleString(undefined, {
+                        {(loan.amount * (1 + loan.interest_rate / 100)).toLocaleString(undefined, {
                     maximumFractionDigits: 0
                   })}
                       </p>
@@ -474,15 +464,21 @@ export default function LoanDetail() {
                       </p>
                     </div>}
 
+                  {balance < loan.amount && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                      Insufficient balance. You need M${loan.amount.toLocaleString()} to fund this loan.
+                    </div>
+                  )}
+
                   {loan.loan_type === 'offer' ? (
-                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
+                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting || balance < loan.amount}>
                       {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                       Accept This Offer
                     </Button>
                   ) : (
-                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting}>
+                    <Button variant="glow" className="w-full" size="lg" onClick={handleInvest} disabled={isInvesting || balance < loan.amount}>
                       {isInvesting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Fund This Loan
+                      Fund This Loan (M${loan.amount.toLocaleString()})
                     </Button>
                   )}
 
