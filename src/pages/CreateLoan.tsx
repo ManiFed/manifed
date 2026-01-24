@@ -207,14 +207,28 @@ export default function CreateLoan() {
       return;
     }
 
-    // Check balance for research fee if selected
-    if (wantsResearchFee && balance < researchFee) {
-      toast({
-        title: "Insufficient Balance",
-        description: `You need M$${researchFee} for the research fee. Your balance: M$${balance.toLocaleString()}`,
-        variant: "destructive"
-      });
-      return;
+    // Check available balance (balance minus escrow)
+    const totalRequired = (wantsResearchFee ? researchFee : 0) + (loanType === 'offer' ? formData.amount : 0);
+    
+    if (totalRequired > 0) {
+      // Check available balance
+      const { data: { user: checkUser } } = await supabase.auth.getUser();
+      if (checkUser) {
+        const { data: availableData } = await supabase.rpc('get_available_balance', {
+          p_user_id: checkUser.id
+        });
+        const available = availableData ?? balance;
+        if (totalRequired > available) {
+          toast({
+            title: "Insufficient Balance",
+            description: loanType === 'offer' 
+              ? `You need M$${formData.amount.toLocaleString()} available to offer a loan. Your available balance: M$${available.toLocaleString()}`
+              : `You need M$${researchFee} for the research fee. Your available balance: M$${available.toLocaleString()}`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -259,8 +273,23 @@ export default function CreateLoan() {
         });
       }
 
-      // Insert the loan into the database
       const validatedData = validationResult.data;
+
+      // For offers, escrow the loan amount
+      let offerEscrowed = false;
+      if (loanType === 'offer') {
+        const { data: escrowResult, error: escrowError } = await supabase.rpc('escrow_funds', {
+          p_user_id: user.id,
+          p_amount: validatedData.amount
+        });
+        
+        if (escrowError || !escrowResult) {
+          throw new Error("Failed to escrow funds for the offer. Please check your available balance.");
+        }
+        offerEscrowed = true;
+      }
+
+      // Insert the loan into the database
       const { error } = await supabase.from("loans").insert({
         borrower_user_id: user.id,
         borrower_username: usernameToUse,
@@ -277,10 +306,20 @@ export default function CreateLoan() {
         risk_score: "medium",
         loan_type: loanType,
         research_fee_paid: wantsResearchFee,
-        research_fee_amount: wantsResearchFee ? researchFee : null
+        research_fee_amount: wantsResearchFee ? researchFee : null,
+        offer_escrowed: offerEscrowed
       });
 
-      if (error) throw error;
+      if (error) {
+        // Release escrow if insert fails
+        if (offerEscrowed) {
+          await supabase.rpc('release_escrow', {
+            p_user_id: user.id,
+            p_amount: validatedData.amount
+          });
+        }
+        throw error;
+      }
 
       toast({
         title: loanType === 'offer' ? "Loan offer created!" : "Loan request created!",
