@@ -573,6 +573,102 @@ export type Database = {
         }
         Relationships: []
       }
+      conditional_trade_rules: {
+        Row: {
+          actions: Json
+          condition_logic: string
+          conditions: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_triggered: string | null
+          name: string
+          trigger_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          condition_logic?: string
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered?: string | null
+          name: string
+          trigger_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          condition_logic?: string
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered?: string | null
+          name?: string
+          trigger_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      correlation_alerts: {
+        Row: {
+          divergence: number
+          id: string
+          message: string
+          pair_id: string
+          read: boolean
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          divergence: number
+          id?: string
+          message: string
+          pair_id: string
+          read?: boolean
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          divergence?: number
+          id?: string
+          message?: string
+          pair_id?: string
+          read?: boolean
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      correlation_watchlist: {
+        Row: {
+          created_at: string
+          id: string
+          pair_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pair_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pair_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_applications: {
         Row: {
           created_at: string
@@ -1449,6 +1545,27 @@ export type Database = {
           next_trade_at?: string | null
           started_at?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      smart_money_watchlist: {
+        Row: {
+          created_at: string
+          id: string
+          trader_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          trader_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          trader_id?: string
           user_id?: string
         }
         Relationships: []

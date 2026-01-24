@@ -35,6 +35,10 @@ import FintechBotBuilder from "./pages/FintechBotBuilder";
 import TradingTerminal from "./pages/TradingTerminal";
 import NAVLOC from "./pages/NAVLOC";
 import MarketCreatorPro from "./pages/MarketCreatorPro";
+import SmartMoneyTracker from "./pages/SmartMoneyTracker";
+import PortfolioHedger from "./pages/PortfolioHedger";
+import ConditionalTradeBuilder from "./pages/ConditionalTradeBuilder";
+import MarketCorrelationScanner from "./pages/MarketCorrelationScanner";
 import NotFound from "./pages/NotFound";
 import DocsLayout from "./pages/docs/DocsLayout";
 import Welcome from "./pages/docs/articles/Welcome";
@@ -135,6 +139,10 @@ const App = () => (
           <Route path="/client/advanced-orders" element={<ProtectedRoute><FintechAdvancedOrders /></ProtectedRoute>} />
           <Route path="/client/calibration" element={<ProtectedRoute><FintechCalibration /></ProtectedRoute>} />
           <Route path="/client/bot-builder" element={<ProtectedRoute><FintechBotBuilder /></ProtectedRoute>} />
+          <Route path="/client/smart-money" element={<ProtectedRoute><SmartMoneyTracker /></ProtectedRoute>} />
+          <Route path="/client/hedger" element={<ProtectedRoute><PortfolioHedger /></ProtectedRoute>} />
+          <Route path="/client/trade-builder" element={<ProtectedRoute><ConditionalTradeBuilder /></ProtectedRoute>} />
+          <Route path="/client/correlations" element={<ProtectedRoute><MarketCorrelationScanner /></ProtectedRoute>} />
           {/* Market slug routing for terminal */}
           <Route path="/:creatorUsername/:marketSlug" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
           {/* Redirect old pages to docs */}
