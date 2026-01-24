@@ -14,6 +14,7 @@ import { MarketTemplate } from '@/types/market-creator';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Eye } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function MarketCreatorPro() {
   const {
@@ -77,11 +78,39 @@ export default function MarketCreatorPro() {
     }
   };
 
-  const handlePublish = () => {
-    if (selectedDraft) {
+  const handlePublish = async () => {
+    if (!selectedDraft) return;
+    
+    try {
+      const outcomeType = selectedDraft.marketType === 'binary' ? 'BINARY' 
+        : selectedDraft.marketType === 'poll' ? 'POLL' 
+        : 'MULTIPLE_CHOICE';
+
+      const { data, error } = await supabase.functions.invoke('create-market', {
+        body: {
+          question: selectedDraft.title,
+          description: `${selectedDraft.description}\n\n**Resolution Criteria:**\n${selectedDraft.resolutionCriteria}`,
+          closeTime: selectedDraft.closeDate?.toISOString(),
+          outcomeType,
+          initialProb: 50,
+        }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
       updateDraft(selectedDraft.id, { status: 'live' });
       setIsReviewMode(false);
-      toast.success('Market published successfully!');
+      toast.success('Market published to Manifold!', {
+        description: data?.market?.url ? 'Click to view' : undefined,
+        action: data?.market?.url ? {
+          label: 'Open',
+          onClick: () => window.open(data.market.url, '_blank')
+        } : undefined
+      });
+    } catch (err) {
+      console.error('Publish failed:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to publish market');
     }
   };
 

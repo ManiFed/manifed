@@ -74,3 +74,9 @@ verify_jwt = true
 
 [functions.purchase-bond-balance]
 verify_jwt = true
+
+[functions.create-market]
+verify_jwt = true
+
+[functions.market-clarity-ai]
+verify_jwt = false

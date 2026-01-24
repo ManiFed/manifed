@@ -1,10 +1,27 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ClarityIssue, MarketDraft } from '@/types/market-creator';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AnalysisResult {
   score: number;
   issues: ClarityIssue[];
   isAnalyzing: boolean;
+  aiSuggestions?: AISuggestion[];
+}
+
+interface AISuggestion {
+  priority: 'high' | 'medium' | 'low';
+  field: 'title' | 'description' | 'resolutionCriteria' | 'general';
+  suggestion: string;
+  example?: string;
+}
+
+interface AIRewrite {
+  title: string;
+  description: string;
+  resolutionCriteria: string;
+  changes: string[];
 }
 
 // Regex-based rules for instant feedback
@@ -65,6 +82,20 @@ const instantRules = [
     message: 'End-of-period deadlines need timezone specification',
     suggestion: 'Specify timezone (e.g., "by 11:59 PM ET on...")',
   },
+  {
+    pattern: /\b(will|should|could|would)\s+\w+\s+(increase|decrease|grow|shrink)\b/gi,
+    type: 'measurability' as const,
+    severity: 'medium' as const,
+    message: 'Direction without magnitude is hard to verify',
+    suggestion: 'Specify exact thresholds (e.g., "increase by at least 10%")',
+  },
+  {
+    pattern: /\b(everyone|nobody|always|never)\b/gi,
+    type: 'scope' as const,
+    severity: 'low' as const,
+    message: 'Absolute terms are rarely accurate and invite edge cases',
+    suggestion: 'Use specific quantifiers instead',
+  },
 ];
 
 function runInstantAnalysis(draft: MarketDraft): ClarityIssue[] {
@@ -117,6 +148,31 @@ function runInstantAnalysis(draft: MarketDraft): ClarityIssue[] {
     });
   }
 
+  // Check for placeholder brackets
+  if (/\[[^\]]+\]/.test(draft.title) || /\[[^\]]+\]/.test(draft.resolutionCriteria)) {
+    issues.push({
+      id: 'placeholder-brackets',
+      type: 'ambiguity',
+      severity: 'high',
+      message: 'Placeholder brackets detected - fill in the specific details',
+      suggestion: 'Replace [bracketed text] with actual values',
+      field: draft.title.includes('[') ? 'title' : 'resolutionCriteria',
+    });
+  }
+
+  // Check for missing source specification
+  if (draft.resolutionCriteria.length > 30 && 
+      !/(source|according to|based on|per|via|from)\b/i.test(draft.resolutionCriteria)) {
+    issues.push({
+      id: 'missing-source',
+      type: 'criteria',
+      severity: 'medium',
+      message: 'No resolution source specified',
+      suggestion: 'Specify what source will be used to verify the outcome (e.g., "according to Reuters")',
+      field: 'resolutionCriteria',
+    });
+  }
+
   return issues;
 }
 
@@ -152,6 +208,7 @@ export function useClarityAnalysis() {
     score: 0,
     issues: [],
     isAnalyzing: false,
+    aiSuggestions: undefined,
   });
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,34 +224,118 @@ export function useClarityAnalysis() {
       const issues = runInstantAnalysis(draft);
       const score = calculateScore(issues, draft);
 
-      setResult({
+      setResult((prev) => ({
+        ...prev,
         score,
         issues,
         isAnalyzing: false,
-      });
+      }));
     }, 500);
 
     setResult((prev) => ({ ...prev, isAnalyzing: true }));
   }, []);
 
-  const requestAIAnalysis = useCallback(async (draft: MarketDraft) => {
+  const requestAIAnalysis = useCallback(async (draft: MarketDraft): Promise<{ score: number; issues: ClarityIssue[] }> => {
     setResult((prev) => ({ ...prev, isAnalyzing: true }));
 
-    // For now, just run enhanced instant analysis
-    // In production, this would call an edge function
+    try {
+      const { data, error } = await supabase.functions.invoke('market-clarity-ai', {
+        body: { draft, action: 'analyze' }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.result) {
+        const aiIssues: ClarityIssue[] = data.result.issues.map((issue: any, index: number) => ({
+          id: `ai-${issue.type}-${index}`,
+          type: issue.type,
+          severity: issue.severity,
+          message: issue.message,
+          suggestion: issue.suggestion,
+          field: issue.field,
+        }));
+
+        // Merge with instant analysis, preferring AI for duplicates
+        const instantIssues = runInstantAnalysis(draft);
+        const mergedIssues = [...aiIssues];
+        
+        // Add instant issues that AI didn't catch
+        for (const instant of instantIssues) {
+          if (!aiIssues.some(ai => ai.message.toLowerCase().includes(instant.message.toLowerCase().slice(0, 20)))) {
+            mergedIssues.push(instant);
+          }
+        }
+
+        const finalScore = data.result.score ?? calculateScore(mergedIssues, draft);
+
+        setResult({
+          score: finalScore,
+          issues: mergedIssues,
+          isAnalyzing: false,
+        });
+
+        return { score: finalScore, issues: mergedIssues };
+      }
+    } catch (err) {
+      console.error('AI analysis failed:', err);
+      toast.error('AI analysis failed, using local analysis');
+    }
+
+    // Fallback to instant analysis
     const issues = runInstantAnalysis(draft);
     const score = calculateScore(issues, draft);
-
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    setResult({
-      score,
-      issues,
-      isAnalyzing: false,
-    });
-
+    setResult({ score, issues, isAnalyzing: false });
     return { score, issues };
+  }, []);
+
+  const requestAISuggestions = useCallback(async (draft: MarketDraft): Promise<AISuggestion[]> => {
+    setResult((prev) => ({ ...prev, isAnalyzing: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('market-clarity-ai', {
+        body: { draft, action: 'suggest' }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.result?.suggestions) {
+        setResult((prev) => ({
+          ...prev,
+          isAnalyzing: false,
+          aiSuggestions: data.result.suggestions,
+        }));
+        return data.result.suggestions;
+      }
+    } catch (err) {
+      console.error('AI suggestions failed:', err);
+      toast.error('Failed to get AI suggestions');
+    }
+
+    setResult((prev) => ({ ...prev, isAnalyzing: false }));
+    return [];
+  }, []);
+
+  const requestAIRewrite = useCallback(async (draft: MarketDraft): Promise<AIRewrite | null> => {
+    setResult((prev) => ({ ...prev, isAnalyzing: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('market-clarity-ai', {
+        body: { draft, action: 'rewrite' }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.result) {
+        setResult((prev) => ({ ...prev, isAnalyzing: false }));
+        return data.result;
+      }
+    } catch (err) {
+      console.error('AI rewrite failed:', err);
+      toast.error('Failed to get AI rewrite');
+    }
+
+    setResult((prev) => ({ ...prev, isAnalyzing: false }));
+    return null;
   }, []);
 
   // Cleanup on unmount
@@ -210,5 +351,7 @@ export function useClarityAnalysis() {
     ...result,
     analyze,
     requestAIAnalysis,
+    requestAISuggestions,
+    requestAIRewrite,
   };
 }
