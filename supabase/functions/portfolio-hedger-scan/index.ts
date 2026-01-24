@@ -64,7 +64,22 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!settings?.manifold_api_key) {
-      throw new Error("Manifold API key not configured");
+      // Return empty state with helpful message instead of throwing error
+      return new Response(
+        JSON.stringify({
+          positions: [],
+          hedgeOpportunities: [],
+          stats: {
+            totalValue: 0,
+            riskScore: 0,
+            correlatedExposure: 0,
+            diversificationScore: 0,
+          },
+          message: "Please configure your Manifold API key in Settings to scan your portfolio.",
+          requiresApiKey: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Decrypt API key

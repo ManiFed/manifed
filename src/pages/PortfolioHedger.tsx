@@ -113,6 +113,8 @@ export default function PortfolioHedger() {
   });
   const [apiKey, setApiKey] = useState("");
 
+  const [requiresApiKey, setRequiresApiKey] = useState(false);
+
   useEffect(() => {
     loadApiKey();
   }, []);
@@ -130,6 +132,8 @@ export default function PortfolioHedger() {
 
       if (data?.manifold_api_key) {
         setApiKey("••••••••");
+      } else {
+        setRequiresApiKey(true);
       }
     } catch (error) {
       console.error("Error loading API key:", error);
@@ -144,6 +148,16 @@ export default function PortfolioHedger() {
       });
 
       if (error) throw error;
+
+      if (data.requiresApiKey) {
+        setRequiresApiKey(true);
+        toast({
+          title: "API Key Required",
+          description: "Please configure your Manifold API key in Settings to scan your portfolio.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       setPositions(data.positions || []);
       setHedgeOpportunities(data.hedgeOpportunities || []);
@@ -276,6 +290,29 @@ export default function PortfolioHedger() {
           </Card>
         </div>
 
+        {/* API Key Warning */}
+        {requiresApiKey && (
+          <Card className="mb-6 border-amber-500/50 bg-amber-500/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-400">API Key Required</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect your Manifold API key in Settings to scan your portfolio positions.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => window.location.href = "/settings"} className="gap-2">
+                  <Settings2 className="w-4 h-4" />
+                  Go to Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Scan Button */}
         <Card className="mb-6">
           <CardContent className="p-4">
@@ -286,7 +323,7 @@ export default function PortfolioHedger() {
                   Scan your positions for correlations and hedge opportunities
                 </p>
               </div>
-              <Button onClick={scanPortfolio} disabled={isScanning} className="gap-2">
+              <Button onClick={scanPortfolio} disabled={isScanning || requiresApiKey} className="gap-2">
                 {isScanning ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
