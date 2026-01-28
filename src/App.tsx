@@ -150,7 +150,8 @@ const App = () => (
           <Route path="/privacy" element={<Navigate to="/docs/privacy" replace />} />
           <Route path="/about" element={<Navigate to="/docs/about" replace />} />
           <Route path="/terminal" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
-          <Route path="/creator" element={<ProtectedRoute><MarketCreatorPro /></ProtectedRoute>} />
+          <Route path="/creator" element={<Navigate to="/client/creator" replace />} />
+          <Route path="/client/creator" element={<ProtectedRoute><MarketCreatorPro /></ProtectedRoute>} />
           <Route path="/terminal/:marketId" element={<ProtectedRoute><TradingTerminal /></ProtectedRoute>} />
           <Route path="/docs" element={<DocsLayout />}>
             <Route index element={<Welcome />} />
