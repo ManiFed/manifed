@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.market-correlation-scan]
 verify_jwt = false
+
+[functions.process-expired-escrows]
+verify_jwt = false

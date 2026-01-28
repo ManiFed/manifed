@@ -23,6 +23,7 @@ import { ResizableTerminalLayout } from "@/components/terminal/ResizableTerminal
 import { PolymarketChart } from "@/components/terminal/PolymarketChart";
 import { PolymarketTradePanel } from "@/components/terminal/PolymarketTradePanel";
 import { CollapsiblePanel } from "@/components/terminal/CollapsiblePanel";
+import { LayoutPresets } from "@/components/terminal/LayoutPresets";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
   id: string;
@@ -1411,6 +1412,11 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
             <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
           </div>
           <div className="flex items-center gap-4">
+            {/* Layout Presets */}
+            <LayoutPresets onApplyPreset={(newPanels) => {
+              saveLayout(newPanels);
+              toast.success("Layout preset applied");
+            }} />
             <Button 
               variant={hotkeyMode ? "default" : "outline"} 
               size="sm" 

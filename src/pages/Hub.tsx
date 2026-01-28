@@ -244,24 +244,7 @@ export default function Hub() {
               </Card>
             </Link>
 
-            {/* Creator Pro */}
-            <Link to="/creator" className="group">
-              <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl font-bold">Creator Pro</CardTitle>
-                    <Badge variant="secondary" className="text-xs">IDE</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-6">Professional market creation with clarity analysis.</p>
-                  <div className="flex items-center gap-2 text-primary font-medium">
-                    Open Creator
-                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            {/* Client Tools - Beta Warning */}
 
             {/* Client Tools - Beta Warning */}
             <Link to="/client" className="group">

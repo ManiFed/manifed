@@ -34,6 +34,8 @@ interface FintechSubscription {
   is_trial?: boolean;
   trial_ends_at?: string | null;
 }
+import { PenTool } from "lucide-react";
+
 const fintechProducts = [
   {
     id: "index-funds",
@@ -103,6 +105,16 @@ const fintechProducts = [
     icon: Target,
     color: "text-pink-500",
     bgColor: "bg-pink-500/10",
+    enabled: true,
+  },
+  {
+    id: "creator-pro",
+    title: "Creator Pro",
+    description: "Professional market creation IDE with AI clarity analysis and templates.",
+    path: "/client/creator",
+    icon: PenTool,
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
     enabled: true,
   },
 ];
