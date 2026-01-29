@@ -139,6 +139,6 @@ None required for this phase - all persistence uses localStorage or existing tab
 1. ✅ **Phase 1**: Move Creator Pro to Client (DONE - route changed to /client/creator, removed from Hub grid)
 2. ✅ **Phase 2**: Escrow expiration cron job (DONE - edge function + hourly cron schedule created)
 3. ✅ **Phase 3**: Dashboard customization - Terminal presets (DONE - LayoutPresets component with Minimal/Full/Analytics/Trading)
-4. **Phase 4**: Terminal enhancements (P&L tracker, comments, export)
+4. ✅ **Phase 4**: Terminal enhancements (DONE - P&L tracker already existed, added Comments panel + Trade Export button)
 5. **Phase 5**: Analytics additions (Sentiment Scanner)
 6. **Phase 6**: External data (News feeds, Groups, Portfolio snapshot)
