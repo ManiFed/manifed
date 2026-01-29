@@ -16,6 +16,7 @@ import TerminalPriceChart from "@/components/terminal/TerminalPriceChart";
 import TerminalOrderBook from "@/components/terminal/TerminalOrderBook";
 import TerminalPositions from "@/components/terminal/TerminalPositions";
 import TerminalLiveTrades from "@/components/terminal/TerminalLiveTrades";
+import TerminalComments from "@/components/terminal/TerminalComments";
 import { HotkeyDisplayPanel } from "@/components/terminal/HotkeyDisplayPanel";
 import { TerminalTrending } from "@/components/terminal/TerminalTrending";
 import { TerminalEditMode, useTerminalLayout } from "@/components/terminal/TerminalEditMode";
@@ -24,6 +25,7 @@ import { PolymarketChart } from "@/components/terminal/PolymarketChart";
 import { PolymarketTradePanel } from "@/components/terminal/PolymarketTradePanel";
 import { CollapsiblePanel } from "@/components/terminal/CollapsiblePanel";
 import { LayoutPresets } from "@/components/terminal/LayoutPresets";
+import { TradeHistoryExport } from "@/components/terminal/TradeHistoryExport";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
   id: string;
@@ -1417,6 +1419,8 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
               saveLayout(newPanels);
               toast.success("Layout preset applied");
             }} />
+            {/* Trade History Export */}
+            {apiKey && <TradeHistoryExport apiKey={apiKey} />}
             <Button 
               variant={hotkeyMode ? "default" : "outline"} 
               size="sm" 
@@ -1892,6 +1896,13 @@ function TerminalMain({ initialMarketSlug, initialMarketId }: { initialMarketSlu
                     apiKey={apiKey} 
                     onRefresh={fetchPositions} 
                   />
+                </CollapsiblePanel>
+              )}
+
+              {/* Comments Panel */}
+              {activeMarket && (
+                <CollapsiblePanel title="Comments" icon={<span>💬</span>} defaultOpen={false}>
+                  <TerminalComments marketId={activeMarket.id} />
                 </CollapsiblePanel>
               )}
 
