@@ -133,7 +133,6 @@ USING (public.has_role(auth.uid(), 'admin'));
 -- Insert default bond issuers
 INSERT INTO public.bond_issuers (name, description, is_verified) VALUES
 ('ManiFed', 'Manifold Federal Reserve - Official treasury bonds', true),
-('RISK', 'RISK Trading - High-yield corporate bonds', true),
 ('ManiFed Trading', 'ManiFed Trading Division - Trading desk bonds', true);
 
 -- Add issuer_id to bonds table
