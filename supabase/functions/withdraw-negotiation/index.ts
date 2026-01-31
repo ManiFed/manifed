@@ -57,20 +57,7 @@ serve(async (req) => {
       throw new Error("This negotiation is no longer pending");
     }
 
-    // Release escrowed funds back
-    if (negotiation.escrow_held) {
-      const { error: releaseError } = await supabase.rpc("release_escrow", {
-        p_user_id: user.id,
-        p_amount: negotiation.proposed_amount,
-      });
-
-      if (releaseError) {
-        console.error("Release error:", releaseError);
-        throw new Error("Failed to release escrowed funds");
-      }
-    }
-
-    // Delete the negotiation
+    // No escrow to release - just delete the negotiation
     await supabase
       .from("loan_negotiations")
       .delete()
@@ -79,7 +66,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Proposal withdrawn. M$${negotiation.proposed_amount} returned to your available balance.`,
+        message: `Proposal withdrawn successfully.`,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
