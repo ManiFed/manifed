@@ -20,12 +20,7 @@ const navItems = [{
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const {
-    balance,
-    availableBalance,
-    escrowBalance,
-    fetchBalance
-  } = useUserBalance();
+  const { balance, fetchBalance } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   useEffect(() => {
@@ -90,8 +85,6 @@ export function Header() {
             <div className="hidden sm:block">
               <WalletPopover
                 balance={balance}
-                availableBalance={availableBalance}
-                escrowBalance={escrowBalance}
                 hasApiKey={hasApiKey}
                 hasWithdrawalUsername={hasWithdrawalUsername}
                 onBalanceChange={fetchBalance}

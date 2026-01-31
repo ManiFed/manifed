@@ -11,30 +11,18 @@ import { useUserBalance } from "@/hooks/useUserBalance";
 import { UniversalHeader } from "@/components/layout/UniversalHeader";
 import Footer from "@/components/layout/Footer";
 import {
-  Lock,
   Loader2,
   ArrowRight,
-  Terminal,
   BarChart3,
   Sliders,
   Activity,
   Bot,
   Target,
   Sparkles,
-  Clock,
-  Gift,
   MessageSquarePlus,
+  PenTool,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-interface FintechSubscription {
-  plan_type: string;
-  expires_at: string | null;
-  is_active: boolean;
-  is_gifted: boolean;
-  is_trial?: boolean;
-  trial_ends_at?: string | null;
-}
-import { PenTool } from "lucide-react";
 
 const fintechProducts = [
   {
@@ -118,41 +106,27 @@ const fintechProducts = [
     enabled: true,
   },
 ];
+
 export default function FintechMenu() {
   const navigate = useNavigate();
   const { balance, fetchBalance } = useUserBalance();
   const [isLoading, setIsLoading] = useState(true);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
-  const [subscription, setSubscription] = useState<FintechSubscription | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [hasUsedTrial, setHasUsedTrial] = useState(false);
-  const [isStartingTrial, setIsStartingTrial] = useState(false);
   const [suggestionTitle, setSuggestionTitle] = useState("");
   const [suggestionDescription, setSuggestionDescription] = useState("");
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
+
   useEffect(() => {
     checkAccess();
   }, []);
+
   const checkAccess = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth?redirect=/client");
         return;
       }
-
-      // Check API key + withdrawal username (used by wallet)
-      const { data: settings } = await supabase
-        .from("user_manifold_settings")
-        .select("manifold_api_key, withdrawal_username")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setHasApiKey(!!settings?.manifold_api_key);
-      setHasWithdrawalUsername(!!settings?.withdrawal_username);
 
       // Check if admin
       const { data: roleData } = await supabase
@@ -161,68 +135,14 @@ export default function FintechMenu() {
         .eq("user_id", user.id)
         .eq("role", "admin")
         .maybeSingle();
+      
       if (roleData) {
         setIsAdmin(true);
-        setHasAccess(true);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check subscription
-      const { data: subData } = await supabase
-        .from("fintech_subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (subData) {
-        setSubscription(subData);
-        setHasUsedTrial(!!subData.trial_ends_at);
-
-        // Check if trial is active
-        if (subData.is_trial && subData.trial_ends_at) {
-          const trialActive = new Date(subData.trial_ends_at) > new Date();
-          if (trialActive) {
-            setHasAccess(true);
-            setIsLoading(false);
-            return;
-          }
-        }
-        const isActive = subData.is_active && (!subData.expires_at || new Date(subData.expires_at) > new Date());
-        setHasAccess(isActive);
-        if (!isActive) {
-          // Don't redirect, show subscription required view
-        }
-      } else {
-        // No subscription at all - show subscription required
       }
     } catch (error) {
       console.error("Access check error:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-  const startFreeTrial = async () => {
-    setIsStartingTrial(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("start-fintech-trial");
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({
-        title: "Trial Started!",
-        description: "Enjoy 7 days of free access to Client tools.",
-      });
-      setHasAccess(true);
-      setHasUsedTrial(true);
-      checkAccess();
-    } catch (error) {
-      console.error("Trial start error:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start trial",
-        variant: "destructive",
-      });
-    } finally {
-      setIsStartingTrial(false);
     }
   };
 
@@ -269,6 +189,7 @@ export default function FintechMenu() {
       setIsSubmittingSuggestion(false);
     }
   };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -276,108 +197,7 @@ export default function FintechMenu() {
       </div>
     );
   }
-  if (!hasAccess) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
-        <UniversalHeader />
 
-        <main className="flex-1 container mx-auto px-4 py-16 max-w-4xl">
-          <div className="text-center mb-12 animate-slide-up">
-            <div className="w-20 h-20 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-10 h-10 text-amber-400" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">Client</h1>
-            <p className="text-xl text-muted-foreground max-w-xl mx-auto">
-              Premium trading tools for prediction market professionals.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Free Trial Card */}
-            {!hasUsedTrial && (
-              <Card className="border-amber-500/50 bg-amber-500/5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <CardHeader>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Gift className="w-5 h-5 text-amber-400" />
-                    <Badge variant="secondary">New User Offer</Badge>
-                  </div>
-                  <CardTitle className="text-2xl">7-Day Free Trial</CardTitle>
-                  <CardDescription>Get full access to all Client tools. No payment required.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 mb-6 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <Terminal className="w-4 h-4 text-amber-400" />
-                      Trading Terminal with hotkeys
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-amber-400" />
-                      Index Funds & batch trading
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Target className="w-4 h-4 text-amber-400" />
-                      AI-verified arbitrage opportunities
-                    </li>
-                  </ul>
-                  <Button
-                    onClick={startFreeTrial}
-                    disabled={isStartingTrial}
-                    className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-black"
-                    size="lg"
-                  >
-                    {isStartingTrial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
-                    Start Free Trial
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Subscribe Card */}
-            <Card className="border-border/50">
-              <CardHeader>
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-muted-foreground" />
-                  <Badge variant="outline">Monthly</Badge>
-                </div>
-                <CardTitle className="text-2xl">Subscribe</CardTitle>
-                <CardDescription>Full access with Manifold mana payment.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-foreground mb-4">
-                  M$2,500<span className="text-lg font-normal text-muted-foreground">/month</span>
-                </div>
-                <Link to="/fintech">
-                  <Button variant="outline" className="w-full gap-2" size="lg">
-                    View Plans
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Features Preview */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {fintechProducts.slice(0, 6).map((product) => (
-              <Card key={product.id} className="border-border/30 bg-card/50">
-                <CardContent className="p-4 text-center">
-                  <div
-                    className={`w-10 h-10 rounded-lg ${product.bgColor} flex items-center justify-center mx-auto mb-3`}
-                  >
-                    <product.icon className={`w-5 h-5 ${product.color}`} />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">{product.title}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       <UniversalHeader />
@@ -392,32 +212,14 @@ export default function FintechMenu() {
           <p className="text-xl text-muted-foreground max-w-xl">
             Advanced prediction market analysis and trading tools.
           </p>
-          {subscription?.is_trial && subscription?.trial_ends_at && (
-            <Badge variant="outline" className="mt-3 gap-2">
-              <Gift className="w-3 h-3" />
-              Trial expires: {new Date(subscription.trial_ends_at).toLocaleDateString()}
-            </Badge>
-          )}
-          {subscription?.expires_at && !subscription?.is_trial && (
-            <Badge variant="outline" className="mt-3">
-              {subscription.is_gifted ? "Gifted • " : ""}
-              Expires: {new Date(subscription.expires_at).toLocaleDateString()}
-            </Badge>
-          )}
         </div>
 
         {/* Products Grid */}
-        <section
-          className="animate-slide-up"
-          style={{
-            animationDelay: "50ms",
-          }}
-        >
+        <section className="animate-slide-up" style={{ animationDelay: "50ms" }}>
           <h2 className="text-lg font-semibold text-muted-foreground mb-6 uppercase tracking-widest">Tools</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {fintechProducts.map((product, index) => {
               if (!product.enabled) {
-                // In-progress card - not clickable
                 return (
                   <div key={product.id} style={{ animationDelay: `${index * 50}ms` }}>
                     <Card className="h-full border-border/30 bg-muted/20 opacity-60 cursor-not-allowed">
@@ -443,9 +245,7 @@ export default function FintechMenu() {
                   key={product.id}
                   to={product.path}
                   className="group"
-                  style={{
-                    animationDelay: `${index * 50}ms`,
-                  }}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <Card className="h-full border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg">
                     <CardHeader className="pb-2">
@@ -472,8 +272,9 @@ export default function FintechMenu() {
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquarePlus className="w-5 h-5 text-primary" />
-                <CardTitle>Suggest a Feature</CardTitle>
+                <Badge variant="outline">Feedback</Badge>
               </div>
+              <CardTitle>Suggest a Feature</CardTitle>
               <CardDescription>
                 Have an idea for a new tool or improvement? Let us know!
               </CardDescription>
@@ -483,7 +284,7 @@ export default function FintechMenu() {
                 <Label htmlFor="suggestion-title">Title</Label>
                 <Input
                   id="suggestion-title"
-                  placeholder="Brief title for your suggestion..."
+                  placeholder="What's your idea?"
                   value={suggestionTitle}
                   onChange={(e) => setSuggestionTitle(e.target.value)}
                   className="mt-1"
@@ -493,7 +294,7 @@ export default function FintechMenu() {
                 <Label htmlFor="suggestion-description">Description</Label>
                 <Textarea
                   id="suggestion-description"
-                  placeholder="Describe your feature idea or improvement..."
+                  placeholder="Describe your suggestion in detail..."
                   value={suggestionDescription}
                   onChange={(e) => setSuggestionDescription(e.target.value)}
                   className="mt-1 min-h-[100px]"
@@ -501,7 +302,7 @@ export default function FintechMenu() {
               </div>
               <Button
                 onClick={handleSubmitSuggestion}
-                disabled={isSubmittingSuggestion || !suggestionTitle.trim() || !suggestionDescription.trim()}
+                disabled={isSubmittingSuggestion}
                 className="gap-2"
               >
                 {isSubmittingSuggestion ? (

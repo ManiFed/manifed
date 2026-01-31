@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Wallet, Plus, Minus, Loader2, Lock } from "lucide-react";
+import { Wallet, Plus, Minus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -10,8 +10,6 @@ import { DepositPopup } from "./DepositPopup";
 
 interface WalletPopoverProps {
   balance: number;
-  availableBalance: number;
-  escrowBalance: number;
   /** Still used elsewhere for features that require a connected Manifold account (not withdrawals). */
   hasApiKey: boolean;
   /** Withdrawals are sent to the username configured in Settings. */
@@ -19,7 +17,7 @@ interface WalletPopoverProps {
   onBalanceChange: () => void;
 }
 
-export function WalletPopover({ balance, availableBalance, escrowBalance, hasApiKey, hasWithdrawalUsername, onBalanceChange }: WalletPopoverProps) {
+export function WalletPopover({ balance, hasApiKey, hasWithdrawalUsername, onBalanceChange }: WalletPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -46,12 +44,10 @@ export function WalletPopover({ balance, availableBalance, escrowBalance, hasApi
       return;
     }
 
-    if (withdrawAmount > availableBalance) {
+    if (withdrawAmount > balance) {
       toast({
-        title: "Insufficient Available Balance",
-        description: escrowBalance > 0 
-          ? `You have M$${escrowBalance.toLocaleString()} in escrow. Available for withdrawal: M$${availableBalance.toLocaleString()}`
-          : "You cannot withdraw more than your available balance",
+        title: "Insufficient Balance",
+        description: "You cannot withdraw more than your balance",
         variant: "destructive",
       });
       return;
@@ -118,12 +114,6 @@ export function WalletPopover({ balance, availableBalance, escrowBalance, hasApi
               <div className="text-center pb-2 border-b border-border/50">
                 <p className="text-xs text-muted-foreground">ManiFed Balance</p>
                 <p className="text-2xl font-bold text-foreground">M${balance.toLocaleString()}</p>
-                {escrowBalance > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <Lock className="w-3 h-3 text-warning" />
-                    <p className="text-xs text-warning">M${escrowBalance.toLocaleString()} in escrow</p>
-                  </div>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -141,7 +131,7 @@ export function WalletPopover({ balance, availableBalance, escrowBalance, hasApi
                   variant="outline" 
                   onClick={() => setMode("withdraw")} 
                   className="gap-2"
-                  disabled={!hasWithdrawalUsername || availableBalance < 10}
+                  disabled={!hasWithdrawalUsername || balance < 10}
                 >
                   <Minus className="w-4 h-4" />
                   Withdraw
@@ -170,25 +160,19 @@ export function WalletPopover({ balance, availableBalance, escrowBalance, hasApi
                   onChange={(e) => setAmount(e.target.value)}
                   className="bg-secondary/50 flex-1"
                   min={10}
-                  max={availableBalance}
+                  max={balance}
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setAmount(Math.floor(availableBalance).toString())}
+                  onClick={() => setAmount(Math.floor(balance).toString())}
                   className="px-3"
                 >
                   Max
                 </Button>
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Available: M${availableBalance.toLocaleString()}</p>
-                {escrowBalance > 0 && (
-                  <p className="flex items-center gap-1 text-warning">
-                    <Lock className="w-3 h-3" />
-                    M${escrowBalance.toLocaleString()} locked in escrow
-                  </p>
-                )}
+              <div className="text-xs text-muted-foreground">
+                <p>Available: M${balance.toLocaleString()}</p>
               </div>
               <Button
                 variant="glow"
