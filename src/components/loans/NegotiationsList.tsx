@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { HandshakeIcon, Check, X, Loader2, MessageSquare, Clock, Lock, Undo } from "lucide-react";
+import { HandshakeIcon, Check, X, Loader2, MessageSquare, Clock, Undo } from "lucide-react";
 
 interface Negotiation {
   id: string;
@@ -65,8 +65,8 @@ export function NegotiationsList({ loanId, isOwner, currentUserId, onAccept }: N
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: 'Proposal Accepted',
-        description: data.message || 'Funds have been transferred to your account.',
+        title: 'Offer Accepted',
+        description: data.message || 'Funds have been transferred to your account from the lender.',
       });
 
       if (onAccept) onAccept(negotiation);
@@ -94,8 +94,8 @@ export function NegotiationsList({ loanId, isOwner, currentUserId, onAccept }: N
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: 'Proposal Rejected',
-        description: data.message || 'Escrowed funds have been returned.',
+        title: 'Offer Declined',
+        description: data.message || 'The offer has been declined.',
       });
 
       fetchNegotiations();
@@ -122,8 +122,8 @@ export function NegotiationsList({ loanId, isOwner, currentUserId, onAccept }: N
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: 'Proposal Withdrawn',
-        description: data.message || 'Your escrowed funds have been returned.',
+        title: 'Offer Withdrawn',
+        description: data.message || 'Your offer has been withdrawn.',
       });
 
       fetchNegotiations();
@@ -189,12 +189,6 @@ export function NegotiationsList({ loanId, isOwner, currentUserId, onAccept }: N
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {neg.escrow_held && neg.status === 'pending' && (
-                  <Badge variant="outline" className="gap-1 text-xs">
-                    <Lock className="w-3 h-3" />
-                    Escrowed
-                  </Badge>
-                )}
                 {statusBadge(neg.status)}
               </div>
             </div>
