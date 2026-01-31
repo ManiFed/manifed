@@ -57,20 +57,7 @@ serve(async (req) => {
       throw new Error("This negotiation is no longer pending");
     }
 
-    // Release escrowed funds back to negotiator
-    if (negotiation.escrow_held) {
-      const { error: releaseError } = await supabase.rpc("release_escrow", {
-        p_user_id: negotiation.negotiator_user_id,
-        p_amount: negotiation.proposed_amount,
-      });
-
-      if (releaseError) {
-        console.error("Release error:", releaseError);
-        throw new Error("Failed to release escrowed funds");
-      }
-    }
-
-    // Update negotiation status
+    // No escrow to release - just update status
     await supabase
       .from("loan_negotiations")
       .update({ 
@@ -83,7 +70,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Rejected proposal from @${negotiation.negotiator_username}. Funds returned.`,
+        message: `Rejected proposal from @${negotiation.negotiator_username}.`,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

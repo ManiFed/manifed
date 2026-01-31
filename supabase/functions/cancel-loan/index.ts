@@ -96,9 +96,14 @@ serve(async (req) => {
 
     // Skip all refund/cancel logic if already cancelled - just delete
     if (!alreadyCancelled) {
-      // If loan has funded_amount > 0 and the OWNER is cancelling, they must send funds back
+      // If loan has funded_amount > 0 and the OWNER is cancelling, they must send funds back WITH INTEREST
       // Admins can cancel/delete without returning funds via managram (they handle it manually if needed)
       if (Number(loan.funded_amount) > 0 && isOwner && !isAdmin) {
+        // Calculate total repayment (principal + interest)
+        const principal = Number(loan.funded_amount);
+        const interestRate = Number(loan.interest_rate) / 100;
+        const totalRepayment = Math.ceil(principal * (1 + interestRate));
+        
         // Get borrower's Manifold settings to send funds back
         const { data: borrowerSettings } = await supabase
           .from("user_manifold_settings")
@@ -138,11 +143,10 @@ serve(async (req) => {
           }
         }
 
-        // Send the funded amount back to @ManiFed
+        // Send the principal + interest back to @ManiFed
         const MANIFED_USERNAME = "ManiFed";
-        const fundedAmount = Number(loan.funded_amount);
         
-        console.log(`Borrower sending M$${fundedAmount} back to @ManiFed`);
+        console.log(`Borrower sending M$${totalRepayment} (principal: ${principal}, interest: ${totalRepayment - principal}) back to @ManiFed`);
         
         const managramResponse = await fetch("https://api.manifold.markets/v0/managram", {
           method: "POST",
@@ -153,8 +157,8 @@ serve(async (req) => {
           body: JSON.stringify({
             toIds: [],
             toUsernames: [MANIFED_USERNAME],
-            amount: fundedAmount,
-            message: `Loan cancelled - returning funds: ${loan.title}`,
+            amount: totalRepayment,
+            message: `Loan cancelled - returning principal + interest: ${loan.title}`,
           }),
         });
 
@@ -162,12 +166,12 @@ serve(async (req) => {
           const errorText = await managramResponse.text();
           console.error("Failed to return funds to ManiFed:", errorText);
           return new Response(
-            JSON.stringify({ error: `Failed to return funds to @ManiFed. Please ensure you have M$${fundedAmount} in your Manifold balance.` }),
+            JSON.stringify({ error: `Failed to return funds to @ManiFed. Please ensure you have M$${totalRepayment} (principal + ${loan.interest_rate}% interest) in your Manifold balance.` }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
-        console.log(`Successfully returned M$${fundedAmount} to @ManiFed`);
+        console.log(`Successfully returned M$${totalRepayment} to @ManiFed`);
       }
 
       console.log(`Cancelling loan: ${loan.title}`);

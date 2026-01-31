@@ -59,34 +59,53 @@ serve(async (req) => {
 
     // Check if expired
     if (negotiation.expires_at && new Date(negotiation.expires_at) < new Date()) {
-      // Release escrow and mark as rejected
-      if (negotiation.escrow_held) {
-        await supabase.rpc("release_escrow", {
-          p_user_id: negotiation.negotiator_user_id,
-          p_amount: negotiation.proposed_amount,
-        });
-      }
-
       await supabase
         .from("loan_negotiations")
-        .update({ status: "rejected", escrow_held: false })
+        .update({ status: "expired" })
         .eq("id", negotiationId);
 
       throw new Error("This negotiation has expired");
     }
 
-    // Transfer escrowed funds to loan owner (borrower for seeks, or to the investor for offers)
-    if (negotiation.escrow_held) {
-      const { error: transferError } = await supabase.rpc("transfer_escrowed_funds", {
-        p_from_user_id: negotiation.negotiator_user_id,
-        p_to_user_id: user.id,
-        p_amount: negotiation.proposed_amount,
-      });
+    // Check negotiator's balance (direct transfer, no escrow)
+    const { data: negotiatorBalance } = await supabase
+      .from("user_balances")
+      .select("balance")
+      .eq("user_id", negotiation.negotiator_user_id)
+      .maybeSingle();
 
-      if (transferError) {
-        console.error("Transfer error:", transferError);
-        throw new Error("Failed to transfer escrowed funds");
-      }
+    const availableBalance = negotiatorBalance?.balance || 0;
+    if (availableBalance < negotiation.proposed_amount) {
+      throw new Error(`The investor no longer has sufficient funds (needs M$${negotiation.proposed_amount}, has M$${availableBalance})`);
+    }
+
+    // Direct transfer: deduct from negotiator, credit to borrower
+    const { error: deductError } = await supabase.rpc("modify_user_balance", {
+      p_user_id: negotiation.negotiator_user_id,
+      p_amount: negotiation.proposed_amount,
+      p_operation: "subtract",
+    });
+
+    if (deductError) {
+      console.error("Deduct error:", deductError);
+      throw new Error("Failed to deduct funds from investor");
+    }
+
+    const { error: creditError } = await supabase.rpc("modify_user_balance", {
+      p_user_id: user.id,
+      p_amount: negotiation.proposed_amount,
+      p_operation: "add",
+    });
+
+    if (creditError) {
+      // Refund the negotiator
+      await supabase.rpc("modify_user_balance", {
+        p_user_id: negotiation.negotiator_user_id,
+        p_amount: negotiation.proposed_amount,
+        p_operation: "add",
+      });
+      console.error("Credit error:", creditError);
+      throw new Error("Failed to credit funds to borrower");
     }
 
     // Update negotiation status
@@ -99,25 +118,7 @@ serve(async (req) => {
       })
       .eq("id", negotiationId);
 
-    // Reject all other pending negotiations for this loan
-    const { data: otherNegotiations } = await supabase
-      .from("loan_negotiations")
-      .select("id, negotiator_user_id, proposed_amount, escrow_held")
-      .eq("loan_id", negotiation.loan_id)
-      .eq("status", "pending")
-      .neq("id", negotiationId);
-
-    // Release escrow for rejected negotiations
-    for (const neg of otherNegotiations || []) {
-      if (neg.escrow_held) {
-        await supabase.rpc("release_escrow", {
-          p_user_id: neg.negotiator_user_id,
-          p_amount: neg.proposed_amount,
-        });
-      }
-    }
-
-    // Mark them as rejected
+    // Reject all other pending negotiations for this loan (no escrow to release)
     await supabase
       .from("loan_negotiations")
       .update({ status: "rejected", escrow_held: false })
@@ -125,7 +126,11 @@ serve(async (req) => {
       .eq("status", "pending")
       .neq("id", negotiationId);
 
-    // Update loan to funded status
+    // Calculate maturity date
+    const maturityDate = new Date();
+    maturityDate.setDate(maturityDate.getDate() + negotiation.proposed_term_days);
+
+    // Update loan to active status
     await supabase
       .from("loans")
       .update({
@@ -134,8 +139,18 @@ serve(async (req) => {
         amount: negotiation.proposed_amount,
         interest_rate: negotiation.proposed_interest_rate,
         term_days: negotiation.proposed_term_days,
+        maturity_date: maturityDate.toISOString(),
       })
       .eq("id", negotiation.loan_id);
+
+    // Create investment record
+    await supabase.from("investments").insert({
+      loan_id: negotiation.loan_id,
+      investor_user_id: negotiation.negotiator_user_id,
+      investor_username: negotiation.negotiator_username,
+      amount: negotiation.proposed_amount,
+      message: negotiation.message || "Negotiated offer accepted",
+    });
 
     // Record transactions
     await supabase.from("transactions").insert([
