@@ -29,7 +29,7 @@ export function UniversalHeader({
 }: UniversalHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { balance, availableBalance, escrowBalance, fetchBalance } = useUserBalance();
+  const { balance, fetchBalance } = useUserBalance();
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -146,8 +146,6 @@ export function UniversalHeader({
                 <div className="hidden sm:block">
                   <HeaderWallet
                     balance={balance}
-                    availableBalance={availableBalance}
-                    escrowBalance={escrowBalance}
                     hasApiKey={hasApiKey}
                     hasWithdrawalUsername={hasWithdrawalUsername}
                     onBalanceChange={fetchBalance}

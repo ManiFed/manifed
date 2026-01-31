@@ -81,7 +81,7 @@ serve(async (req) => {
       throw new Error(`Insufficient balance. You have M$${userBalance}`);
     }
 
-    // Deduct from balance using service role
+    // Deduct from investor's balance
     const { error: balanceError } = await supabase.rpc("modify_user_balance", {
       p_user_id: user.id,
       p_amount: amount,
@@ -113,7 +113,7 @@ serve(async (req) => {
       throw new Error("Failed to create investment record");
     }
 
-    // Record transaction
+    // Record transaction for investor
     await supabase.from("transactions").insert({
       user_id: user.id,
       type: "invest",
@@ -122,32 +122,50 @@ serve(async (req) => {
       description: `Investment in: ${loan.title}`,
     });
 
-    // Check if loan is now fully funded - disburse immediately even if funding period hasn't ended
-    const newFundedAmount = loan.funded_amount + amount;
-    if (newFundedAmount >= loan.amount) {
-      console.log("Loan fully funded, triggering immediate disbursement...");
-      
-      // Invoke the process-loan-funding function immediately
-      const { error: fundingError } = await supabase.functions.invoke("process-loan-funding", {
-        body: { loanId: loanId },
-      });
-      
-      if (fundingError) {
-        console.error("Funding processing error:", fundingError);
-        // Don't throw - investment was successful, just log the error
-      } else {
-        console.log("Loan disbursed early - fully funded before deadline");
-      }
+    // Transfer directly to borrower's ManiFed balance
+    const { error: transferError } = await supabase.rpc("modify_user_balance", {
+      p_user_id: loan.borrower_user_id,
+      p_amount: amount,
+      p_operation: "add",
+    });
+
+    if (transferError) {
+      console.error("Transfer to borrower error:", transferError);
+      // Don't fail the investment - the funds are already recorded
     }
 
-    console.log(`Investment successful: ${amount} to loan ${loanId}`);
+    // Record transaction for borrower
+    await supabase.from("transactions").insert({
+      user_id: loan.borrower_user_id,
+      type: "loan_received",
+      amount: amount,
+      loan_id: loanId,
+      description: `Loan funded: ${loan.title}`,
+    });
+
+    // Calculate maturity date
+    const maturityDate = new Date();
+    maturityDate.setDate(maturityDate.getDate() + loan.term_days);
+
+    // Update loan to active (fully funded)
+    await supabase
+      .from("loans")
+      .update({
+        funded_amount: amount,
+        status: "active",
+        maturity_date: maturityDate.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", loanId);
+
+    console.log(`Investment successful: ${amount} to loan ${loanId}, transferred to borrower`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully invested M$${amount}`,
-        newFundedAmount,
-        isFullyFunded: newFundedAmount >= loan.amount,
+        message: `Successfully funded M$${amount} - transferred to borrower`,
+        newFundedAmount: amount,
+        isFullyFunded: true,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

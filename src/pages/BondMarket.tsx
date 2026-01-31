@@ -61,7 +61,7 @@ export default function BondMarket() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasWithdrawalUsername, setHasWithdrawalUsername] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const { balance, availableBalance, escrowBalance, fetchBalance } = useUserBalance();
+  const { balance, fetchBalance } = useUserBalance();
 
   useEffect(() => {
     fetchData();
@@ -225,8 +225,6 @@ export default function BondMarket() {
             <div className="flex items-center gap-3">
               <WalletPopover
                 balance={balance}
-                availableBalance={availableBalance}
-                escrowBalance={escrowBalance}
                 hasApiKey={hasApiKey}
                 hasWithdrawalUsername={hasWithdrawalUsername}
                 onBalanceChange={fetchBalance}
