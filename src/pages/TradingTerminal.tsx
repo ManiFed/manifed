@@ -26,6 +26,8 @@ import { PolymarketTradePanel } from "@/components/terminal/PolymarketTradePanel
 import { CollapsiblePanel } from "@/components/terminal/CollapsiblePanel";
 import { LayoutPresets } from "@/components/terminal/LayoutPresets";
 import { TradeHistoryExport } from "@/components/terminal/TradeHistoryExport";
+import { SuperBowlPopup } from "@/components/terminal/SuperBowlPopup";
+import { SuperBowlTrending } from "@/components/terminal/SuperBowlTrending";
 import { useIsMobile } from "@/hooks/use-mobile";
 interface Market {
   id: string;
@@ -398,8 +400,13 @@ function TerminalMain({
   const [selectedMcIndex, setSelectedMcIndex] = useState<number>(0);
   const [showEditMode, setShowEditMode] = useState(false);
   const [conditionalOrders, setConditionalOrders] = useState<any[]>([]);
-  const [hotkeyMode, setHotkeyMode] = useState(false); // When true, command line not focused, hotkeys work globally
-  const [quickLimitAmount, setQuickLimitAmount] = useState<number>(100); // Preset amount for CMD+F and SHIFT+F shortcuts
+  const [hotkeyMode, setHotkeyMode] = useState(false);
+  const [quickLimitAmount, setQuickLimitAmount] = useState<number>(100);
+  const [superBowlMode, setSuperBowlMode] = useState(false);
+  const [showSuperBowlPopup, setShowSuperBowlPopup] = useState(() => {
+    // Show popup on first visit (once per session)
+    return !sessionStorage.getItem('sb_popup_dismissed');
+  });
   const {
     panels,
     saveLayout,
@@ -1380,18 +1387,56 @@ function TerminalMain({
     return null;
   }, [commandInput, activeMarket, autoExecute, mcOptions, selectedMcIndex, liquidity]);
   const priceImpact = getPriceImpactPreview();
-  return <div className="min-h-screen bg-[#0a0a0f] text-gray-100 p-4 pb-16 font-mono overflow-y-auto">
+  return <div className={`min-h-screen text-gray-100 p-4 pb-16 font-mono overflow-y-auto ${superBowlMode ? 'bg-[#0a1a0a]' : 'bg-[#0a0a0f]'}`}>
+      {/* Super Bowl Popup */}
+      <SuperBowlPopup
+        open={showSuperBowlPopup}
+        onClose={() => {
+          setShowSuperBowlPopup(false);
+          sessionStorage.setItem('sb_popup_dismissed', '1');
+        }}
+        onEnterSuperBowl={() => {
+          setSuperBowlMode(true);
+          setShowSuperBowlPopup(false);
+          sessionStorage.setItem('sb_popup_dismissed', '1');
+        }}
+      />
+
       <div className="max-w-[1800px] mx-auto space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+        <div className={`flex items-center justify-between pb-4 ${superBowlMode ? 'border-b border-green-800' : 'border-b border-gray-800'}`}>
           <div className="flex items-center gap-3">
-            <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
-            <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
+            {superBowlMode ? (
+              <>
+                <span className="text-2xl">🏈</span>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-300 bg-clip-text text-transparent">Super Bowl Terminal</h1>
+              </>
+            ) : (
+              <>
+                <span className="text-emerald-500 font-mono text-xl">{">_"}</span>
+                <h1 className="text-xl font-bold text-emerald-400">ManiFed Terminal</h1>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-4">
+            {/* Super Bowl Toggle */}
+            <Button
+              variant={superBowlMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                if (superBowlMode) {
+                  setSuperBowlMode(false);
+                } else {
+                  setShowSuperBowlPopup(true);
+                }
+              }}
+              className={`gap-2 ${superBowlMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'border-gray-700'}`}
+            >
+              🏈 {superBowlMode ? "Exit SB Mode" : "Super Bowl"}
+            </Button>
+
             {/* Layout Presets */}
             
-            {/* Trade History Export */}
             {apiKey && <TradeHistoryExport apiKey={apiKey} />}
             <Button variant={hotkeyMode ? "default" : "outline"} size="sm" onClick={() => {
             setHotkeyMode(!hotkeyMode);
@@ -1446,7 +1491,11 @@ function TerminalMain({
           </Card>}
 
         <ResizableTerminalLayout leftSidebar={<>
-              <TerminalTrending onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} />
+              {superBowlMode ? (
+                <SuperBowlTrending onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} />
+              ) : (
+                <TerminalTrending onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} />
+              )}
               <HotkeyDisplayPanel hotkeys={hotkeys} onUpdateHotkey={updateHotkey} />
               <TerminalWatchlist onSelectMarket={selectMarket} activeMarketId={activeMarket?.id} currentMarket={activeMarket} />
             </>} mainContent={<>
