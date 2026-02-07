@@ -1586,8 +1586,8 @@ function TerminalMain({
                   <div className="text-gray-500">Search and select a market to start trading</div>
                 </Card>}
 
-              {/* Polymarket-style Chart - Central display */}
-              {activeMarket && <PolymarketChart marketId={activeMarket.id} currentProbability={mcOptions.length > 0 && mcOptions[selectedMcIndex - 1] ? mcOptions[selectedMcIndex - 1].probability : activeMarket.probability} showChart={mcOptions.length === 0 || selectedMcIndex > 0} />}
+              {/* Polymarket-style Chart - Only show for binary markets, not MC */}
+              {activeMarket && mcOptions.length === 0 && <PolymarketChart marketId={activeMarket.id} currentProbability={activeMarket.probability} showChart={true} />}
 
               {/* Command Bar */}
               <div className="relative">
