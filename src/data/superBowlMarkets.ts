@@ -18,67 +18,62 @@ export interface SuperBowlMarket {
 
 export const SUPER_BOWL_MARKETS: SuperBowlMarket[] = [
   // ====== GAME OUTCOME ======
-  {
-    id: "will-the-chiefs-win-super-bowl-lix",
-    question: "Will the Chiefs win Super Bowl LIX?",
-    url: "https://manifold.markets/super-bowl-chiefs",
+ 
+ {
+    id: "will-afc-team-beat-the-nfc-team-sup",
+    question: "Patriots vs. Seahawks",
+    url: " https://manifold.markets/10thOfficial/will-afc-team-beat-the-nfc-team-sup",
     category: "game",
   },
   {
-    id: "will-the-eagles-win-super-bowl-lix",
-    question: "Will the Eagles win Super Bowl LIX?",
-    url: "https://manifold.markets/super-bowl-eagles",
+    id: "who-will-win-the-2026-nfl-super-bow",
+    question: "Who will win the 2026 NFL Super Bowl?",
+    url: "https://manifold.markets/KevinBurke/who-will-win-the-2026-nfl-super-bow",
     category: "game",
   },
   {
-    id: "super-bowl-lix-over-495",
-    question: "Will Super Bowl LIX go over 49.5 points?",
-    url: "https://manifold.markets/super-bowl-over-under",
+    id: "which-nfl-team-will-win-super-bowl-b2f88d236e80",
+    question: "Which NFL team will win Super Bowl LX",
+    url: "https://manifold.markets/strutheo/which-nfl-team-will-win-super-bowl-b2f88d236e80",
     category: "game",
   },
   // ====== PROPS ======
   {
-    id: "super-bowl-mvp-quarterback",
-    question: "Will a QB win Super Bowl MVP?",
-    url: "https://manifold.markets/super-bowl-mvp-qb",
+    id: "who-will-win-super-bowl-lx-mvp",
+    question: "Who will win Super Bowl LX MVP?",
+    url: "https://manifold.markets/HundiGauksson/who-will-win-super-bowl-lx-mvp",
     category: "props",
   },
   {
-    id: "first-score-touchdown",
-    question: "Will the first score be a touchdown?",
-    url: "https://manifold.markets/super-bowl-first-score",
+    id: "super-bowl-lx-prop-bets-live",
+    question: "Super Bowl LX Props",
+    url: "https://manifold.markets/10thOfficial/super-bowl-lx-prop-bets-live",
     category: "props",
   },
   {
-    id: "super-bowl-overtime",
-    question: "Will Super Bowl LIX go to overtime?",
-    url: "https://manifold.markets/super-bowl-overtime",
+    id: "will-there-be-a-punt-returned-for-a",
+    question: "Will a punt be returned for a touchdown in SBLX?",
+    url: "https://manifold.markets/herzog/will-there-be-a-punt-returned-for-a",
     category: "props",
   },
   // ====== HALFTIME ======
   {
-    id: "halftime-show-guest-appearance",
-    question: "Will there be a surprise guest at halftime?",
-    url: "https://manifold.markets/super-bowl-halftime-guest",
+    id: "who-will-make-an-appearance-at-the",
+    question: "Who will appear in the Halftime Show?",
+    url: "https://manifold.markets/10thOfficial/who-will-make-an-appearance-at-the",
     category: "halftime",
   },
   // ====== CULTURE ======
   {
-    id: "super-bowl-national-anthem-over-2min",
-    question: "Will the National Anthem be over 2 minutes?",
-    url: "https://manifold.markets/super-bowl-anthem",
+    id: "which-companies-will-run-ads-during",
+    question: "Which companies will run adds during Super Bowl LX?",
+    url: "https://manifold.markets/Bayesian/which-companies-will-run-ads-during",
     category: "culture",
   },
   {
-    id: "super-bowl-coin-toss-heads",
-    question: "Will the coin toss be heads?",
-    url: "https://manifold.markets/super-bowl-coin-toss",
-    category: "culture",
-  },
-  {
-    id: "super-bowl-viewership-record",
-    question: "Will Super Bowl LIX break the viewership record?",
-    url: "https://manifold.markets/super-bowl-viewership",
+    id: "what-color-will-the-gatorade-shower-scnquhQ5CZ",
+    question: "What color will the Gatorade Shower be??",
+    url: "https://manifold.markets/10thOfficial/what-color-will-the-gatorade-shower-scnquhQ5CZ",
     category: "culture",
   },
 ];
@@ -88,13 +83,13 @@ export const SUPER_BOWL_THEME = {
   subtitle: "Championship Sunday",
   emoji: "🏈",
   colors: {
-    primary: "#16a34a",    // Football field green
-    secondary: "#854d0e",  // Football brown/leather
-    accent: "#eab308",     // Gold/yellow for championship
-    bg: "#0a1a0a",         // Dark green-tinted background
-    headerBg: "#14532d",   // Deep green header
-    cardBg: "#0f1f0f",     // Dark green card bg
-    border: "#166534",     // Green border
-    text: "#d9f99d",       // Light lime text
+    primary:   "#1f7a3a", // Rich natural turf green
+    secondary: "#8b4a2b", // Realistic football leather brown
+    accent:    "#f5c542", // Clean championship gold
+    bg:        "#0b1f14", // Very dark green background with depth
+    headerBg:  "#143d26", // Deep stadium green
+    cardBg:    "#102a1d", // Dark card surface with separation
+    border:    "#2e6b45", // Muted green border that does not glow
+    text:      "#e6f4ea", // Soft off white for readability
   },
 };
