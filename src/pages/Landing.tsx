@@ -2,157 +2,313 @@ import { useRef, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  TrendingUp,
+  FileText,
+  Shield,
+  ArrowRight,
+  Sparkles,
+  Landmark,
+  ChevronDown,
+  MoreHorizontal,
+  Info,
+} from "lucide-react";
 import manifedLogo from "@/assets/manifed-logo-new.png";
+import { PenguinAnimation } from "@/components/PenguinAnimation";
 
-// Football field animated background
-function FootballFieldBackground() {
+// 3D Graph Animation with Axes and Camera Panning
+function RisingChartBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
     resize();
     window.addEventListener("resize", resize);
-
     let animationFrame: number;
     let time = 0;
 
+    // Generate smooth chart data points
+    const generateChartData = (offset: number): number[] => {
+      const points: number[] = [];
+      for (let i = 0; i < 200; i++) {
+        // Upward trending line with some variation
+        const trend = i * 2.5;
+        const wave = Math.sin(i * 0.05 + offset) * 20;
+        const noise = Math.sin(i * 0.2 + offset * 2) * 10;
+        points.push(trend + wave + noise);
+      }
+      return points;
+    };
     const draw = () => {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2 + 200;
 
-      // Dark green field gradient
-      const bg = ctx.createLinearGradient(0, 0, 0, h);
-      bg.addColorStop(0, "#0a1a0a");
-      bg.addColorStop(0.5, "#0d2810");
-      bg.addColorStop(1, "#061206");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
+      // Camera rotation for 3D effect
+      const cameraAngleX = Math.sin(time * 0.3) * 0.1 + 0.2;
+      const cameraAngleY = Math.cos(time * 0.2) * 0.15;
 
-      // Yard lines (horizontal)
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-      ctx.lineWidth = 2;
-      const yardSpacing = h / 12;
-      for (let i = 1; i < 12; i++) {
-        const y = i * yardSpacing;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
+      // Dynamic scale based on screen size for full coverage
+      const baseScale = Math.max(canvas.width, canvas.height) / 800;
 
-      // Hash marks on the sides
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      // 3D projection helper
+      const project3D = (x: number, y: number, z: number) => {
+        const scale = baseScale;
+        const px = x * Math.cos(cameraAngleY) - z * Math.sin(cameraAngleY);
+        const pz = x * Math.sin(cameraAngleY) + z * Math.cos(cameraAngleY);
+        const py = y * Math.cos(cameraAngleX) - pz * Math.sin(cameraAngleX);
+        return {
+          x: centerX + px * scale,
+          y: centerY - py * scale + 50,
+        };
+      };
+
+      // Draw grid floor
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.08)";
       ctx.lineWidth = 1;
-      for (let i = 1; i < 12; i++) {
-        const y = i * yardSpacing;
-        // Left hash
+      const gridSize = 400;
+      const gridStep = 40;
+      for (let i = -gridSize; i <= gridSize; i += gridStep) {
+        // X lines
+        const p1 = project3D(i, 0, -gridSize);
+        const p2 = project3D(i, 0, gridSize);
         ctx.beginPath();
-        ctx.moveTo(w * 0.3, y - 8);
-        ctx.lineTo(w * 0.3, y + 8);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
-        // Right hash
+
+        // Z lines
+        const p3 = project3D(-gridSize, 0, i);
+        const p4 = project3D(gridSize, 0, i);
         ctx.beginPath();
-        ctx.moveTo(w * 0.7, y - 8);
-        ctx.lineTo(w * 0.7, y + 8);
+        ctx.moveTo(p3.x, p3.y);
+        ctx.lineTo(p4.x, p4.y);
         ctx.stroke();
       }
 
-      // End zone highlight at top
-      const endZone = ctx.createLinearGradient(0, 0, 0, h * 0.08);
-      endZone.addColorStop(0, "rgba(218, 165, 32, 0.08)");
-      endZone.addColorStop(1, "transparent");
-      ctx.fillStyle = endZone;
-      ctx.fillRect(0, 0, w, h * 0.08);
+      // Draw axes
+      ctx.lineWidth = 2;
 
-      // Floating football particles
-      for (let i = 0; i < 8; i++) {
-        const angle = time * 0.3 + i * (Math.PI * 2 / 8);
-        const x = w * 0.5 + Math.cos(angle) * (w * 0.35) + Math.sin(time + i) * 30;
-        const y = h * 0.4 + Math.sin(angle) * (h * 0.25) + Math.cos(time * 0.7 + i) * 20;
-        const alpha = 0.15 + Math.sin(time + i * 0.5) * 0.08;
+      // X axis (horizontal)
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.3)";
+      const xAxisStart = project3D(-gridSize, 0, 0);
+      const xAxisEnd = project3D(gridSize, 0, 0);
+      ctx.beginPath();
+      ctx.moveTo(xAxisStart.x, xAxisStart.y);
+      ctx.lineTo(xAxisEnd.x, xAxisEnd.y);
+      ctx.stroke();
 
-        // Football shape (elongated ellipse)
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle + time * 0.2);
-        ctx.fillStyle = `rgba(139, 90, 43, ${alpha})`;
+      // Y axis (vertical - price)
+      ctx.strokeStyle = "rgba(34, 197, 94, 0.4)";
+      const yAxisStart = project3D(0, 0, 0);
+      const yAxisEnd = project3D(0, 400, 0);
+      ctx.beginPath();
+      ctx.moveTo(yAxisStart.x, yAxisStart.y);
+      ctx.lineTo(yAxisEnd.x, yAxisEnd.y);
+      ctx.stroke();
+
+      // Z axis (depth)
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.2)";
+      const zAxisStart = project3D(0, 0, -gridSize);
+      const zAxisEnd = project3D(0, 0, gridSize);
+      ctx.beginPath();
+      ctx.moveTo(zAxisStart.x, zAxisStart.y);
+      ctx.lineTo(zAxisEnd.x, zAxisEnd.y);
+      ctx.stroke();
+
+      // Draw the main rising line
+      const chartData = generateChartData(time);
+      const scrollOffset = time * 50;
+
+      // Main line with glow
+      ctx.strokeStyle = "rgba(34, 197, 94, 0.6)";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "rgba(34, 197, 94, 0.5)";
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      let first = true;
+      for (let i = 0; i < chartData.length; i++) {
+        const x = (i - 100) * 4 - (scrollOffset % 800);
+        const y = chartData[i];
+        const z = 0;
+        if (x < -gridSize || x > gridSize) continue;
+        const p = project3D(x, y, z);
+        if (first) {
+          ctx.moveTo(p.x, p.y);
+          first = false;
+        } else {
+          ctx.lineTo(p.x, p.y);
+        }
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw candlestick markers at intervals
+      for (let i = 0; i < chartData.length; i += 15) {
+        const x = (i - 100) * 4 - (scrollOffset % 800);
+        if (x < -gridSize || x > gridSize) continue;
+        const y = chartData[i];
+        const p = project3D(x, y, 0);
+
+        // Draw marker dot
+        ctx.fillStyle = "rgba(34, 197, 94, 0.8)";
         ctx.beginPath();
-        ctx.ellipse(0, 0, 12, 7, 0, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
         ctx.fill();
 
-        // Laces
-        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
+        // Draw vertical line to base
+        const base = project3D(x, 0, 0);
+        ctx.strokeStyle = "rgba(34, 197, 94, 0.15)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-4, 0);
-        ctx.lineTo(4, 0);
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(base.x, base.y);
         ctx.stroke();
-        for (let j = -3; j <= 3; j += 2) {
-          ctx.beginPath();
-          ctx.moveTo(j, -2);
-          ctx.lineTo(j, 2);
-          ctx.stroke();
-        }
-        ctx.restore();
       }
 
-      // Glow effect at center
-      const glow = ctx.createRadialGradient(w / 2, h * 0.45, 0, w / 2, h * 0.45, w * 0.4);
-      glow.addColorStop(0, "rgba(218, 165, 32, 0.04)");
-      glow.addColorStop(0.5, "rgba(34, 139, 34, 0.02)");
-      glow.addColorStop(1, "transparent");
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, w, h);
-
-      time += 0.01;
+      // Floating particles
+      for (let i = 0; i < 15; i++) {
+        const angle = time * 0.5 + i * ((Math.PI * 2) / 15);
+        const radius = 200 + Math.sin(time + i) * 50;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const y = 200 + Math.sin(time * 2 + i) * 100;
+        const p = project3D(x, y, z);
+        const size = 2 + Math.sin(time + i) * 1;
+        ctx.fillStyle = `rgba(59, 130, 246, ${0.2 + Math.sin(time + i) * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      time += 0.008;
       animationFrame = requestAnimationFrame(draw);
     };
-
     draw();
     return () => {
       cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
     };
   }, []);
-
   return (
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none z-0"
+      style={{
+        opacity: 0.85,
+      }}
     />
   );
 }
 
+// Bouncing Logo Component
+function BouncingLogo() {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <Link
+      to="/"
+      className="flex items-center gap-3"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <img
+        src={manifedLogo}
+        alt="ManiFed"
+        width={112}
+        height={112}
+        className={`h-28 transition-transform duration-300 ${isHovered ? "animate-bounce-subtle" : ""}`}
+      />
+    </Link>
+  );
+}
 export default function Landing() {
+  const [scrollY, setScrollY] = useState(0);
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+  const products = [
+    {
+      title: "Loans",
+      description: "Treasury Bonds with 6% APY and peer-to-peer lending marketplace.",
+      icon: FileText,
+      link: "/loans",
+      free: true,
+    },
+    {
+      title: "NAVLOC",
+      description: "Net Account Value Line of Credit. Instant credit access based on your creditworthiness.",
+      icon: Landmark,
+      link: "/navloc",
+      free: true,
+    },
+    {
+      title: "Terminal",
+      description: "Fast keyboard-driven trading interface with hotkeys and command syntax.",
+      icon: Sparkles,
+      link: "/terminal",
+      free: false,
+    },
+    {
+      title: "Client",
+      description: "Experimental beta tools: Index Funds, Arbitrage Scanner, Advanced Orders.",
+      icon: Shield,
+      link: "/client",
+      free: false,
+      beta: true,
+    },
+  ];
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <FootballFieldBackground />
+      <RisingChartBackground />
 
-      {/* Floating Glass Header */}
+      {/* Floating Glass Island Navigation Bar */}
       <header className="sticky top-4 z-50 mx-4 md:mx-8">
-        <div className="max-w-4xl mx-auto bg-[#0d1f0d]/60 backdrop-blur-xl border border-[#2a5a2a]/40 rounded-2xl shadow-lg shadow-black/20">
-          <div className="flex items-center justify-between py-3 px-6">
-            <Link to="/" className="flex items-center gap-3">
-              <img src={manifedLogo} alt="ManiFed" className="h-10" />
-              <span className="font-display text-xl font-bold text-[#daa520]">ManiFed</span>
-            </Link>
+        <div className="max-w-6xl mx-auto bg-background/40 backdrop-blur-xl border border-border/50 rounded-2xl shadow-lg shadow-black/5">
+          <div className="flex items-center justify-between py-2 px-6">
+            <BouncingLogo />
+
+            {/* Main Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              <Link to="/auth?redirect=/loans">
+                <Button variant="ghost" size="sm" className="font-serif">
+                  Loans
+                </Button>
+              </Link>
+              <Link to="/auth?redirect=/navloc">
+                <Button variant="ghost" size="sm" className="font-serif">
+                  NAVLOC
+                </Button>
+              </Link>
+              <Link to="/auth?redirect=/terminal">
+                <Button variant="ghost" size="sm" className="font-serif">
+                  Terminal
+                </Button>
+              </Link>
+              <Link to="/docs">
+                <Button variant="ghost" size="sm" className="font-serif">
+                  Docs
+                </Button>
+              </Link>
+            </nav>
+
+            {/* Auth Buttons */}
             <div className="flex items-center gap-2">
               <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-[#8fbc8f] hover:text-white font-serif">
+                <Button variant="ghost" size="sm" className="font-serif">
                   Sign In
                 </Button>
               </Link>
               <Link to="/auth?mode=signup">
-                <Button size="sm" className="bg-[#daa520] text-[#0a1a0a] hover:bg-[#c4941d] font-serif font-bold">
+                <Button size="sm" className="font-serif bg-foreground text-background hover:bg-foreground/90">
                   Get Started
                 </Button>
               </Link>
@@ -161,99 +317,205 @@ export default function Landing() {
         </div>
       </header>
 
+      {/* Mobile Navigation */}
+      <div className="md:hidden sticky top-20 z-40 mx-4 mt-2">
+        <div className="bg-background/60 backdrop-blur-xl border border-border/50 rounded-xl px-4 py-2 overflow-x-auto">
+          <div className="flex gap-2">
+            <Link to="/auth?redirect=/loans">
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Loans
+              </Button>
+            </Link>
+            <Link to="/auth?redirect=/navloc">
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                NAVLOC
+              </Button>
+            </Link>
+            <Link to="/auth?redirect=/terminal">
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Terminal
+              </Button>
+            </Link>
+            <Link to="/docs">
+              <Button variant="outline" size="sm" className="font-serif whitespace-nowrap">
+                Docs
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
       <main className="relative z-10">
-        {/* Hero */}
-        <section className="container mx-auto px-4 py-20 md:py-32 text-center">
-          <div className="max-w-3xl mx-auto animate-slide-up">
-            <div className="mb-6">
-              <span className="text-5xl md:text-7xl">🏈</span>
-            </div>
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold italic leading-tight mb-6">
-              <span className="text-[#daa520]">Super Bowl</span>{" "}
-              <span className="text-white">Trading</span>{" "}
-              <span className="text-[#228b22]">Terminal</span>
+        {/* Hero Section with Parallax */}
+        <section
+          className="container mx-auto px-4 py-24 md:py-32 text-center relative"
+          style={{
+            transform: `translateY(${scrollY * 0.1}px)`,
+          }}
+        >
+          <div className="animate-slide-up max-w-4xl mx-auto">
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold italic text-foreground mb-8 leading-tight">
+              The <span className="text-amber-400">Golden</span> Age of Manifold is Here
             </h1>
-            <p className="font-serif text-xl md:text-2xl text-[#8fbc8f] max-w-2xl mx-auto mb-10">
-              Trade Super Bowl prediction markets with lightning-fast keyboard shortcuts.
-              The game is on — are you ready to play?
+            <p className="font-serif text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12">
+              Manifold's decentralized financial institution. Treasury bonds, peer-to-peer lending, and premium fintech
+              tools for the prediction market ecosystem.
             </p>
             <div className="flex justify-center gap-4 flex-wrap">
-              <Link to="/auth?redirect=/terminal">
+              <Link to="/auth?mode=signup">
                 <Button
                   size="lg"
-                  className="font-serif text-lg px-12 py-7 bg-[#daa520] text-[#0a1a0a] hover:bg-[#c4941d] font-bold shadow-lg shadow-[#daa520]/20 transition-all hover:scale-105"
+                  className="font-serif text-lg px-10 py-6 bg-foreground text-background hover:bg-foreground/90"
                 >
-                  Enter the Terminal 🏈
+                  Get Started <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </div>
+
+            {/* Penguin Animation */}
+            <div className="mt-12 flex justify-center"></div>
           </div>
         </section>
 
-        {/* Feature Cards */}
-        <section className="container mx-auto px-4 py-12">
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {[
-              {
-                emoji: "⚡",
-                title: "Instant Execution",
-                description: "Keyboard-driven trading with hotkeys. Execute orders in milliseconds.",
-              },
-              {
-                emoji: "📊",
-                title: "Live Charts",
-                description: "Real-time probability charts with multiple time frames for binary markets.",
-              },
-              {
-                emoji: "🏟️",
-                title: "Super Bowl Mode",
-                description: "Curated Super Bowl markets with live odds. Football-themed trading experience.",
-              },
-            ].map((feature, i) => (
+        {/* Products Grid */}
+        <section
+          className="container mx-auto px-4 py-16"
+          style={{
+            transform: `translateY(${scrollY * 0.05}px)`,
+          }}
+        >
+          <div className="text-center mb-12 animate-slide-up">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Our Products</h2>
+            <p className="font-serif text-muted-foreground max-w-xl mx-auto">
+              Financial instruments designed for the prediction market ecosystem
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {products.map((product, index) => (
               <Card
-                key={feature.title}
-                className="bg-[#0d1f0d]/60 backdrop-blur-sm border-[#2a5a2a]/40 hover:border-[#daa520]/40 transition-all hover:-translate-y-1 animate-slide-up"
-                style={{ animationDelay: `${i * 100}ms` }}
+                key={product.title}
+                className={`glass animate-slide-up hover:-translate-y-1 transition-all ${
+                  product.beta 
+                    ? "border-destructive/30 hover:border-destructive/50 bg-destructive/5" 
+                    : "border-border/50 hover:border-accent/50"
+                }`}
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                }}
               >
-                <CardContent className="p-6 text-center">
-                  <span className="text-4xl mb-4 block">{feature.emoji}</span>
-                  <h3 className="font-display text-lg font-bold text-[#daa520] mb-2">{feature.title}</h3>
-                  <p className="font-serif text-sm text-[#8fbc8f]">{feature.description}</p>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      product.beta ? "bg-destructive/10" : "bg-secondary"
+                    }`}>
+                      <product.icon className={`w-6 h-6 ${product.beta ? "text-destructive" : "text-foreground"}`} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-display text-lg font-bold text-foreground">{product.title}</h3>
+                      <div className="flex gap-1 mt-0.5">
+                        {product.free === true && (
+                          <Badge variant="outline" className="text-xs">
+                            Free
+                          </Badge>
+                        )}
+                        {product.beta && (
+                          <Badge variant="destructive" className="text-xs">
+                            Beta
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="font-serif text-sm text-muted-foreground mb-4">{product.description}</p>
+                  <Link to={product.link}>
+                    <Button 
+                      variant={product.beta ? "destructive" : "outline"} 
+                      className={`w-full font-serif gap-2 ${product.beta ? "bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30" : ""}`} 
+                      size="sm"
+                    >
+                      {product.beta ? "Access (Unstable)" : "Access"} <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             ))}
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="container mx-auto px-4 py-16 text-center">
-          <Card className="bg-[#0d1f0d]/60 backdrop-blur-sm border-[#2a5a2a]/40 max-w-2xl mx-auto animate-slide-up">
-            <CardContent className="p-8">
-              <h2 className="font-display text-3xl font-bold text-white mb-3">Ready to Trade?</h2>
-              <p className="font-serif text-[#8fbc8f] mb-6">
-                Sign up and start trading Super Bowl markets on ManiFed Terminal.
-              </p>
-              <Link to="/auth?mode=signup&redirect=/terminal">
-                <Button
-                  size="lg"
-                  className="bg-[#228b22] text-white hover:bg-[#1e7a1e] font-serif font-bold px-10 py-6 text-lg"
-                >
-                  Create Account
-                </Button>
-              </Link>
+        {/* Disclaimer */}
+        <section className="container mx-auto px-4 py-8">
+          <Card className="glass border-warning/30 animate-slide-up max-w-4xl mx-auto">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-warning/10 shrink-0">
+                  <Shield className="w-6 h-6 text-warning" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-display font-semibold text-foreground">Important Disclaimer</h3>
+                  <p className="font-serif text-sm text-muted-foreground">
+                    ManiFed is an experimental platform built for Manifold Markets. All transactions are conducted in
+                    Manifold Markets' virtual currency (mana) and have no real-world monetary value. Loans are
+                    <strong className="text-foreground"> not legally enforceable</strong> and depend entirely on the
+                    borrower's reputation and goodwill to repay.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Contact Section */}
+        <section className="container mx-auto px-4 py-8">
+          <Card className="glass animate-slide-up max-w-4xl mx-auto">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <h3 className="font-display font-semibold text-foreground mb-2">Questions or Need Help?</h3>
+                <p className="font-serif text-sm text-muted-foreground mb-4">Contact the POTUS and Fed Chair at:</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <a
+                    href="https://manifold.markets/ManiFed"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                  >
+                    <Landmark className="w-4 h-4" />
+                    @ManiFed on Manifold
+                  </a>
+                  <span className="hidden sm:inline text-muted-foreground">•</span>
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-accent hover:underline font-serif"
+                    href="https://discord.com/users/1443255374089289840"
+                  >
+                    Discord: @manifed
+                  </a>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-[#2a5a2a]/30 mt-8">
-          <div className="container mx-auto px-4 py-6">
+        <footer className="border-t border-border mt-16">
+          <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img src={manifedLogo} alt="ManiFed" className="h-6" />
-                <span className="font-display font-semibold text-[#daa520]">ManiFed</span>
+                <img src={manifedLogo} alt="ManiFed" width={32} height={32} className="h-8" />
+                <span className="font-display font-semibold text-foreground">ManiFed</span>
               </div>
-              <p className="text-sm text-[#5a7a5a]">© 2025 ManiFed. All rights reserved.</p>
+              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                <Link to="/terms" className="hover:text-foreground transition-colors">
+                  Terms
+                </Link>
+                <Link to="/privacy" className="hover:text-foreground transition-colors">
+                  Privacy
+                </Link>
+                <Link to="/about" className="hover:text-foreground transition-colors">
+                  About
+                </Link>
+              </div>
+              <p className="text-sm text-muted-foreground">© 2025 ManiFed. All rights reserved.</p>
             </div>
           </div>
         </footer>
